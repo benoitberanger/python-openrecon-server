@@ -1,0 +1,9 @@
+MRD_MESSAGE_INT_ID_MIN                             =    0 # CONTROL
+MRD_MESSAGE_CONFIG_FILE                            =    1
+MRD_MESSAGE_CONFIG_TEXT                            =    2
+MRD_MESSAGE_METADATA_XML_TEXT                      =    3
+MRD_MESSAGE_CLOSE                                  =    4
+MRD_MESSAGE_TEXT                                   =    5
+MRD_MESSAGE_ISMRMRD_ACQUISITION                    = 1008
+MRD_MESSAGE_ISMRMRD_IMAGE                          = 1022
+MRD_MESSAGE_ISMRMRD_WAVEFORM                       = 1026
