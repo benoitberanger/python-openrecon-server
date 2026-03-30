@@ -1,22 +1,24 @@
 #!/usr/bin/python3
 
-from connection import Connection
-import constants
+from server.connection import Connection
+import server.constants as constants
 
 import logging
 import socket
 import signal
 import json
+import importlib
 import ismrmrd
 import traceback
 
 class Server:
     """Server class"""
 
-    def _init__(self, port: int, address: str, config: str) -> None:
+    def __init__(self, port: int, address: str, config: str, savedata: bool) -> None:
         logging.info(f"Starting the server and listening for data at {address}, {port}")
 
         self.config = config
+        self.savedata = savedata
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.socket.bind((address, port))
@@ -42,6 +44,7 @@ class Server:
 
             self.handle(sock)
 
+
     def handle_metadata(self, connection: Connection) -> str | None:
         """Handle the reception of metadata"""
         metadata_xml = next(connection)
@@ -62,11 +65,46 @@ class Server:
 
         return metadata
 
+
+    def handleJSON(self, connection: Connection, config: str) -> str:
+        """Handle additional config parameters passed through a JSON text message """
+        if connection.peek_mrd_message_identifier() == constants.MRD_MESSAGE_TEXT:
+            configAdditionalText = next(connection)
+            logging.info("Received additional config text: %s", configAdditionalText)
+            connection.save_additional_config(configAdditionalText)
+            try:
+                configAdditional = json.loads(configAdditionalText)
+
+                if ('parameters' in configAdditional):
+                    if ('config' in configAdditional['parameters']):
+                        logging.info("Changing config to: %s", configAdditional['parameters']['config'])
+                        config = configAdditional['parameters']['config']
+
+                    if ('customconfig' in configAdditional['parameters']) and (configAdditional['parameters']['customconfig'] != ""):
+                        logging.info("Changing config to: %s", configAdditional['parameters']['customconfig'])
+                        config = configAdditional['parameters']['customconfig']
+            except:
+                logging.error("Failed to parse as JSON")
+        else:
+            configAdditional = config
+        
+        return configAdditional
+            
+
     def process(self, connection: Connection, config: str, metadata:str) -> None:
         """
         Decide what program to use based on config
         If not one of these explicit cases, try to load file matching name of config
         """
+        #########################################################
+        #TO-DO: Moved the import
+        try:
+            module = importlib.import_module("app."+self.config)
+            logging.info(f"Starting config {self.config}")
+        except ImportError as e:
+                    logging.error("Failed to load config '%s' with error:\n  %s", self.config, e)
+        #########################################################
+
         # Metadata should be MRD formatted header, but may be a string
         # if it failed conversion earlier
         try:
@@ -88,56 +126,60 @@ class Server:
         imgGroup = []
         try:
             for item in connection:
-                # ----------------------------------------------------------
-                # Raw k-space data messages
-                # ----------------------------------------------------------
-                if isinstance(item, ismrmrd.Acquisition):
-                    raise Exception("Raw k-space data is not supported by this module")
+                if isinstance(item, ismrmrd.Image):
+                    connection.send_image(item)
+                else :
+                    print(f"type: {item.__class__}")
+            #     # ----------------------------------------------------------
+            #     # Raw k-space data messages
+            #     # ----------------------------------------------------------
+            #     if isinstance(item, ismrmrd.Acquisition):
+            #         raise Exception("Raw k-space data is not supported by this module")
 
-                # ----------------------------------------------------------
-                # Image data messages
-                # ----------------------------------------------------------
-                elif isinstance(item, ismrmrd.Image):
-                    # When this criteria is met, run process_group() on the accumulated
-                    # data, which returns images that are sent back to the client.
-                    # e.g. when the series number changes:
-                    if item.image_series_index != currentSeries:
-                        logging.info("Processing a group of images because series index changed to %d", item.image_series_index)
-                        currentSeries = item.image_series_index
-                        image = process_image(imgGroup, connection, config, metadata)
-                        connection.send_image(image)
-                        imgGroup = []
+            #     # ----------------------------------------------------------
+            #     # Image data messages
+            #     # ----------------------------------------------------------
+            #     elif isinstance(item, ismrmrd.Image):
+            #         # When this criteria is met, run process_group() on the accumulated
+            #         # data, which returns images that are sent back to the client.
+            #         # e.g. when the series number changes:
+            #         if item.image_series_index != currentSeries:
+            #             logging.info("Processing a group of images because series index changed to %d", item.image_series_index)
+            #             currentSeries = item.image_series_index
+            #             image = module.process_image(imgGroup, connection, config, metadata)
+            #             connection.send_image(image)
+            #             imgGroup = []
 
-                    # Only process magnitude images -- send phase images back without modification (fallback for images with unknown type)
-                    if (item.image_type is ismrmrd.IMTYPE_MAGNITUDE) or (item.image_type == 0):
-                        imgGroup.append(item)
-                    else:
-                        tmpMeta = ismrmrd.Meta.deserialize(item.attribute_string)
-                        tmpMeta['Keep_image_geometry']    = 1
-                        item.attribute_string = tmpMeta.serialize()
+            #         # Only process magnitude images -- send phase images back without modification (fallback for images with unknown type)
+            #         if (item.image_type is ismrmrd.IMTYPE_MAGNITUDE) or (item.image_type == 0):
+            #             imgGroup.append(item)
+            #         else:
+            #             tmpMeta = ismrmrd.Meta.deserialize(item.attribute_string)
+            #             tmpMeta['Keep_image_geometry']    = 1
+            #             item.attribute_string = tmpMeta.serialize()
 
-                        connection.send_image(item)
-                        continue
+            #             connection.send_image(item)
+            #             continue
 
-                elif item is None:
-                    break
+            #     elif item is None:
+            #         break
 
-                else:
-                    raise Exception("Unsupported data type %s", type(item).__name__)
+            #     else:
+            #         raise Exception("Unsupported data type %s", type(item).__name__)
 
             # Process any remaining groups of image data.  This can 
             # happen if the trigger condition for these groups are not met.
             # This is also a fallback for handling image data, as the last
             # image in a series is typically not separately flagged.
-            if len(imgGroup) > 0:
-                logging.info("Processing a group of images (untriggered)")
-                image = process_image(imgGroup, connection, config, metadata)
-                connection.send_image(image)
-                imgGroup = []
+            # if len(imgGroup) > 0:
+            #     logging.info("Processing a group of images (untriggered)")
+            #     image = module.process_image(imgGroup, connection, config, metadata)
+            #     connection.send_image(image)
+            #     imgGroup = []
 
         except Exception as e:
             logging.error(traceback.format_exc())
-            connection.send_logging(constants.MRD_LOGGING_ERROR, traceback.format_exc())
+            connection.send_logging("ERROR", traceback.format_exc())
             
             # Close connection without sending MRD_MESSAGE_CLOSE message to signal failure
             connection.shutdown_close()
@@ -153,7 +195,7 @@ class Server:
         """Handle each connection on the server socket"""
 
         try:
-            connection = Connection(sock)
+            connection = Connection(sock, self.savedata)
 
             # First message is the config (file or text)
             config = next(connection)
@@ -168,31 +210,15 @@ class Server:
             if not metadata:
                 return
             
-            # Support additional config parameters passed through a JSON text message
-            if connection.peek_mrd_message_identifier() == constants.MRD_MESSAGE_TEXT:
-                configAdditionalText = next(connection)
-                logging.info("Received additional config text: %s", configAdditionalText)
-                connection.save_additional_config(configAdditionalText)
-                try:
-                    configAdditional = json.loads(configAdditionalText)
+            # Additional config parameters passed through a JSON text message
+            configAdditional = self.handleJSON(connection, config)
 
-                    if ('parameters' in configAdditional):
-                        if ('config' in configAdditional['parameters']):
-                            logging.info("Changing config to: %s", configAdditional['parameters']['config'])
-                            config = configAdditional['parameters']['config']
-
-                        if ('customconfig' in configAdditional['parameters']) and (configAdditional['parameters']['customconfig'] != ""):
-                            logging.info("Changing config to: %s", configAdditional['parameters']['customconfig'])
-                            config = configAdditional['parameters']['customconfig']
-                except:
-                    logging.error("Failed to parse as JSON")
-            else:
-                configAdditional = config
-
-            # Decide what program to use based on config
-            # If not one of these explicit cases, try to load file matching name of config
-            if (config == "null"):
-                logging.info("No processing based on config")
+            # If the config is openrecon load the app config
+            # Else do nothing with the data
+            if (config == "openrecon"):
+                self.process(connection, configAdditional, metadata)
+            else :
+                logging.info("No openrecon config requested")
                 try:
                     for msg in connection:
                         if msg is None:
@@ -200,13 +226,5 @@ class Server:
                 finally:
                     connection.send_close()
 
-            elif (config == "openrecon"):
-                self.process(connection, configAdditional, metadata)
-                
-
         except Exception as e:
             logging.exception(e)
-
-        
-
-

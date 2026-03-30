@@ -1,5 +1,7 @@
 #!/usr/bin/python3
 
+from server.connection import Connection
+
 import argparse
 import logging
 import datetime
@@ -8,7 +10,6 @@ import socket
 import sys
 import ismrmrd
 import multiprocessing
-from connection import Connection
 import time
 import os
 import json
