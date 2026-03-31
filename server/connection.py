@@ -326,9 +326,9 @@ class Connection:
                 if image is None:
                     continue
 
-            self.sentImages += 1
-            self.socket.send(constants.MrdMessageIdentifier.pack(constants.MRD_MESSAGE_ISMRMRD_IMAGE))
-            image.serialize_into(self.socket.send)
+                self.sentImages += 1
+                self.socket.send(constants.MrdMessageIdentifier.pack(constants.MRD_MESSAGE_ISMRMRD_IMAGE))
+                image.serialize_into(self.socket.send)
 
             # Explicit version of serialize_into() for more verbose debugging
             # self.socket.send(image.getHead())

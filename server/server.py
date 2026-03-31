@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 
+from utils.check_OR_arguments import check_OR_arguments
 from server.connection import Connection
 import server.constants as constants
 
@@ -14,10 +15,10 @@ import traceback
 class Server:
     """Server class"""
 
-    def __init__(self, port: int, address: str, config: str, savedata: bool) -> None:
+    def __init__(self, port: int, address: str, app_config: str, savedata: bool) -> None:
         logging.info(f"Starting the server and listening for data at {address}, {port}")
 
-        self.config = config
+        self.app_config = app_config
         self.savedata = savedata
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -90,6 +91,27 @@ class Server:
         
         return configAdditional
             
+############################## Images process always implemented ######################
+#TO-DO: Find where to place it in the code architecture
+
+    def copy_original_images(self, images: list) -> list:
+        """Return a copy of original images unprocessed if needed"""
+
+        images_copy = []
+
+        for image in images:
+            tmpImg = image
+
+            tmpImg.image_series_index = 99
+
+            # Ensure Keep_image_geometry is set to not reverse image orientation
+            tmpMeta = ismrmrd.Meta.deserialize(tmpImg.attribute_string)
+            tmpMeta['Keep_image_geometry'] = 1
+            tmpImg.attribute_string = tmpMeta.serialize()
+
+            images_copy.append(tmpImg)
+        
+        return images_copy
 
     def process(self, connection: Connection, config: str, metadata:str) -> None:
         """
@@ -99,8 +121,8 @@ class Server:
         #########################################################
         #TO-DO: Moved the import
         try:
-            module = importlib.import_module("app."+self.config)
-            logging.info(f"Starting config {self.config}")
+            module = importlib.import_module("app."+self.app_config)
+            logging.info(f"Starting config {self.app_config}")
         except ImportError as e:
                     logging.error("Failed to load config '%s' with error:\n  %s", self.config, e)
         #########################################################
@@ -124,58 +146,71 @@ class Server:
         # Continuously parse incoming data parsed from MRD messages
         currentSeries = 0
         imgGroup = []
+        copyGroup = []
         try:
             for item in connection:
-                if isinstance(item, ismrmrd.Image):
-                    connection.send_image(item)
-                else :
-                    print(f"type: {item.__class__}")
-            #     # ----------------------------------------------------------
-            #     # Raw k-space data messages
-            #     # ----------------------------------------------------------
-            #     if isinstance(item, ismrmrd.Acquisition):
-            #         raise Exception("Raw k-space data is not supported by this module")
+                # ----------------------------------------------------------
+                # Raw k-space data messages
+                # ----------------------------------------------------------
+                if isinstance(item, ismrmrd.Acquisition):
+                    raise Exception("Raw k-space data is not supported by this module")
 
-            #     # ----------------------------------------------------------
-            #     # Image data messages
-            #     # ----------------------------------------------------------
-            #     elif isinstance(item, ismrmrd.Image):
-            #         # When this criteria is met, run process_group() on the accumulated
-            #         # data, which returns images that are sent back to the client.
-            #         # e.g. when the series number changes:
-            #         if item.image_series_index != currentSeries:
-            #             logging.info("Processing a group of images because series index changed to %d", item.image_series_index)
-            #             currentSeries = item.image_series_index
-            #             image = module.process_image(imgGroup, connection, config, metadata)
-            #             connection.send_image(image)
-            #             imgGroup = []
+                # ----------------------------------------------------------
+                # Image data messages
+                # ----------------------------------------------------------
+                elif isinstance(item, ismrmrd.Image):
 
-            #         # Only process magnitude images -- send phase images back without modification (fallback for images with unknown type)
-            #         if (item.image_type is ismrmrd.IMTYPE_MAGNITUDE) or (item.image_type == 0):
-            #             imgGroup.append(item)
-            #         else:
-            #             tmpMeta = ismrmrd.Meta.deserialize(item.attribute_string)
-            #             tmpMeta['Keep_image_geometry']    = 1
-            #             item.attribute_string = tmpMeta.serialize()
+                    saveData = check_OR_arguments(config, "saveData", bool, True)
+                    if saveData:
+                        copyGroup.append(item)
+                    
+                    # When this criteria is met, run process_group() on the accumulated
+                    # data, which returns images that are sent back to the client.
+                    # e.g. when the series number changes:
+                    if item.image_series_index != currentSeries:
+                        logging.info("Processing a group of images because series index changed to %d", item.image_series_index)
+                        currentSeries = item.image_series_index
+                        image = module.process_image(imgGroup, connection, config, metadata)
+                        connection.send_image(image)
+                        imgGroup = []
 
-            #             connection.send_image(item)
-            #             continue
+                    # Only process magnitude images -- send phase images back without modification (fallback for images with unknown type)
+                    if (item.image_type is ismrmrd.IMTYPE_MAGNITUDE) or (item.image_type == 0):
+                        imgGroup.append(item)
+                    else:
+                        tmpMeta = ismrmrd.Meta.deserialize(item.attribute_string)
+                        tmpMeta['Keep_image_geometry']    = 1
+                        item.attribute_string = tmpMeta.serialize()
 
-            #     elif item is None:
-            #         break
+                        connection.send_image(item)
+                        continue
 
-            #     else:
-            #         raise Exception("Unsupported data type %s", type(item).__name__)
+                    # if (item.image_type is ismrmrd.IMTYPE_MAGNITUDE) or (item.image_type == 0):
+                    #     imgGroup[ismrmrd.IMTYPE_MAGNITUDE].append(item)
+                    # elif (item.image_type >= 2) and (item.image_type <= 5):
+                    #     imgGroup[item.imgGroup].append(item)
+
+
+                elif item is None:
+                    break
+
+                else:
+                    raise Exception("Unsupported data type %s", type(item).__name__)
 
             # Process any remaining groups of image data.  This can 
             # happen if the trigger condition for these groups are not met.
             # This is also a fallback for handling image data, as the last
             # image in a series is typically not separately flagged.
-            # if len(imgGroup) > 0:
-            #     logging.info("Processing a group of images (untriggered)")
-            #     image = module.process_image(imgGroup, connection, config, metadata)
-            #     connection.send_image(image)
-            #     imgGroup = []
+            if len(imgGroup) > 0:
+                logging.info("Processing a group of images (untriggered)")
+                images = module.process_image(imgGroup, connection, config, metadata)
+                connection.send_image(images)
+                imgGroup = []
+            
+            if (len(copyGroup) > 0) and saveData:
+                logging.info("Sending copies of original unmodified images")
+                copyGroup = self.copy_original_images(copyGroup)
+                connection.send_image(copyGroup)
 
         except Exception as e:
             logging.error(traceback.format_exc())
@@ -189,7 +224,7 @@ class Server:
                 connection.send_close()
             except:
                 logging.error("Failed to send close message!")
-
+#############################################################################################
 
     def handle(self, sock: int)-> None:
         """Handle each connection on the server socket"""
@@ -198,6 +233,7 @@ class Server:
             connection = Connection(sock, self.savedata)
 
             # First message is the config (file or text)
+            # With OpenRecon it supposed to be "openrecon"
             config = next(connection)
 
             if ((config is None) & (connection.open is False)):
