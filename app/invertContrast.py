@@ -15,7 +15,7 @@ import base64
 debugFolder = "/tmp/share/debug"
 
 
-def diagnostic_info(images: list, data: np.array, head: list, meta: list[ismrmrd.Meta]) -> None:
+def diagnostic_info(images: list, head: list, meta: list[ismrmrd.Meta]) -> None:
     """Display diagnostic info about the images in the log"""
 
     # Display MetaAttributes for first image
@@ -40,7 +40,7 @@ def diagnostic_info(images: list, data: np.array, head: list, meta: list[ismrmrd
     logging.info(f'MRD slice_dir        [x y z] : {slice_dir}')
 
 
-def process_image(images: list, connection: Connection, config: str, metadata: str):
+def process_image(images: list, config: str, metadata: str):
     """Invert contrast process image"""
 
     if (len(images) == 0):
@@ -61,6 +61,21 @@ def process_image(images: list, connection: Connection, config: str, metadata: s
     #   - check_OR_arguments(config, 'InvertContrast', bool, True)
     #   - conversion to numpy array
     #   - diagnostic of data
+
+    # Extract image data into a 5D array of size [img cha z y x]
+    data = np.stack([img.data                              for img in images])
+    logging.info(f'MRD supposed organization : [img cha z y x]')
+    logging.info(f'MRD data shape : {data.shape}')
+    head = [img.getHead()                                  for img in images]
+    meta = [ismrmrd.Meta.deserialize(img.attribute_string) for img in images]
+
+    #display diagnostic info in the log
+    diagnostic_info(images, head, meta)
+
+    imgfactory = ImageFactory(head, meta)
+
+    data_3d = imgfactory.MRD5Dto3D(data)
+
 
     images_out = images
 
