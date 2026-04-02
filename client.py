@@ -21,7 +21,7 @@ defaults = {
     'port':               9002,
     'outfile':            None,
     'out_group':          str(datetime.datetime.now()),
-    'config':             'invertcontrast',
+    'config':             'openrecon',
     'config_local':       '',
     'ignore_json_config': False,
     'verbose':            False,

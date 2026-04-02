@@ -9,7 +9,7 @@ from server.connection import Connection
 from server.pipeline.pipeline import Pipeline
 
 
-def image_stream(connection: Connection, configJSON: str, metadata:str, pipeline: Pipeline) -> None:
+def image_stream(connection: Connection, configJSON, metadata, pipeline: Pipeline) -> None:
         """
         Treat the images send by the server, send back the result
         """

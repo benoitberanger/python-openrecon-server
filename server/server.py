@@ -45,7 +45,7 @@ class Server:
             self.handle(sock)
 
 
-    def handle_metadata(self, connection: Connection) -> str | None:
+    def handle_metadata(self, connection: Connection) :
         """Handle the reception of metadata"""
         metadata_xml = next(connection)
 
@@ -66,7 +66,7 @@ class Server:
         return metadata
 
 
-    def handleJSON(self, connection: Connection, config: str) -> str:
+    def handleJSON(self, connection: Connection, config: str):
         """Handle additional config parameters passed through a JSON text message """
         if connection.peek_mrd_message_identifier() == constants.MRD_MESSAGE_TEXT:
             configAdditionalText = next(connection)
@@ -74,6 +74,7 @@ class Server:
             connection.save_additional_config(configAdditionalText)
             try:
                 configAdditional = json.loads(configAdditionalText)
+                logging.info(f"JSON: {config['parameters']}")
             except:
                 logging.error("Failed to parse as JSON")
         else:
@@ -110,7 +111,7 @@ class Server:
                 pipeline = pipeline_factory(connection, self.app_config)
                 image_stream(connection, configJSON, metadata, pipeline)
             else :
-                logging.info("No openrecon config requested")
+                logging.info(f"No openrecon config requested : {config}")
                 try:
                     for msg in connection:
                         if msg is None:

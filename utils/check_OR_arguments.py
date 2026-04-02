@@ -2,13 +2,13 @@
 
 import logging
 
-def check_OR_arguments(config, arg_name: str, arg_type: type, arg_default: any) -> any:
+def check_OR_arguments(configJSON, arg_name: str, arg_type: type, arg_default: any) -> any:
     """Return the value of the OpenRecon arguments with the appropriate type"""
     arg_value = arg_default
 
-    if ('parameters' in config) and (arg_name in config['parameters']):
-        logging.info(f"found config['parameters']['{arg_name}'] : type={type(config['parameters'][arg_name])} content={config['parameters'][arg_name]}")
-        arg_value =  config['parameters'][arg_name]
+    if ('parameters' in configJSON) and (arg_name in configJSON['parameters']):
+        logging.info(f"found config['parameters']['{arg_name}'] : type={type(configJSON['parameters'][arg_name])} content={configJSON['parameters'][arg_name]}")
+        arg_value =  configJSON['parameters'][arg_name]
     else:
         logging.warning(f"config['parameters']['{arg_name}'] NOT FOUND !!")
 
@@ -31,8 +31,3 @@ def check_OR_arguments(config, arg_name: str, arg_type: type, arg_default: any) 
 
     logging.info(f'{arg_name} = {arg_value}')
     return arg_value
-
-
-
-    
-    
