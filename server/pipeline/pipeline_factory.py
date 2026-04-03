@@ -13,7 +13,8 @@ def pipeline_factory(connection: Connection, config_name: str) -> Pipeline | Non
         logging.info(f"Starting config {config_name}")
     except ImportError as e:
         logging.error("Failed to load config '%s' with error:\n  %s", config_name, e)
-        return
+        pipeline = Pipeline(connection, None)
+        return pipeline
     
     pipeline = Pipeline(connection, module)
     return pipeline

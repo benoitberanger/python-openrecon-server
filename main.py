@@ -40,7 +40,7 @@ if __name__ == '__main__':
 
     parser.add_argument('-p', '--port',            type=int,            help='Port')
     parser.add_argument('-H', '--host',            type=str,            help='Host')
-    parser.add_argument('-d', '--config',          type=str,            help='config module')
+    parser.add_argument('-c', '--config',          type=str,            help='config module')
     parser.add_argument('-v', '--verbose',         action='store_true', help='Verbose output.')
     parser.add_argument('-l', '--logfile',         type=str,            help='Path to log file')
     parser.add_argument('-s', '--savedata',        action='store_true', help='Save incoming data')
@@ -54,7 +54,7 @@ if __name__ == '__main__':
     else:
         logLevel = logging.INFO
 
-    format_log='SEVER : %(asctime)s - %(message)s'
+    format_log='%(asctime)s - SEVER : %(message)s'
 
     if args.logfile:
         print("Logging to file:", args.logfile)

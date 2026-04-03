@@ -28,6 +28,11 @@ class Pipeline:
         if (len(images) == 0):
             return []
         
+        if not self.processor:
+            logging.info("Module not loaded. Sending back original images.")
+            send_original_images(images, self.connection)
+            return []
+        
         if check_OR_arguments(configJSON, 'sendOriginal', bool, True) == True:
             send_original_images(images, self.connection)
 

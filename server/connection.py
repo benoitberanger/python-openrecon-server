@@ -321,6 +321,9 @@ class Connection:
         with self.lock:
             if not isinstance(images, list):
                 images = [images]
+            
+            if len(images) == 0:
+                return
 
             logging.info("--> Sending MRD_MESSAGE_ISMRMRD_IMAGE (1022) (%d images)", len(images))
             for image in images:
