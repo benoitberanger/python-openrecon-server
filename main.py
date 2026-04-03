@@ -17,6 +17,9 @@ defaults = {
 def main(args: argparse.Namespace):
     """Lauch the server"""
     server = Server(args.port, args.host, args.config, args.savedata)
+    
+    if args.debug:
+        logging.info("Server mode : DEBUG")
 
     # Trap signal interrupts (e.g. ctrl+c, SIGTERM) and gracefully stop
     def handle_signals(signum, frame) -> None:

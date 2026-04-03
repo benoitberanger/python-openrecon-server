@@ -12,6 +12,8 @@ import signal
 import json
 import ismrmrd
 
+from utils.check_OR_arguments import check_OR_arguments
+
 class Server:
     """Server class"""
 
@@ -107,7 +109,7 @@ class Server:
             configJSON = self.handleJSON(connection, config)
 
             #If the debug mode is activated, execute the debug mode
-            if (debug and config == "openrecon"):
+            if (debug and config == "openrecon") or (check_OR_arguments(configJSON, 'debug', bool, False) == True):
                 image_stream_debug(connection, configJSON, metadata)
             # If the config is openrecon load the app config
             # Else do nothing with the data

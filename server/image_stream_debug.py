@@ -14,6 +14,8 @@ def image_stream_debug(connection: Connection, configJSON, metadata) -> None:
         Treat the images send by the server, send back the result
         """
 
+        logging.info("------------DEBUG MODE------------")
+
         # Metadata should be MRD formatted header, but may be a string
         # if it failed conversion earlier
         try:
