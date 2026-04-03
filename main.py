@@ -32,7 +32,7 @@ def main(args: argparse.Namespace):
         signal.signal(signal.SIGINT, signal.SIG_DFL)
     
     # Start server
-    server.serve()
+    server.serve(args.debug)
 
 
 if __name__ == '__main__':
@@ -44,6 +44,8 @@ if __name__ == '__main__':
     parser.add_argument('-v', '--verbose',         action='store_true', help='Verbose output.')
     parser.add_argument('-l', '--logfile',         type=str,            help='Path to log file')
     parser.add_argument('-s', '--savedata',        action='store_true', help='Save incoming data')
+    parser.add_argument('-d', '--debug',           action='store_true', help='Debug mode: send back the original images and log all info about them')
+
 
     parser.set_defaults(**defaults)
 
@@ -54,7 +56,7 @@ if __name__ == '__main__':
     else:
         logLevel = logging.INFO
 
-    format_log='%(asctime)s - SEVER : %(message)s'
+    format_log='SEVER : %(message)s'
 
     if args.logfile:
         print("Logging to file:", args.logfile)

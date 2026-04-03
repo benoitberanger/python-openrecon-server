@@ -39,6 +39,7 @@ def image_stream(connection: Connection, configJSON, metadata, pipeline: Pipelin
                 # Raw k-space data messages
                 # ----------------------------------------------------------
                 if isinstance(item, ismrmrd.Acquisition):
+                    logging.error("Raw k-space data is not supported by this module")
                     raise Exception("Raw k-space data is not supported by this module")
 
                 # ----------------------------------------------------------

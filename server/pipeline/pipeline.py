@@ -11,10 +11,6 @@ from server.connection import Connection
 from utils.ImageFactory import ImageFactory
 from utils.check_OR_arguments import check_OR_arguments
 
-import processing.pre_processing as pre_process
-import processing.post_processing as post_process
-
-
 class Pipeline:
 
     def __init__(self, connection: Connection, module) -> None:

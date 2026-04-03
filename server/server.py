@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 
+from server.image_stream_debug import image_stream_debug
 from server.image_stream import image_stream
 from server.pipeline.pipeline_factory import pipeline_factory
 from server.connection import Connection
@@ -24,7 +25,7 @@ class Server:
         self.socket.bind((address, port))
 
 
-    def serve(self) -> None:
+    def serve(self, debug: bool) -> None:
         """Serve the server"""
 
         logging.debug("Serving... ")
@@ -42,7 +43,7 @@ class Server:
 
             logging.info(f"Accepting connection from: {remote_addr}:{remote_port}")
 
-            self.handle(sock)
+            self.handle(sock, debug)
 
 
     def handle_metadata(self, connection: Connection) :
@@ -83,7 +84,7 @@ class Server:
         return configAdditional
 
 
-    def handle(self, sock: int)-> None:
+    def handle(self, sock: int, debug: bool)-> None:
         """Handle each connection on the server socket"""
 
         try:
@@ -105,9 +106,12 @@ class Server:
             # Additional config parameters passed through a JSON text message
             configJSON = self.handleJSON(connection, config)
 
+            #If the debug mode is activated, execute the debug mode
+            if (debug and config == "openrecon"):
+                image_stream_debug(connection, configJSON, metadata)
             # If the config is openrecon load the app config
             # Else do nothing with the data
-            if (config == "openrecon"):
+            elif (config == "openrecon"):
                 pipeline = pipeline_factory(connection, self.app_config)
                 image_stream(connection, configJSON, metadata, pipeline)
             else :
