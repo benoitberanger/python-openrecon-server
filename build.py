@@ -28,7 +28,7 @@ def print_section(name: str) -> None:
 
 
 def check_docker_version() -> None:
-    """Check if the version of Docker is compatible with the program"""
+    """Check if the version of Docker is not too high (>= 25)"""
     logger = logging.getLogger()
 
     result = subprocess.run(['docker', '--version'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True)
@@ -62,20 +62,13 @@ def check_dependencies(dependencies_name: str) -> None:
         check_docker_version()
 
 
-def build_server(dockerfile_path: str) -> None:
-    """Build the server image"""
-    logger = logging.getLogger()
-
-    # build docker image for python-openrecon-server
-    # this image is the starting point, that will be refined latter
-    logger.info('building docker image `python-openrecon-server`')
-    subprocess.run(['docker', 'build', '--tag', 'python-openrecon-server', '--file', dockerfile_path, './'], check=True)
-
-
 def check_target_dir(target_path: str) -> dict:
     """
     Check if the files for the app is present.
-    Return a dict with the name of file of interest
+    Files needed include:   - *_json_ui.json
+                            - OpenReconSchema_*.json
+                            - *.py (process file)
+    Return a dict with the name of files of interest
     """
     logger = logging.getLogger()
 
@@ -125,6 +118,89 @@ def check_target_dir(target_path: str) -> dict:
     return target_data
 
 
+def build_server(dockerfile_path: str) -> None:
+    """Build the server image"""
+    logger = logging.getLogger()
+
+    # build docker image for python-openrecon-server
+    # this image is the starting point, that will be refined latter
+    logger.info('building docker image `python-openrecon-server`')
+    subprocess.run(['docker', 'build', '--tag', 'python-openrecon-server', '--file', dockerfile_path, './'], check=True)
+
+
+def build_directory(build_path: str) -> dict:
+    """Create the build directory if needed and prepare data"""
+    logger = logging.getLogger()
+
+    # prep build dir
+    if os.path.exists(build_path):
+        logger.info(f'`build` dir found : {build_path}')
+    else:
+        os.mkdir(build_path)
+        logger.info(f'`build` dir created : {build_path}')
+
+    # prep some paths
+    build_data = {
+        'name': {
+            'docker': '',
+            'base'  : '',
+        },
+        'path': {
+            'pdf'   : ''
+        }
+    }
+
+    return build_data
+
+
+def check_json_format(json_content, target_data: dict) -> bool:
+    """Compare json content to the json schema reference"""
+    logger = logging.getLogger()
+
+    logger.info(f"load JSON Schema : {target_data['path']['schema']}")
+    with open(file=target_data['path']['schema'], mode='r') as fid:
+        schema_content = json.load(fp=fid)
+
+    validator = jsonschema.Draft7Validator(schema=schema_content)
+
+    errors = list(validator.iter_errors(instance=json_content))
+    if errors:
+        logger.error('our Json vs. Schema errors :')
+        for error in errors:
+                logger.error(error)
+        return False
+    
+    logger.info(f'No error in out JSON compared against the Schema')
+    return True
+
+
+def write_dockerfile(cmdline: str, json_content, build_data: dict) -> None:
+    """Write the content of the Dockerfile"""
+    logger = logging.getLogger()
+
+    # encoded the json content in base 64
+    encoded_json_content = base64.b64encode((json.dumps(obj=json_content,indent=2)).encode('utf-8')).decode('utf-8')
+
+    # write the Dockerfile content
+    logger.info(f"Write `build` Dockerfile : {build_data['path']['docker']}")
+    dockerfile_content = [
+        f'# import python-openrecon-server as starting point',
+        f'FROM python-openrecon-server AS base',
+        f'',
+        f'ENV NVIDIA_VISIBLE_DEVICES=all NVIDIA_DRIVER_CAPABILITIES=compute,utility',
+        f'',
+        f'# CMD line',
+        f'{cmdline}',
+        f'',
+        f'# mandatory for OpenRecon (see OR documentation)',
+        f'LABEL "com.siemens-healthineers.magneticresonance.openrecon.metadata:1.1.0"="{encoded_json_content}"',
+        f'',
+    ]
+    dockerfile_content = "\n".join(dockerfile_content)
+    with open(file=build_data['path']['docker'], mode='w') as fid:
+        fid.writelines(dockerfile_content)
+
+
 def create_pdf(file_path: str, lines_of_text: list[str]) -> None:
     """Generate a pdf with informations about the app"""
     pdf_header = b'%PDF-1.4\n'
@@ -161,27 +237,6 @@ def create_pdf(file_path: str, lines_of_text: list[str]) -> None:
         f.write(pdf_body)
         f.write(xref)
         f.write(trailer)
-
-
-def check_json_format(json_content, target_data: dict) -> bool:
-    """Compare json content to the json schema reference"""
-    logger = logging.getLogger()
-
-    logger.info(f"load JSON Schema : {target_data['path']['schema']}")
-    with open(file=target_data['path']['schema'], mode='r') as fid:
-        schema_content = json.load(fp=fid)
-
-    validator = jsonschema.Draft7Validator(schema=schema_content)
-
-    errors = list(validator.iter_errors(instance=json_content))
-    if errors:
-        logger.error('our Json vs. Schema errors :')
-        for error in errors:
-                logger.error(error)
-        return False
-    
-    logger.info(f'No error in out JSON compared against the Schema')
-    return True
 
 
 def packaging_OR_image(build_data: dict, info: dict) -> None:
@@ -221,7 +276,6 @@ def main(args: argparse.Namespace):
     ### setup ###
     #############
 
-   
     logger = logging.getLogger()
 
     print_section('START')
@@ -242,38 +296,23 @@ def main(args: argparse.Namespace):
     print_section(f'Check `target` dir and its content : {target_path}')
     target_data = check_target_dir(target_path)
 
-    # Build docker image of the server
-    print_section('CLONE & BUILD SERVER')
-    cwd = os.getcwd()
-    dockerfile_path = os.path.join(cwd, 'Dockerfile')
-    build_server(dockerfile_path)
 
     #############
     ### build ###
     #############
+
+    # Build docker image of the server
+    print_section('BUILD SERVER')
+    cwd = os.getcwd()
+    dockerfile_path = os.path.join(cwd, 'Dockerfile')
+    build_server(dockerfile_path)
 
     print_section('BUILD')
     logger.warning('From now on, all steps will not have a "skip if already done" feature')
 
     # prep build dir
     build_path = os.path.join(cwd, 'build')
-    if os.path.exists(build_path):
-        logger.info(f'`build` dir found : {build_path}')
-    else:
-        os.mkdir(build_path)
-        logger.info(f'`build` dir created : {build_path}')
-
-    # prep some paths
-    build_data = {
-        'name': {
-            'docker': '',
-            'base'  : '',
-        },
-        'path': {
-            'pdf'   : ''
-        }
-    }
-    pprint.pprint(build_data, sort_dicts=False)
+    build_data = build_directory(build_path)
 
     # copy files in the `build` dir
     to_copy = [
@@ -287,6 +326,10 @@ def main(args: argparse.Namespace):
     logger.info(f"load UI JSON content : {target_data['path']['ui_json']}")
     with open(target_data['path']['ui_json'], 'r') as fid:
         json_content = json.load(fid)
+    
+    # Check if our updated JSON is ok
+    if not check_json_format(json_content, target_data):
+        sys.exit(1)
 
     # prep info
     if args.debug:
@@ -309,38 +352,16 @@ def main(args: argparse.Namespace):
     build_data['path']['pdf'   ] = os.path.join(build_path, f"{build_data['name']['base']}.pdf")
     pprint.pprint(build_data, sort_dicts=False)
 
-    # Check if our updated JSON is ok
-    if not check_json_format(json_content, target_data):
-        sys.exit(1)
-
-    # write the updated json in the `build` dir
-    encoded_json_content = base64.b64encode((json.dumps(obj=json_content,indent=2)).encode('utf-8')).decode('utf-8')
-
-    # write the Dockerfile content
-    logger.info(f"Write `build` Dockerfile : {build_data['path']['docker']}")
-    dockerfile_content = [
-        f'# import python-openrecon-server as starting point',
-        f'FROM python-openrecon-server AS base',
-        f'',
-        f'ENV NVIDIA_VISIBLE_DEVICES=all NVIDIA_DRIVER_CAPABILITIES=compute,utility',
-        f'',
-        f'# CMD line',
-        f'{cmdline}',
-        f'',
-        f'# mandatory for OpenRecon (see OR documentation)',
-        f'LABEL "com.siemens-healthineers.magneticresonance.openrecon.metadata:1.1.0"="{encoded_json_content}"',
-        f'',
-    ]
-    dockerfile_content = "\n".join(dockerfile_content)
-    with open(file=build_data['path']['docker'], mode='w') as fid:
-        fid.writelines(dockerfile_content)
+    # Write the Dockerfile
+    write_dockerfile(cmdline, json_content, build_data)
 
      # build docker image
     logger.info(f"building docker image `{build_data['name']['docker']}` from Docker file {build_data['path']['docker']}")
     subprocess.run(['docker', 'build', '--tag', build_data['name']['docker'], '--file', build_data['path']['docker'], cwd], check=True)
 
-    # generate a pdf documentation and save the docker image and its doc in a .zip 
-    packaging_OR_image(build_data, info)
+    # generate a pdf documentation and save the docker image and its doc in a .zip
+    if not args.nopackage : 
+        packaging_OR_image(build_data, info)
 
     # END
     print_section('All done !')
@@ -374,6 +395,7 @@ if __name__ == '__main__':
         default = 'app'
     )
     parser.add_argument('-d', '--debug', action='store_true', help='Build the server in debug mode')
+    parser.add_argument('--nopackage', action='store_true', help='Do not save the docker image in a .zip file')
 
     args = parser.parse_args()
 
