@@ -87,5 +87,3 @@ COPY . .
 # Throw an explicit error if docker build is run from the folder *containing*
 # python-openrecon-server instead of within it (i.e. old method)
 RUN if [ -d /python-openrecon-server ]; then echo "docker build should be run inside of python-openrecon-server instead of one directory up"; exit 1; fi
-
-CMD [ "python3", "/opt/code/python-openrecon-server/main.py", "-v", "-H=0.0.0.0", "-p=9002", "-l=/tmp/python-openrecon-server.log", "--config=invertcontrast", "--debug"]

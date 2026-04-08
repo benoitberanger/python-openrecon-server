@@ -17,27 +17,14 @@ import json
 import base64
 import urllib
 
+
 def print_section(name: str) -> None:
+    """Display section name"""
     DEBUG_LINE = '#'*40
     print('')
     print(DEBUG_LINE)
     print(f'# {name}')
     print(DEBUG_LINE)
-
-
-def check_dependencies(dependencies_name: str) -> None:
-    """Check if the specified dependencies is installed in the system"""
-    logger = logging.getLogger()
-
-    path = shutil.which(dependencies_name)
-    if path:
-        logger.info(f'`{dependencies_name}` is installed')
-    else:
-        logger.critical(f'`{dependencies_name}` does not seem to be present in the system')
-        sys.exit(1)
-    
-    if dependencies_name == 'docker':
-        check_docker_version()
 
 
 def check_docker_version() -> None:
@@ -60,23 +47,36 @@ def check_docker_version() -> None:
     logger.info(f'Docker version {docker_version}<={maximum_docker_version} is ok')
 
 
+def check_dependencies(dependencies_name: str) -> None:
+    """Check if the specified dependencies is installed in the system"""
+    logger = logging.getLogger()
+
+    path = shutil.which(dependencies_name)
+    if path:
+        logger.info(f'`{dependencies_name}` is installed')
+    else:
+        logger.critical(f'`{dependencies_name}` does not seem to be present in the system')
+        sys.exit(1)
+    
+    if dependencies_name == 'docker':
+        check_docker_version()
+
+
 def build_server(dockerfile_path: str) -> None:
-        logger = logging.getLogger()
+    """Build the server image"""
+    logger = logging.getLogger()
 
-        result = subprocess.run(['docker', 'images', 'python-openrecon-server'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True)
-        output = result.stdout.strip()
-        if 'python-openrecon-server' in output:
-            logger.info('docker image `python-openrecon-server` already built')
-            return
-
-        # build docker image for python-openrecon-server
-        # this image is the starting point, that will be refined latter
-        logger.info('building docker image `python-openrecon-server`')
-        subprocess.run(['docker', 'build', '--tag', 'python-openrecon-server', '--file', dockerfile_path, './'], check=True)
-
+    # build docker image for python-openrecon-server
+    # this image is the starting point, that will be refined latter
+    logger.info('building docker image `python-openrecon-server`')
+    subprocess.run(['docker', 'build', '--tag', 'python-openrecon-server', '--file', dockerfile_path, './'], check=True)
 
 
 def check_target_dir(target_path: str) -> dict:
+    """
+    Check if the files for the app is present.
+    Return a dict with the name of file of interest
+    """
     logger = logging.getLogger()
 
     # files to find
@@ -126,6 +126,7 @@ def check_target_dir(target_path: str) -> dict:
 
 
 def create_pdf(file_path: str, lines_of_text: list[str]) -> None:
+    """Generate a pdf with informations about the app"""
     pdf_header = b'%PDF-1.4\n'
     
     objects = []
@@ -183,36 +184,35 @@ def check_json_format(json_content, target_data: dict) -> bool:
     return True
 
 
-# def packaging_OR_application(build_data: dict) -> None:
-#     """
-#     Packaging an OpenRecon application into a single .zip file
-#     containing the Docker image (.tar), created using docker save,
-#     and its documentation('.pdf')
-#     """
-#     logger = logging.getLogger()
+def packaging_OR_image(build_data: dict, info: dict) -> None:
+    """
+    Packaging an OpenRecon image into a single .zip file
+    containing the Docker image (.tar), created using docker save,
+    and its documentation('.pdf')
+    """
+    logger = logging.getLogger()
 
-#      # build docker image
-#     logger.info(f"building docker image `{build_data['name']['docker']}` from Docker file {build_data['path']['docker']}")
-#     subprocess.run(['docker', 'build', '--tag', build_data['name']['docker'], '--file', build_data['path']['docker'], cwd], check=True)
+    cwd = os.getcwd()
+    build_path = os.path.join(cwd, 'build')
 
-#     # save docker image in a .tar
-#     logger.info(f"(1/2) saving image `{build_data['name']['docker']}` in a .tar {build_data['path']['tar']}")
-#     subprocess.run(['docker', 'save', '-o', build_data['path']['tar'], build_data['name']['docker']], check=True)
-#     logger.info(f"(2/2) saving image DONE")
+    # save docker image in a .tar
+    logger.info(f"(1/2) saving image `{build_data['name']['docker']}` in a .tar {build_data['path']['tar']}")
+    subprocess.run(['docker', 'save', '-o', build_data['path']['tar'], build_data['name']['docker']], check=True)
+    logger.info(f"(2/2) saving image DONE")
 
-#     # generate PDF
-#     lines = [
-#         f'vendor={vendor}',
-#         f'name={name}',
-#         f'version={version}',
-#     ]
-#     logger.info(f"write PDF file : {build_data['path']['pdf']}")
-#     create_pdf(file_path=build_data['path']['pdf'], lines_of_text=lines)
+    # generate PDF
+    lines = [
+        f'vendor={info['vendor']}',
+        f'name={info['name']}',
+        f'version={info['version']}',
+    ]
+    logger.info(f"write PDF file : {build_data['path']['pdf']}")
+    create_pdf(file_path=build_data['path']['pdf'], lines_of_text=lines)
 
-#     # save everything in a ZIP file
-#     logger.info(f"(1/2) zip all files : {build_data['path']['zip']}")
-#     subprocess.run(['zip', build_data['name']['base']+'.zip', build_data['name']['base']+'.tar', build_data['name']['base']+'.pdf'], check=True, cwd=build_path)
-#     logger.info(f"(2/2) zip all files DONE")
+    # save everything in a ZIP file
+    logger.info(f"(1/2) zip all files : {build_data['path']['zip']}")
+    subprocess.run(['zip', build_data['name']['base']+'.zip', build_data['name']['base']+'.tar', build_data['name']['base']+'.pdf'], check=True, cwd=build_path)
+    logger.info(f"(2/2) zip all files DONE")
 
 
 def main(args: argparse.Namespace):
@@ -221,11 +221,7 @@ def main(args: argparse.Namespace):
     ### setup ###
     #############
 
-    # setup logging
-    logging.basicConfig(
-        level=logging.DEBUG,
-        format=f"%(levelname)8s:%(funcName)15s: %(message)s",
-    )
+   
     logger = logging.getLogger()
 
     print_section('START')
@@ -249,7 +245,7 @@ def main(args: argparse.Namespace):
     # Build docker image of the server
     print_section('CLONE & BUILD SERVER')
     cwd = os.getcwd()
-    dockerfile_path = os.path.join(cwd, 'docker', 'Dockerfile')
+    dockerfile_path = os.path.join(cwd, 'Dockerfile')
     build_server(dockerfile_path)
 
     #############
@@ -293,14 +289,20 @@ def main(args: argparse.Namespace):
         json_content = json.load(fid)
 
     # prep info
-    cmdline  = f'CMD [ "/bin/bash", "-c", "/usr/sbin/ldconfig && exec python3 main.py -v -H=0.0.0.0 -p=9002 -l=/tmp/python-openrecon-server.log --defaultConfig={target_data['name']['process']}"]'
-    version                         = json_content['general']['version']
-    vendor                          = json_content['general']['vendor' ]
-    name                            = json_content['general']['id'     ]
+    if args.debug:
+        cmdline  = f'CMD [ "/bin/bash", "-c", "/usr/sbin/ldconfig && exec python3 main.py --debug -H=0.0.0.0 -p=9002 -l=/tmp/python-openrecon-server.log --config={target_data['name']['process']}"]'
+    else:
+        cmdline  = f'CMD [ "/bin/bash", "-c", "/usr/sbin/ldconfig && exec python3 main.py -H=0.0.0.0 -p=9002 -l=/tmp/python-openrecon-server.log --config={target_data['name']['process']}"]'
+    
+    info = {
+        'version'   : json_content['general']['version'],
+        'vendor'    : json_content['general']['vendor' ],
+        'name'      : json_content['general']['id'     ]
+        }
 
     # other file/path
-    build_data['name']['docker'] = f'OpenRecon_{vendor}_{name}:V{version}'.lower()
-    build_data['name']['base'  ] = f'OpenRecon_{vendor}_{name}_V{version}'
+    build_data['name']['docker'] = f'OpenRecon_{info['vendor']}_{info['name']}:V{info['version']}'.lower()
+    build_data['name']['base'  ] = f'OpenRecon_{info['vendor']}_{info['name']}_V{info['version']}'
     build_data['path']['docker'] = os.path.join(build_path, f"{build_data['name']['base']}.Dockerfile")
     build_data['path']['tar'   ] = os.path.join(build_path, f"{build_data['name']['base']}.tar")
     build_data['path']['zip'   ] = os.path.join(build_path, f"{build_data['name']['base']}.zip")
@@ -322,7 +324,7 @@ def main(args: argparse.Namespace):
         f'',
         f'ENV NVIDIA_VISIBLE_DEVICES=all NVIDIA_DRIVER_CAPABILITIES=compute,utility',
         f'',
-        f'# new CMD line',
+        f'# CMD line',
         f'{cmdline}',
         f'',
         f'# mandatory for OpenRecon (see OR documentation)',
@@ -333,8 +335,12 @@ def main(args: argparse.Namespace):
     with open(file=build_data['path']['docker'], mode='w') as fid:
         fid.writelines(dockerfile_content)
 
-    
-    # packaging_OR_application(build_data)
+     # build docker image
+    logger.info(f"building docker image `{build_data['name']['docker']}` from Docker file {build_data['path']['docker']}")
+    subprocess.run(['docker', 'build', '--tag', build_data['name']['docker'], '--file', build_data['path']['docker'], cwd], check=True)
+
+    # generate a pdf documentation and save the docker image and its doc in a .zip 
+    packaging_OR_image(build_data, info)
 
     # END
     print_section('All done !')
@@ -342,6 +348,12 @@ def main(args: argparse.Namespace):
 
 
 if __name__ == '__main__':
+
+     # setup logging
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format=f"%(levelname)8s:%(funcName)15s: %(message)s",
+    )
 
     parser = argparse.ArgumentParser(
         prog            = 'build',
@@ -361,6 +373,7 @@ if __name__ == '__main__':
         help    = 'Application directory name. ex: `demo-i2i`, `app`',
         default = 'app'
     )
+    parser.add_argument('-d', '--debug', action='store_true', help='Build the server in debug mode')
 
     args = parser.parse_args()
 
