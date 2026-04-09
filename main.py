@@ -59,7 +59,7 @@ if __name__ == '__main__':
     else:
         logLevel = logging.INFO
 
-    format_log='SEVER : %(message)s'
+    format_log='SERVER : %(message)s'
 
     if args.logfile:
         print("Logging to file:", args.logfile)

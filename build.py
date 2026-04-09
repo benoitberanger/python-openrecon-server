@@ -241,7 +241,7 @@ def packaging_OR_image(build_data: dict, info: dict) -> None:
 
     # save everything in a ZIP file
     logger.info(f"(1/2) zip all files : {build_data['path']['zip']}")
-    subprocess.run(['zip', build_data['path']['zip'], build_data['path']['tar'], build_data['path']['pdf']], check=True)
+    subprocess.run(['zip', build_data['name']['base']+'.zip', build_data['name']['base']+'.tar', build_data['name']['base']+'.pdf'], check=True, cwd=build_path)
     logger.info(f"(2/2) zip all files DONE")
 
 
