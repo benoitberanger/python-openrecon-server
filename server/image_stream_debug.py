@@ -6,7 +6,6 @@ import traceback
 import ismrmrd
 
 from server.connection import Connection
-from server.pipeline.pipeline import Pipeline
 
 
 def image_stream_debug(connection: Connection, configJSON, metadata) -> None:
@@ -34,6 +33,11 @@ def image_stream_debug(connection: Connection, configJSON, metadata) -> None:
 
         try:
             for item in connection:
+                # When the connection is closed, all images have been received
+                if not connection.open :
+                    logging.info("Exit because connection closed. All images have been received")
+                    break
+
                 # ----------------------------------------------------------
                 # Raw k-space data messages
                 # ----------------------------------------------------------
@@ -55,6 +59,7 @@ def image_stream_debug(connection: Connection, configJSON, metadata) -> None:
                     connection.send_image(item)
 
                 elif item is None:
+                    logging.info("Exit because null item received")
                     break
 
                 else:
@@ -89,10 +94,10 @@ def display_info_images(image) -> None:
     # logging.info(f'matrix_size              : {image.matrix_size}')
     # logging.info(f'field_of_view            : {image.field_of_view}')
     # logging.info(f'channels                 : {image.channels}')
-    # logging.info(f'position                 : {image.position}')
-    # logging.info(f'read_dir                 : {image.read_dir}')
-    # logging.info(f'phase_dir                : {image.phase_dir}')
-    # logging.info(f'slice_dir                : {image.slice_dir}')
+    logging.info(f'position                 : {image.position}')
+    logging.info(f'read_dir                 : {image.read_dir}')
+    logging.info(f'phase_dir                : {image.phase_dir}')
+    logging.info(f'slice_dir                : {image.slice_dir}')
     # logging.info(f'patient_table_position   : {image.patient_table_position}')
     logging.info(f'average                  : {image.average}')
     logging.info(f'slice                    : {image.slice}')

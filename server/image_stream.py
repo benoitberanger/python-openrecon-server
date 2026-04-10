@@ -35,6 +35,12 @@ def image_stream(connection: Connection, configJSON, metadata, pipeline: Pipelin
         imgGroup = []
         try:
             for item in connection:
+
+                # When the connection is closed, all images have been received
+                if not connection.open :
+                    logging.info("Exit because connection closed. All images have been received")
+                    break
+
                 # ----------------------------------------------------------
                 # Raw k-space data messages
                 # ----------------------------------------------------------
@@ -69,6 +75,7 @@ def image_stream(connection: Connection, configJSON, metadata, pipeline: Pipelin
                         continue
 
                 elif item is None:
+                    logging.info("Exit because null item received")
                     break
 
                 else:

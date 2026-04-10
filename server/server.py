@@ -57,7 +57,7 @@ class Server:
             logging.info("Connection closed without an MRD header received")
             return
         
-        logging.debug("XML Metadata: %s", metadata_xml)
+        logging.info("XML Metadata: %s", metadata_xml)
         try:
             metadata = ismrmrd.xsd.CreateFromDocument(metadata_xml)
             if (metadata.acquisitionSystemInformation.systemFieldStrength_T != None):
