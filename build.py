@@ -27,8 +27,11 @@ def print_section(name: str) -> None:
     print(DEBUG_LINE)
 
 
-def check_docker_version() -> None:
-    """Check if the version of Docker is not too high (>= 25)"""
+def check_docker_version() -> bool:
+    """
+    Check if the version of Docker is not too high 
+    (>= 25 not supported)
+    """
     logger = logging.getLogger()
 
     result = subprocess.run(['docker', '--version'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True)
@@ -38,13 +41,14 @@ def check_docker_version() -> None:
     matches = re.findall(pattern, version_output)
     if not len(matches):
         logger.critical('Could not find Docker version')
-        sys.exit(1)
+        return False
     docker_version = matches[0].split('.')[0] # 20.21.22 -> 20
     maximum_docker_version = 25
     if int(docker_version) >= maximum_docker_version:
         logger.info(f'Docker version {docker_version} is too high. Siemens allows maximum version: {maximum_docker_version}')
-        sys.exit(1)
+        return False
     logger.info(f'Docker version {docker_version}<={maximum_docker_version} is ok')
+    return True
 
 
 def check_dependencies(dependencies_name: str) -> None:
@@ -57,9 +61,6 @@ def check_dependencies(dependencies_name: str) -> None:
     else:
         logger.critical(f'`{dependencies_name}` does not seem to be present in the system')
         sys.exit(1)
-    
-    if dependencies_name == 'docker':
-        check_docker_version()
 
 
 def check_target_dir(target_path: str) -> dict:
@@ -328,6 +329,8 @@ def main(args: argparse.Namespace):
     check_dependencies('zip')
     check_dependencies('git')
     check_dependencies('docker')
+    if not check_docker_version():
+        sys.exit(1)
 
     # check if the necessary file are present in the target dir
     target_path = os.path.join(cwd, args.dirname)
