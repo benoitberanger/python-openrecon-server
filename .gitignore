@@ -2,6 +2,7 @@
 build/
 data/
 test/
+debug/
 Makefile
 
 # Byte-compiled / optimized / DLL files

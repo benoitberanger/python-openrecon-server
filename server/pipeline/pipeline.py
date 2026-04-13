@@ -95,9 +95,6 @@ def send_original_images(images: list, connection: Connection) -> None:
 def display_diagnostic(images: list, head: list, meta: list[ismrmrd.Meta]) -> None:
     """Display diagnostic info about the images in the log"""
 
-    # Display MetaAttributes for first image
-    logging.debug("MetaAttributes[0]: %s", ismrmrd.Meta.serialize(meta[0]))
-
     # Optional serialization of ICE MiniHeader
     if 'IceMiniHead' in meta[0]:
         logging.debug("IceMiniHead[0]: %s", base64.b64decode(meta[0]['IceMiniHead']).decode('utf-8'))

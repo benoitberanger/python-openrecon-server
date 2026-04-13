@@ -87,6 +87,7 @@ def display_info_images(image) -> None:
     logging.info('-------------------------------------')
 
     image_type = ['0', 'MRD_IMTYPE_MAGNITUDE', 'MRD_IMTYPE_PHASE', 'MRD_IMTYPE_REAL', 'MRD_IMTYPE_IMAG', 'MRD_IMTYPE_COMPLEX', 'MRD_IMTYPE_RGB']
+    
     # logging.info(f'version                  : {image.version}')
     # logging.info(f'data_type                : {image.data_type}')
     logging.info(f'flags                    : {image.flags}')
@@ -94,10 +95,10 @@ def display_info_images(image) -> None:
     # logging.info(f'matrix_size              : {image.matrix_size}')
     # logging.info(f'field_of_view            : {image.field_of_view}')
     # logging.info(f'channels                 : {image.channels}')
-    # logging.info(f'position                 : {image.position}')
-    # logging.info(f'read_dir                 : {image.read_dir}')
-    # logging.info(f'phase_dir                : {image.phase_dir}')
-    # logging.info(f'slice_dir                : {image.slice_dir}')
+    # logging.info(f'position                 : L={image.position[0]} mm, P={image.position[1]} mm, S={image.position[2]} mm')
+    logging.info(f'read_dir                 : {image.read_dir[0], image.read_dir[1], image.read_dir[2]}')
+    logging.info(f'phase_dir                : {image.phase_dir[0], image.phase_dir[1], image.phase_dir[2]}')
+    logging.info(f'slice_dir                : {image.slice_dir[0], image.slice_dir[1], image.slice_dir[2]}')
     # logging.info(f'patient_table_position   : {image.patient_table_position}')
     logging.info(f'average                  : {image.average}')
     logging.info(f'slice                    : {image.slice}')

@@ -119,7 +119,7 @@ def check_target_dir(target_path: str) -> dict:
     return target_data
 
 
-def build_server(dockerfile_path: str) -> None:
+def build_base_image(dockerfile_path: str) -> None:
     """Build the server image"""
     logger = logging.getLogger()
 
@@ -150,7 +150,7 @@ def check_json_format(json_content, target_data: dict) -> bool:
     return True
 
 
-def prepare_infos(json_content, build_path: str, target_data: dict) -> dict:
+def prepare_infos(json_content, build_path: str) -> dict:
     """Generate the names of the building files(Dockerfile, .tar, .zip)"""
     logger = logging.getLogger()
 
@@ -160,12 +160,6 @@ def prepare_infos(json_content, build_path: str, target_data: dict) -> dict:
     else:
         os.mkdir(build_path)
         logger.info(f'`build` dir created : {build_path}')
-
-    # prep info
-    if args.debug:
-        cmdline  = f'exec python3 main.py -v --debug -H=0.0.0.0 -p=9002 -l=/tmp/python-openrecon-server.log --config={target_data['name']['process']}'
-    else:
-        cmdline  = f'exec python3 main.py -v -H=0.0.0.0 -p=9002 -l=/tmp/python-openrecon-server.log --config={target_data['name']['process']}'
     
     version = json_content['general']['version']
     vendor  = json_content['general']['vendor' ]
@@ -175,7 +169,6 @@ def prepare_infos(json_content, build_path: str, target_data: dict) -> dict:
     base_name = f'OpenRecon_{vendor}_{name}_V{version}'
 
     build_data = {
-        'cmdline': cmdline,
         'info': {
             'version'   : version,
             'vendor'    : vendor,
@@ -187,9 +180,9 @@ def prepare_infos(json_content, build_path: str, target_data: dict) -> dict:
         },
         'path': {
             'docker' : os.path.join(build_path, f"{base_name}.Dockerfile"),
-            'tar'   : os.path.join(build_path, f"{base_name}.tar"),
-            'pdf'   : os.path.join(build_path, f"{base_name}.pdf"),
-            'zip'   : os.path.join(build_path, f"{base_name}.zip")
+            'tar'    : os.path.join(build_path, f"{base_name}.tar"),
+            'pdf'    : os.path.join(build_path, f"{base_name}.pdf"),
+            'zip'    : os.path.join(build_path, f"{base_name}.zip")
         }
     }
 
@@ -198,7 +191,7 @@ def prepare_infos(json_content, build_path: str, target_data: dict) -> dict:
     return build_data
 
 
-def write_dockerfile(cmdline: str, json_content, docker_path: str, build_docker: str) -> None:
+def write_dockerfile(json_content, cmdline: str, docker_path: str, build_docker_path: str) -> None:
     """Write the content of the Dockerfile"""
     logger = logging.getLogger()
 
@@ -218,9 +211,9 @@ def write_dockerfile(cmdline: str, json_content, docker_path: str, build_docker:
     ]
     dockerfile_content = "\n".join(dockerfile_content)
 
-    shutil.copy(docker_path, build_docker)
+    shutil.copy(docker_path, build_docker_path)
 
-    with open(file=build_docker, mode='a') as fid:
+    with open(file=build_docker_path, mode='a') as fid:
         fid.writelines(dockerfile_content)
 
 
@@ -307,7 +300,6 @@ def main(args: argparse.Namespace):
     cwd = os.getcwd()
     logger.info(f'Current working directory : {cwd}')
 
-
     # check if all system programs are here
     print_section('SYSTEM DEPENDENCIES')
     check_dependencies('zip')
@@ -326,10 +318,10 @@ def main(args: argparse.Namespace):
     ### build ###
     #############
 
-    # Build docker image for the base of the server
+    # Build base docker image with ISMRD
     print_section('BUILD SERVER')
     dockerfile_path = os.path.join(cwd, 'MRD.Dockerfile')
-    build_server(dockerfile_path)
+    build_base_image(dockerfile_path)
 
     print_section('BUILD')
     logger.warning('From now on, all steps will not have a "skip if already done" feature')
@@ -346,11 +338,18 @@ def main(args: argparse.Namespace):
     if not check_json_format(json_content, target_data):
         sys.exit(1)
 
-    build_data = prepare_infos(json_content, build_path, target_data)
+    # prepare infos 
+    # prepare the commande line for the Dockerfile
+    if args.debug:
+        cmdline  = f'exec python3 main.py -v --debug -H=0.0.0.0 -p=9002 -l=/tmp/python-openrecon-server.log --config={target_data['name']['process']}'
+    else:
+        cmdline  = f'exec python3 main.py -v -H=0.0.0.0 -p=9002 -l=/tmp/python-openrecon-server.log --config={target_data['name']['process']}'
+
+    build_data = prepare_infos(json_content, build_path)
 
     # Write the Dockerfile
-    docker_path = os.path.join(target_path, 'application.Dockerfile')
-    write_dockerfile(build_data['cmdline'], json_content, docker_path, build_data['path']['docker'])
+    app_docker_path = os.path.join(target_path, 'application.Dockerfile')
+    write_dockerfile(json_content, cmdline, app_docker_path, build_data['path']['docker'])
 
     # build docker image
     logger.info(f"building docker image `{build_data['name']['docker']}` from Docker file {build_data['path']['docker']}")

@@ -73,12 +73,12 @@ class Server:
         """Handle additional config parameters passed through a JSON text message """
         if connection.peek_mrd_message_identifier() == constants.MRD_MESSAGE_TEXT:
             configAdditionalText = next(connection)
-            logging.info("Received additional config text: %s", configAdditionalText)
+            logging.info(f"Received additional config text: {configAdditionalText}")
             try:
                 configAdditional = json.loads(configAdditionalText)
-                logging.info(f"JSON: {config['parameters']}")
-            except:
+            except Exception as e:
                 logging.error("Failed to parse as JSON")
+                logging.debug(f"JSON loads error: {e}")
         else:
             configAdditional = config
         
@@ -98,6 +98,7 @@ class Server:
             if ((config is None) & (connection.open is False)):
                 logging.info("Connection closed without any data received")
                 return
+            logging.info(f"Received config: {config}")
             
             # Second messages is the metadata (text)
             metadata = self.handle_metadata(connection)

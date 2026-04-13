@@ -256,7 +256,6 @@ class Connection:
         length = self.read_mrd_message_length()
         text = self.read(length)
         text = text.split(b'\x00',1)[0].decode('utf-8')  # Strip off null teminator
-        logging.info("    %s", text)
         return text
         
     def send_text(self, contents: str) -> None:
@@ -283,12 +282,12 @@ class Connection:
         # return ismrmrd.Image.deserialize_from(self.read)
 
         # Explicit version of deserialize_from() for more verbose debugging
-        logging.debug("   Reading in %d bytes of image header", ctypes.sizeof(ismrmrd.ImageHeader))
+        # logging.debug("   Reading in %d bytes of image header", ctypes.sizeof(ismrmrd.ImageHeader))
         header_bytes = self.read(ctypes.sizeof(ismrmrd.ImageHeader))
 
         attribute_length_bytes = self.read(ctypes.sizeof(ctypes.c_uint64))
         attribute_length = ctypes.c_uint64.from_buffer_copy(attribute_length_bytes)
-        logging.debug("   Reading in %d bytes of attributes", attribute_length.value)
+        # logging.debug("   Reading in %d bytes of attributes", attribute_length.value)
 
         attribute_bytes = self.read(attribute_length.value)
         # if (attribute_length.value > 25000):
