@@ -150,7 +150,55 @@ def check_json_format(json_content, target_data: dict) -> bool:
     return True
 
 
-def write_dockerfile(cmdline: str, json_content, build_data: dict) -> None:
+def prepare_infos(json_content, build_path: str, target_data: dict) -> dict:
+    """Generate the names of the building files(Dockerfile, .tar, .zip)"""
+    logger = logging.getLogger()
+
+    # prep build dir
+    if os.path.exists(build_path):
+        logger.info(f'`build` dir found : {build_path}')
+    else:
+        os.mkdir(build_path)
+        logger.info(f'`build` dir created : {build_path}')
+
+    # prep info
+    if args.debug:
+        cmdline  = f'exec python3 main.py -v --debug -H=0.0.0.0 -p=9002 -l=/tmp/python-openrecon-server.log --config={target_data['name']['process']}'
+    else:
+        cmdline  = f'exec python3 main.py -v -H=0.0.0.0 -p=9002 -l=/tmp/python-openrecon-server.log --config={target_data['name']['process']}'
+    
+    version = json_content['general']['version']
+    vendor  = json_content['general']['vendor' ]
+    name    = json_content['general']['id'     ]
+
+    # other file/path
+    base_name = f'OpenRecon_{vendor}_{name}_V{version}'
+
+    build_data = {
+        'cmdline': cmdline,
+        'info': {
+            'version'   : version,
+            'vendor'    : vendor,
+            'name'      : name
+        },
+        'name': {
+            'docker': f'OpenRecon_{vendor}_{name}:V{version}'.lower(),
+            'base'  : f'OpenRecon_{vendor}_{name}_V{version}'
+        },
+        'path': {
+            'docker' : os.path.join(build_path, f"{base_name}.Dockerfile"),
+            'tar'   : os.path.join(build_path, f"{base_name}.tar"),
+            'pdf'   : os.path.join(build_path, f"{base_name}.pdf"),
+            'zip'   : os.path.join(build_path, f"{base_name}.zip")
+        }
+    }
+
+    pprint.pprint(build_data, sort_dicts=False)
+
+    return build_data
+
+
+def write_dockerfile(cmdline: str, json_content, docker_path: str, build_docker: str) -> None:
     """Write the content of the Dockerfile"""
     logger = logging.getLogger()
 
@@ -158,22 +206,21 @@ def write_dockerfile(cmdline: str, json_content, build_data: dict) -> None:
     encoded_json_content = base64.b64encode((json.dumps(obj=json_content,indent=2)).encode('utf-8')).decode('utf-8')
 
     # write the Dockerfile content
-    logger.info(f"Write `build` Dockerfile : {build_data['path']['docker']}")
+    logger.info(f"Write `build` Dockerfile : {docker_path}")
     dockerfile_content = [
-        f'# import python-openrecon-server as starting point',
-        f'FROM python-openrecon-server AS base',
-        f'',
-        f'ENV NVIDIA_VISIBLE_DEVICES=all NVIDIA_DRIVER_CAPABILITIES=compute,utility',
         f'',
         f'# CMD line',
-        f'{cmdline}',
+        f'CMD [ "/bin/bash", "-c", "/usr/sbin/ldconfig && {cmdline}" ] ',
         f'',
         f'# mandatory for OpenRecon (see OR documentation)',
         f'LABEL "com.siemens-healthineers.magneticresonance.openrecon.metadata:1.1.0"="{encoded_json_content}"',
         f'',
     ]
     dockerfile_content = "\n".join(dockerfile_content)
-    with open(file=build_data['path']['docker'], mode='w') as fid:
+
+    shutil.copy(docker_path, build_docker)
+
+    with open(file=build_docker, mode='a') as fid:
         fid.writelines(dockerfile_content)
 
 
@@ -215,7 +262,7 @@ def create_pdf(file_path: str, lines_of_text: list[str]) -> None:
         f.write(trailer)
 
 
-def packaging_OR_image(build_data: dict, info: dict) -> None:
+def packaging_OR_image(build_data: dict) -> None:
     """
     Packaging an OpenRecon image into a single .zip file
     containing the Docker image (.tar), created using docker save,
@@ -233,9 +280,9 @@ def packaging_OR_image(build_data: dict, info: dict) -> None:
 
     # generate PDF
     lines = [
-        f'vendor={info['vendor']}',
-        f'name={info['name']}',
-        f'version={info['version']}',
+        f'vendor={build_data['info']['vendor']}',
+        f'name={build_data['info']['name']}',
+        f'version={build_data['info']['version']}',
     ]
     logger.info(f"write PDF file : {build_data['path']['pdf']}")
     create_pdf(file_path=build_data['path']['pdf'], lines_of_text=lines)
@@ -244,69 +291,6 @@ def packaging_OR_image(build_data: dict, info: dict) -> None:
     logger.info(f"(1/2) zip all files : {build_data['path']['zip']}")
     subprocess.run(['zip', build_data['name']['base']+'.zip', build_data['name']['base']+'.tar', build_data['name']['base']+'.pdf'], check=True, cwd=build_path)
     logger.info(f"(2/2) zip all files DONE")
-
-
-def generate_names(build_path: str, extension: str, json_content) -> str:
-    """Generate the name of the file according to OpenRecon standards"""
-    logger = logging.getLogger()
-
-    version = json_content['general']['version']
-    vendor  = json_content['general']['vendor' ]
-    name    = json_content['general']['id'     ]
-
-    if (extension not in ("Dockerfile", "zip", "tar", "pdf")):
-        logger.info("Unexpedted extension provided")
-
-    file_name = os.path.join(build_path, f"OpenRecon_{vendor}_{name}_V{version}.{extension}")
-    return file_name
-
-
-def prepare_infos(json_content, build_path: str, target_data: dict) -> dict:
-    """Generate the names of the building files(Dockerfile, .tar, .zip)"""
-    logger = logging.getLogger()
-
-    # prep build dir
-    if os.path.exists(build_path):
-        logger.info(f'`build` dir found : {build_path}')
-    else:
-        os.mkdir(build_path)
-        logger.info(f'`build` dir created : {build_path}')
-
-    # prep info
-    if args.debug:
-        cmdline  = f'CMD [ "/bin/bash", "-c", "/usr/sbin/ldconfig && exec python3 main.py --debug -H=0.0.0.0 -p=9002 -l=/tmp/python-openrecon-server.log --config={target_data['name']['process']}"]'
-    else:
-        cmdline  = f'CMD [ "/bin/bash", "-c", "/usr/sbin/ldconfig && exec python3 main.py -H=0.0.0.0 -p=9002 -l=/tmp/python-openrecon-server.log --config={target_data['name']['process']}"]'
-    
-    version = json_content['general']['version']
-    vendor  = json_content['general']['vendor' ]
-    name    = json_content['general']['id'     ]
-
-    # other file/path
-    base_name = f'OpenRecon_{vendor}_{name}_V{version}'
-
-    build_data = {
-        'cmdline': cmdline,
-        'info': {
-            'version'   : version,
-            'vendor'    : vendor,
-            'name'      : name
-        },
-        'name': {
-            'docker': f'OpenRecon_{vendor}_{name}:V{version}'.lower(),
-            'base'  : f'OpenRecon_{vendor}_{name}_V{version}'
-        },
-        'path': {
-            'docker' : os.path.join(build_path, f"{base_name}.Dockerfile"),
-            'tar'   : os.path.join(build_path, f"{base_name}.tar"),
-            'pdf'   : os.path.join(build_path, f"{base_name}.pdf"),
-            'zip'   : os.path.join(build_path, f"{base_name}.zip")
-        }
-    }
-
-    pprint.pprint(build_data, sort_dicts=False)
-
-    return build_data
 
 
 def main(args: argparse.Namespace):
@@ -342,10 +326,9 @@ def main(args: argparse.Namespace):
     ### build ###
     #############
 
-    # Build docker image of the server
+    # Build docker image for the base of the server
     print_section('BUILD SERVER')
-    cwd = os.getcwd()
-    dockerfile_path = os.path.join(cwd, 'Dockerfile')
+    dockerfile_path = os.path.join(cwd, 'MRD.Dockerfile')
     build_server(dockerfile_path)
 
     print_section('BUILD')
@@ -366,15 +349,16 @@ def main(args: argparse.Namespace):
     build_data = prepare_infos(json_content, build_path, target_data)
 
     # Write the Dockerfile
-    write_dockerfile(build_data['cmdline'], json_content, build_data)
+    docker_path = os.path.join(target_path, 'application.Dockerfile')
+    write_dockerfile(build_data['cmdline'], json_content, docker_path, build_data['path']['docker'])
 
-     # build docker image
+    # build docker image
     logger.info(f"building docker image `{build_data['name']['docker']}` from Docker file {build_data['path']['docker']}")
     subprocess.run(['docker', 'build', '--tag', build_data['name']['docker'], '--file', build_data['path']['docker'], cwd], check=True)
 
     # generate a pdf documentation and save the docker image and its doc in a .zip
     if not args.nopackage : 
-        packaging_OR_image(build_data, build_data['info'])
+        packaging_OR_image(build_data)
 
     # END
     print_section('All done !')
@@ -383,7 +367,7 @@ def main(args: argparse.Namespace):
 
 if __name__ == '__main__':
 
-     # setup logging
+    # setup logging
     logging.basicConfig(
         level=logging.DEBUG,
         format=f"%(levelname)8s:%(funcName)15s: %(message)s",

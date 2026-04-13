@@ -81,7 +81,7 @@ FROM python-or-devcontainer AS python-or-runtime
 #    docker build --no-cache -t fire-python-custom -f docker/Dockerfile ./
 WORKDIR /opt/code/python-openrecon-server
 
-COPY . .
+ENV NVIDIA_VISIBLE_DEVICES=all NVIDIA_DRIVER_CAPABILITIES=compute,utility
 
 # Throw an explicit error if docker build is run from the folder *containing*
 # python-openrecon-server instead of within it (i.e. old method)

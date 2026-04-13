@@ -15,7 +15,7 @@ ExampleData/
 
 # Docker
 docker-compose.yml
-Dockerfile
+*Dockerfile
 .docker
 .dockerignore
 
