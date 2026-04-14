@@ -6,13 +6,13 @@ from server.pipeline.pipeline import Pipeline
 import logging
 import  importlib
 
-def pipeline_factory(connection: Connection, config_name: str) -> Pipeline | None:
+def pipeline_factory(connection: Connection, app_name: str, app_directory: str) -> Pipeline | None:
     """Create the pipeline based on the config module"""
     try:
-        module = importlib.import_module("app."+config_name)
-        logging.info(f"Starting config {config_name}")
+        module = importlib.import_module(app_directory + "." + app_name)
+        logging.info(f"Starting config {app_name} in {app_directory} directory")
     except ImportError as e:
-        logging.error("Failed to load config '%s' with error:\n  %s", config_name, e)
+        logging.error("Failed to load config '%s' with error:\n  %s", app_name, e)
         pipeline = Pipeline(connection, None)
         return pipeline
     

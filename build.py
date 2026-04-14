@@ -341,9 +341,9 @@ def main(args: argparse.Namespace):
     # prepare infos 
     # prepare the commande line for the Dockerfile
     if args.debug:
-        cmdline  = f'exec python3 main.py -v --debug -H=0.0.0.0 -p=9002 -l=/tmp/python-openrecon-server.log --config={target_data['name']['process']}'
+        cmdline  = f'exec python3 main.py -v --debug -H=0.0.0.0 -p=9002 -l=/tmp/python-openrecon-server.log --config={target_data['name']['process']} --dirname={args.dirname}'
     else:
-        cmdline  = f'exec python3 main.py -v -H=0.0.0.0 -p=9002 -l=/tmp/python-openrecon-server.log --config={target_data['name']['process']}'
+        cmdline  = f'exec python3 main.py -v -H=0.0.0.0 -p=9002 -l=/tmp/python-openrecon-server.log --config={target_data['name']['process']} --dirname={args.dirname}'
 
     build_data = prepare_infos(json_content, build_path)
 
@@ -378,11 +378,14 @@ if __name__ == '__main__':
         formatter_class = argparse.ArgumentDefaultsHelpFormatter,
     )
 
-    def dir_path(input_dir):
-        if os.path.isdir(input_dir):
-            return input_dir
-        else:
+    def dir_path(input_dir: str) -> bool:
+        if os.path.basename(input_dir) != input_dir:
+            raise ValueError(f"Not a valid path : {input_dir} must not be a nested path")
+        
+        if not os.path.isdir(input_dir):
             raise argparse.ArgumentTypeError(f"Not a valid path : {input_dir}")
+        
+        return input_dir
 
     parser.add_argument(
         '--dirname',
@@ -390,8 +393,8 @@ if __name__ == '__main__':
         help    = 'Application directory name. ex: `demo-i2i`, `app`',
         default = 'app'
     )
-    parser.add_argument('-d', '--debug', action='store_true', help='Build the server in debug mode')
-    parser.add_argument('--nopackage', action='store_true', help='Do not save the docker image in a .zip file')
+    parser.add_argument('-D', '--debug', action='store_true', help='Build the server in debug mode')
+    parser.add_argument('--nopackage',   action='store_true', help='Do not save the docker image in a .zip file')
 
     args = parser.parse_args()
 

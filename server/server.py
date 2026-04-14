@@ -17,10 +17,11 @@ from utils.check_OR_arguments import check_OR_arguments
 class Server:
     """Server class"""
 
-    def __init__(self, port: int, address: str, app_config: str, savedata: bool) -> None:
+    def __init__(self, port: int, address: str, app_config: str, app_directory: str, savedata: bool) -> None:
         logging.info(f"Starting the server and listening for data at {address}, {port}")
 
         self.app_config = app_config
+        self.app_directory = app_directory
         self.savedata = savedata
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -109,12 +110,12 @@ class Server:
             configJSON = self.handleJSON(connection, config)
 
             #If the debug mode is activated, execute the debug mode
-            if config == "openrecon" and (debug or check_OR_arguments(configJSON, 'debug', bool, False) == True):
+            if config == "openrecon" and (debug or check_OR_arguments(configJSON, 'Debug', bool, False) == True):
                 image_stream_debug(connection, configJSON, metadata)
             # If the config is openrecon load the app config
             # Else do nothing with the data
             elif (config == "openrecon"):
-                pipeline = pipeline_factory(connection, self.app_config)
+                pipeline = pipeline_factory(connection, self.app_config, self.app_directory)
                 image_stream(connection, configJSON, metadata, pipeline)
             else :
                 logging.info(f"No openrecon config requested : {config}")

@@ -29,7 +29,7 @@ class Pipeline:
             send_original_images(images, self.connection)
             return []
         
-        if check_OR_arguments(configJSON, 'sendOriginal', bool, True) == True:
+        if check_OR_arguments(configJSON, 'SaveOriginal', bool, True) == True:
             send_original_images(images, self.connection)
 
         logging.debug("Processing data with %d images of type %s", len(images), images[0].data.dtype)
