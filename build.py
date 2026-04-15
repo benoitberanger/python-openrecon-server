@@ -120,8 +120,14 @@ def check_target_dir(target_path: str) -> dict:
 
 
 def build_base_image(dockerfile_path: str) -> None:
-    """Build the server image"""
+    """Build the base image for the server with all the ISMRMRD dependencies"""
     logger = logging.getLogger()
+
+    result = subprocess.run(['docker', 'images', 'python-openrecon-server'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True)
+    output = result.stdout.strip()
+    if 'python-openrecon-server' in output:
+        logger.info('docker image `python-openrecon-server` already built')
+        return
 
     # build docker image for python-openrecon-server
     # this image is the starting point, that will be refined latter

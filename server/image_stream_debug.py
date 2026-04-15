@@ -31,6 +31,7 @@ def image_stream_debug(connection: Connection, configJSON, metadata) -> None:
         except:
             logging.info("Improperly formatted metadata: \n%s", metadata)
 
+        imgGroup = []
         try:
             for item in connection:
                 # When the connection is closed, all images have been received
@@ -56,7 +57,7 @@ def image_stream_debug(connection: Connection, configJSON, metadata) -> None:
                     tmpMeta['Keep_image_geometry'] = 1
                     item.attribute_string = tmpMeta.serialize()
 
-                    connection.send_image(item)
+                    imgGroup.append(item)
 
                 elif item is None:
                     logging.info("Exit because null item received")
@@ -64,6 +65,8 @@ def image_stream_debug(connection: Connection, configJSON, metadata) -> None:
 
                 else:
                     raise Exception("Unsupported data type %s", type(item).__name__)
+            
+            connection.send_image(imgGroup)
 
         except Exception as e:
             logging.error(traceback.format_exc())
@@ -114,3 +117,18 @@ def display_info_images(image) -> None:
     # logging.info(f'user_int                 : {image.user_int}')
     # logging.info(f'user_float               : {image.user_float}')
     # logging.info(f'attribute_string_len     : {image.attribute_string_len}')
+
+    logging.info("      ***** FLAGS *****")
+    logging.info(f"First in average         : {image.is_flag_set(ismrmrd.IMAGE_FIRST_IN_AVERAGE)}")
+    logging.info(f"Last in average          : {image.is_flag_set(ismrmrd.IMAGE_LAST_IN_AVERAGE)}")
+    logging.info(f"First in slice           : {image.is_flag_set(ismrmrd.IMAGE_FIRST_IN_SLICE)}")
+    logging.info(f"Last in slice            : {image.is_flag_set(ismrmrd.IMAGE_LAST_IN_SLICE)}")
+    logging.info(f"First in contrast        : {image.is_flag_set(ismrmrd.IMAGE_FIRST_IN_CONTRAST)}")
+    logging.info(f"Last in contrast         : {image.is_flag_set(ismrmrd.IMAGE_LAST_IN_CONTRAST)}")
+    logging.info(f"First in phase           : {image.is_flag_set(ismrmrd.IMAGE_FIRST_IN_PHASE)}")
+    logging.info(f"Last in phase            : {image.is_flag_set(ismrmrd.IMAGE_LAST_IN_PHASE)}")
+    logging.info(f"First in repetition      : {image.is_flag_set(ismrmrd.IMAGE_FIRST_IN_REPETITION)}")
+    logging.info(f"Last in repetition       : {image.is_flag_set(ismrmrd.IMAGE_LAST_IN_REPETITION)}")
+    logging.info(f"First in set             : {image.is_flag_set(ismrmrd.IMAGE_FIRST_IN_SET)}")
+    logging.info(f"Last in set              : {image.is_flag_set(ismrmrd.IMAGE_LAST_IN_SET)}")
+    logging.info("      ****************")

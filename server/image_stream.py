@@ -31,7 +31,6 @@ def image_stream(connection: Connection, configJSON, metadata, pipeline: Pipelin
             logging.info("Improperly formatted metadata: \n%s", metadata)
 
         # Continuously parse incoming data parsed from MRD messages
-        currentSeries = 0
         imgGroup = []
         try:
             for item in connection:
@@ -52,27 +51,7 @@ def image_stream(connection: Connection, configJSON, metadata, pipeline: Pipelin
                 # Image data messages
                 # ----------------------------------------------------------
                 elif isinstance(item, ismrmrd.Image):
-                    
-                    # When this criteria is met, run process_group() on the accumulated
-                    # data, which returns images that are sent back to the client.
-                    # e.g. when the series number changes:
-                    if item.image_series_index != currentSeries:
-                        logging.info("Processing a group of images because series index changed to %d", item.image_series_index)
-                        currentSeries = item.image_series_index
-                        image = pipeline.run(imgGroup, configJSON, metadata)
-                        connection.send_image(image)
-                        imgGroup = []
-
-                    # Only process magnitude images -- send phase images back without modification (fallback for images with unknown type)
-                    if (item.image_type is ismrmrd.IMTYPE_MAGNITUDE) or (item.image_type == 0):
-                        imgGroup.append(item)
-                    else:
-                        tmpMeta = ismrmrd.Meta.deserialize(item.attribute_string)
-                        tmpMeta['Keep_image_geometry']    = 1
-                        item.attribute_string = tmpMeta.serialize()
-
-                        connection.send_image(item)
-                        continue
+                    imgGroup.append(item)
 
                 elif item is None:
                     logging.info("Exit because null item received")
@@ -86,10 +65,9 @@ def image_stream(connection: Connection, configJSON, metadata, pipeline: Pipelin
             # This is also a fallback for handling image data, as the last
             # image in a series is typically not separately flagged.
             if len(imgGroup) > 0:
-                logging.info("Processing a group of images (untriggered)")
+                logging.info("Processing a group of images")
                 images = pipeline.run(imgGroup, configJSON, metadata)
                 connection.send_image(images)
-                imgGroup = []
 
         except Exception as e:
             logging.error(traceback.format_exc())

@@ -321,10 +321,11 @@ class Connection:
             if not isinstance(images, list):
                 images = [images]
             
+            logging.info("--> Sending MRD_MESSAGE_ISMRMRD_IMAGE (1022) (%d images)", len(images))
+            
             if len(images) == 0:
                 return
 
-            logging.info("--> Sending MRD_MESSAGE_ISMRMRD_IMAGE (1022) (%d images)", len(images))
             for image in images:
                 if image is None:
                     continue

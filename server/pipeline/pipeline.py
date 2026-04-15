@@ -44,7 +44,7 @@ class Pipeline:
         meta = [ismrmrd.Meta.deserialize(img.attribute_string) for img in images]
 
         #display diagnostic info in the log
-        display_diagnostic(images, head, meta)
+        diagnostic = display_diagnostic(images, head, meta)
 
         imgfactory = ImageFactory(head, meta)
         # self.preprocessors.append(imgfactory.MRD5Dto3D)
@@ -59,17 +59,6 @@ class Pipeline:
 
         for step in self.postprocessors:
             result = step.run(result, configJSON, metadata)
-
-        #######################################################
-        #Just changing the image_series_index of the image without any modification for test
-        # images_out = []
-
-        # for image in images:
-        #     image.image_series_index = 99
-        #     images_out.append(image)
-        
-        # return images_out
-        ######################################################
 
         return result
     
@@ -92,7 +81,7 @@ def send_original_images(images: list, connection: Connection) -> None:
     connection.send_image(images_copy)
 
 
-def display_diagnostic(images: list, head: list, meta: list[ismrmrd.Meta]) -> None:
+def display_diagnostic(images: list, head: list, meta: list[ismrmrd.Meta]) -> dict:
     """Display diagnostic info about the images in the log"""
 
     # Optional serialization of ICE MiniHeader
@@ -112,3 +101,14 @@ def display_diagnostic(images: list, head: list, meta: list[ismrmrd.Meta]) -> No
     logging.info(f'MRD read_dir         [x y z] : {read_dir }')
     logging.info(f'MRD phase_dir        [x y z] : {phase_dir}')
     logging.info(f'MRD slice_dir        [x y z] : {slice_dir}')
+
+    diagnostic = {
+        'matrix': matrix,
+        'fov'   : fov,
+        'voxelsize' : voxelsize,
+        'read_dir'  : read_dir,
+        'phase_dir' : phase_dir,
+        'slice_dir' : slice_dir
+    }
+
+    return diagnostic
