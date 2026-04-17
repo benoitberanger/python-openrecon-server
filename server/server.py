@@ -18,7 +18,7 @@ class Server:
     """Server class"""
 
     def __init__(self, port: int, address: str, app_config: str, app_directory: str, savedata: bool) -> None:
-        logging.info(f"Starting the server and listening for data at {address}, {port}")
+        logging.info(f"Starting server and listening for data at {address}:{port}")
 
         self.app_config = app_config
         self.app_directory = app_directory

@@ -12,7 +12,7 @@ defaults = {
     'host':           '0.0.0.0',
     'port':           9002,
     'config':         'invertContrast',
-    'directory':      'app',
+    'dirname':        'app',
 }
 
 def main(args: argparse.Namespace):
@@ -70,7 +70,7 @@ if __name__ == '__main__':
     else:
         logLevel = logging.INFO
 
-    format_log='SERVER : %(message)s'
+    format_log='SERVER : %(levelname)8s: %(message)s'
 
     if args.logfile:
         print("Logging to file:", args.logfile)

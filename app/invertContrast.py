@@ -11,12 +11,13 @@ import logging
 import os
 import base64
 
+from utils.utils import flatten_subarray
+
 
 # Folder for debug output files
 debugFolder = "/tmp/share/debug"
 
-
-def process_image(data: np.array, head: list, meta: list, configJSON, metadata) -> np.array:
+def process_image(arr_image, configJSON, metadata) -> np.array:
     """Invert contrast process image"""
     
     # Create debug folder, if necessary
@@ -28,6 +29,20 @@ def process_image(data: np.array, head: list, meta: list, configJSON, metadata) 
     logging.info(f'     invertContrast called')
     logging.info(f'-----------------------------------------------')
     
+    mag_images = arr_image[:, 0, :, :, :, :, ismrmrd.IMTYPE_MAGNITUDE]
+    images = flatten_subarray(mag_images)
+
+    # Extract image data into a numpy array
+    # (for 5D images: MRD supposed [img cha z y x])
+    data = np.stack([img.data                              for img in images])
+    logging.info(f'MRD supposed organization : [img cha z y x]')
+    logging.info(f'MRD data shape : {data.shape}')
+    head = [img.getHead()                                  for img in images]
+    meta = [ismrmrd.Meta.deserialize(img.attribute_string) for img in images]
+
+    #display diagnostic info in the log
+    # diagnostic = display_diagnostic(images, head, meta)
+
     data = data.transpose((3, 4, 2, 1, 0))
 
     BitsStored = 12
@@ -44,6 +59,7 @@ def process_image(data: np.array, head: list, meta: list, configJSON, metadata) 
     data = np.abs(data)
     np.save(debugFolder + "/" + "imgInverted.npy", data)
     
+    # TO-DO: Move that part in a dedicated function
     # Re-slice back into 2D images
     imagesOut = [None] * data.shape[-1]
     for iImg in range(data.shape[-1]):
@@ -71,9 +87,8 @@ def process_image(data: np.array, head: list, meta: list, configJSON, metadata) 
         tmpMeta = meta[iImg]
         tmpMeta['DataRole']                       = 'Image'
         tmpMeta['ImageProcessingHistory']         = ['PYTHON', 'INVERT']
-        tmpMeta['WindowCenter']                   = str((maxVal+1)/2)
-        tmpMeta['WindowWidth']                    = str((maxVal+1))
-        tmpMeta['SequenceDescriptionAdditional']  = 'FIRE'
+        # tmpMeta['WindowCenter']                   = str((maxVal+1)/2)
+        # tmpMeta['WindowWidth']                    = str((maxVal+1))
         tmpMeta['Keep_image_geometry']            = 1
 
         metaXml = tmpMeta.serialize()
