@@ -3,16 +3,16 @@
 from server.connection import Connection
 
 import argparse
-import logging
 import datetime
+import ismrmrd
+import json
 import h5py
+import logging
+import multiprocessing
+import os
 import socket
 import sys
-import ismrmrd
-import multiprocessing
 import time
-import os
-import json
 
 defaults = {
     'filename':           '',

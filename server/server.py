@@ -1,18 +1,15 @@
 #!/usr/bin/python3
 
-from server.image_stream_debug import image_stream_debug
 from server.image_stream import image_stream
 from server.pipeline.pipeline_factory import pipeline_factory
 from server.connection import Connection
 import server.constants as constants
 
-import logging
-import socket
-import signal
-import json
 import ismrmrd
-
-from utils.check_OR_arguments import check_OR_arguments
+import json
+import logging
+import signal
+import socket
 
 class Server:
     """Server class"""
@@ -109,19 +106,16 @@ class Server:
             # Additional config parameters passed through a JSON text message
             configJSON = self.handleJSON(connection, config)
 
-            #If the debug mode is activated, execute the debug mode
-            if config == "openrecon" and (debug or check_OR_arguments(configJSON, 'Debug', bool, False) == True):
-                image_stream_debug(connection, configJSON, metadata)
             # If the config is openrecon load the app config
             # Else do nothing with the data
-            elif (config == "openrecon"):
+            if (config == "openrecon"):
                 pipeline = pipeline_factory(connection, self.app_config, self.app_directory)
-                image_stream(connection, configJSON, metadata, pipeline)
+                image_stream(connection, configJSON, metadata, pipeline, debug)
             else :
                 logging.info(f"No openrecon config requested : {config}")
                 try:
                     for msg in connection:
-                        if msg is None:
+                        if (not connection.open) or (msg is None):
                             break
                 finally:
                     connection.send_close()

@@ -1,9 +1,9 @@
 #!/bin/python3
 
-import logging
-import xml.dom.minidom
 import ismrmrd
+import logging
 import numpy as np
+import xml.dom.minidom
 
 # import ants
 

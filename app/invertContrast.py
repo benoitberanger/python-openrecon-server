@@ -1,24 +1,22 @@
 #!/bin/python3
 
-import xml
-
 from utils.ImageFactory import ImageFactory
 from utils.check_OR_arguments import check_OR_arguments
+from utils.utils import flatten, get_magnitude, get_subarray
 
+import base64
 import ismrmrd
+import logging
 import numpy as np
 import numpy.typing as npt
-import logging
 import os
-import base64
-
-from utils.utils import flatten, get_subarray
+import xml
 
 
 # Folder for debug output files
 debugFolder = "/tmp/share/debug"
 
-def process_image(arr_image: npt.NDArray, configJSON: dict, metadata) -> list[ismrmrd.Image]:
+def process_image(img_array: npt.NDArray, configJSON: dict, metadata) -> list[ismrmrd.Image]:
     """Invert contrast process image"""
     
     # Create debug folder, if necessary
@@ -30,7 +28,7 @@ def process_image(arr_image: npt.NDArray, configJSON: dict, metadata) -> list[is
     logging.info(f'     invertContrast called')
     logging.info(f'-----------------------------------------------')
     
-    mag_images = get_subarray(arr_image, img_slice = slice(0,20), img_image_type = ismrmrd.IMTYPE_MAGNITUDE)
+    mag_images = get_magnitude(img_array)
     logging.info(f'mag_images shape : {mag_images.shape}')
     images = flatten(mag_images)
     logging.info(f'len mag_images : {len(images)}')

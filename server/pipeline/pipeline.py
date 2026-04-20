@@ -29,8 +29,8 @@ class Pipeline:
 
         logging.debug("Processing data with %d images of type %s", len(images), images[0].data.dtype)
 
-        arr_images = build_image_array(images)
+        img_array = build_image_array(images)
         
-        result = self.processor.process_image(arr_images, configJSON, metadata)
+        result = self.processor.process_image(img_array, configJSON, metadata)
 
         return result

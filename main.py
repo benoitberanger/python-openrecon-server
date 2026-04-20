@@ -3,10 +3,10 @@
 from server.server import Server
 
 import argparse
-import sys
-import signal
 import logging
 import os
+import signal
+import sys
 
 defaults = {
     'host':           '0.0.0.0',

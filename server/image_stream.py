@@ -1,15 +1,15 @@
 #!/bin/python3
 
+from server.connection import Connection
+from server.pipeline.pipeline import Pipeline
+from utils.check_OR_arguments import check_OR_arguments
+
+import ismrmrd
 import logging
 import traceback
 
-import ismrmrd
 
-from server.connection import Connection
-from server.pipeline.pipeline import Pipeline
-
-
-def image_stream(connection: Connection, configJSON, metadata, pipeline: Pipeline) -> None:
+def image_stream(connection: Connection, configJSON: dict | None, metadata, pipeline: Pipeline, debug: bool) -> None:
         """
         Treat the images send by the server, send back the result
         """
@@ -29,6 +29,10 @@ def image_stream(connection: Connection, configJSON, metadata, pipeline: Pipelin
 
         except:
             logging.info("Improperly formatted metadata: \n%s", metadata)
+
+        #Check 
+        if (not debug) and check_OR_arguments(configJSON, 'Debug', bool, False) == True :
+            debug = True
 
         # Continuously parse incoming data parsed from MRD messages
         imgGroup = []
@@ -51,7 +55,12 @@ def image_stream(connection: Connection, configJSON, metadata, pipeline: Pipelin
                 # Image data messages
                 # ----------------------------------------------------------
                 elif isinstance(item, ismrmrd.Image):
-                    imgGroup.append(item)
+                    # If the debug mode is activated, send back original images
+                    # with image infos displayed in the log
+                    if debug:
+                        send_back_debug(item, connection)
+                    else:
+                        imgGroup.append(item)
 
                 elif item is None:
                     logging.info("Exit because null item received")
@@ -60,10 +69,7 @@ def image_stream(connection: Connection, configJSON, metadata, pipeline: Pipelin
                 else:
                     raise Exception("Unsupported data type %s", type(item).__name__)
 
-            # Process any remaining groups of image data.  This can 
-            # happen if the trigger condition for these groups are not met.
-            # This is also a fallback for handling image data, as the last
-            # image in a series is typically not separately flagged.
+            # Process images data.
             if len(imgGroup) > 0:
                 logging.info("Processing a group of images")
                 images = pipeline.run(imgGroup, configJSON, metadata)
@@ -81,3 +87,74 @@ def image_stream(connection: Connection, configJSON, metadata, pipeline: Pipelin
                 connection.send_close()
             except:
                 logging.error("Failed to send close message!")
+
+
+######################## DEBUG MODE FUNCTIONS ############################
+def display_info_images(image) -> None:
+    """Display in the log info about images info"""
+
+    logging.info('-------------------------------------')
+    logging.info('-------------IMAGE INFO--------------')
+    logging.info('-------------------------------------')
+
+    image_type = ['0', 
+                  'MRD_IMTYPE_MAGNITUDE', 
+                  'MRD_IMTYPE_PHASE', 
+                  'MRD_IMTYPE_REAL', 
+                  'MRD_IMTYPE_IMAG', 
+                  'MRD_IMTYPE_COMPLEX',
+                  'MRD_IMTYPE_RGB']
+    
+    # logging.info(f'version                  : {image.version}')
+    # logging.info(f'data_type                : {image.data_type}')
+    logging.info(f'flags                    : {image.flags}')
+    # logging.info(f'measurement_uid          : {image.measurement_uid}')
+    # logging.info(f'matrix_size              : {image.matrix_size}')
+    # logging.info(f'field_of_view            : {image.field_of_view}')
+    # logging.info(f'channels                 : {image.channels}')
+    # logging.info(f'position                 : L={image.position[0]} mm, P={image.position[1]} mm, S={image.position[2]} mm')
+    logging.info(f'read_dir                 : {image.read_dir[0], image.read_dir[1], image.read_dir[2]}')
+    logging.info(f'phase_dir                : {image.phase_dir[0], image.phase_dir[1], image.phase_dir[2]}')
+    logging.info(f'slice_dir                : {image.slice_dir[0], image.slice_dir[1], image.slice_dir[2]}')
+    # logging.info(f'patient_table_position   : {image.patient_table_position}')
+    logging.info(f'average                  : {image.average}')
+    logging.info(f'slice                    : {image.slice}')
+    logging.info(f'contrast                 : {image.contrast}')
+    logging.info(f'phase                    : {image.phase}')
+    logging.info(f'repetition               : {image.repetition}')
+    logging.info(f'set                      : {image.set}')
+    # logging.info(f'aquisition_time_stamp    : {image.aquisition_time_stamp}')
+    # logging.info(f'physiology_time_stamp    : {image.physiology_time_stamp}')
+    logging.info(f'image_type               : {image_type[image.image_type]}')
+    logging.info(f'image_index              : {image.image_index}')
+    logging.info(f'image_series_index       : {image.image_series_index}')
+    # logging.info(f'user_int                 : {image.user_int}')
+    # logging.info(f'user_float               : {image.user_float}')
+    # logging.info(f'attribute_string_len     : {image.attribute_string_len}')
+
+    logging.info("      ***** FLAGS *****")
+    logging.info(f"First in average         : {image.is_flag_set(ismrmrd.IMAGE_FIRST_IN_AVERAGE)}")
+    logging.info(f"Last in average          : {image.is_flag_set(ismrmrd.IMAGE_LAST_IN_AVERAGE)}")
+    logging.info(f"First in slice           : {image.is_flag_set(ismrmrd.IMAGE_FIRST_IN_SLICE)}")
+    logging.info(f"Last in slice            : {image.is_flag_set(ismrmrd.IMAGE_LAST_IN_SLICE)}")
+    logging.info(f"First in contrast        : {image.is_flag_set(ismrmrd.IMAGE_FIRST_IN_CONTRAST)}")
+    logging.info(f"Last in contrast         : {image.is_flag_set(ismrmrd.IMAGE_LAST_IN_CONTRAST)}")
+    logging.info(f"First in phase           : {image.is_flag_set(ismrmrd.IMAGE_FIRST_IN_PHASE)}")
+    logging.info(f"Last in phase            : {image.is_flag_set(ismrmrd.IMAGE_LAST_IN_PHASE)}")
+    logging.info(f"First in repetition      : {image.is_flag_set(ismrmrd.IMAGE_FIRST_IN_REPETITION)}")
+    logging.info(f"Last in repetition       : {image.is_flag_set(ismrmrd.IMAGE_LAST_IN_REPETITION)}")
+    logging.info(f"First in set             : {image.is_flag_set(ismrmrd.IMAGE_FIRST_IN_SET)}")
+    logging.info(f"Last in set              : {image.is_flag_set(ismrmrd.IMAGE_LAST_IN_SET)}")
+    logging.info("      ****************")
+
+
+def send_back_debug(image: ismrmrd.Image, connection: Connection) -> None:
+    """Send back the original images without changes and log infos about it"""
+    display_info_images(image)
+
+    tmpMeta = ismrmrd.Meta.deserialize(image.attribute_string)
+    tmpMeta['Keep_image_geometry'] = 1
+    image.attribute_string = tmpMeta.serialize()
+
+    connection.send_image(image)
+#############################################################################

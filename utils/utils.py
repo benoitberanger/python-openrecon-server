@@ -1,11 +1,12 @@
-import base64
-import logging
-
-import ismrmrd
-import numpy as np
-import numpy.typing as npt
+#!/bin/python3
 
 from server.connection import Connection
+
+import base64
+import ismrmrd
+import logging
+import numpy as np
+import numpy.typing as npt
 
 
 def send_original_images(images: list, connection: Connection) -> None:
@@ -140,6 +141,10 @@ def get_subarray(img_array: npt.NDArray,
 
 def get_magnitude(img_array: npt.NDArray) -> npt.NDArray:
     return get_subarray(img_array, img_image_type=ismrmrd.IMTYPE_MAGNITUDE)
+
+
+def get_phase(img_array: npt.NDArray) -> npt.NDArray:
+    return get_subarray(img_array, img_image_type=ismrmrd.IMTYPE_PHASE)
 
 
 def get_contrast(img_array: npt.NDArray, contrast: int) -> npt.NDArray:
