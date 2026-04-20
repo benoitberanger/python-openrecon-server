@@ -3,6 +3,7 @@ import logging
 
 import ismrmrd
 import numpy as np
+import numpy.typing as npt
 
 from server.connection import Connection
 
@@ -57,7 +58,7 @@ def display_diagnostic(images: list, head: list, meta: list[ismrmrd.Meta]) -> di
 
     return diagnostic
 
-def build_image_array(img_list):
+def build_image_array(img_list: list) -> npt.NDArray :
     """Build an array to store the image in an organise way"""
     
     # Found the max value for each dimension
@@ -108,16 +109,47 @@ def build_image_array(img_list):
     return img_array
 
 
-# TO-DO: getter for the different composant of the array
-# def get_subarray(arr, slice = None, contrast = None, average = None, phase = None, repetition = None, set = None, image_type = None):
-#     """Return a subarray depending of the parameters specified"""
+# TO-DO: - add better error handeling with logs when wrong dimensions asked
+#        - make a clear documentation for these function
+def get_subarray(img_array: npt.NDArray, 
+                 img_slice = None, 
+                 img_contrast = None, 
+                 img_average = None, 
+                 img_phase = None, 
+                 img_repetition = None, 
+                 img_set = None, 
+                 img_image_type = None) -> npt.NDArray:
+    """Return a subarray depending of the parameters specified"""
+
+    def to_index(x):
+            return slice(None) if x is None else x
+
+    idx = (
+        to_index(img_slice),
+        to_index(img_contrast),
+        to_index(img_average),
+        to_index(img_phase),
+        to_index(img_repetition),
+        to_index(img_set),
+        to_index(img_image_type),
+    )
+    
+    logging.info(idx)
+    return img_array[idx]
 
 
+def get_magnitude(img_array: npt.NDArray) -> npt.NDArray:
+    return get_subarray(img_array, img_image_type=ismrmrd.IMTYPE_MAGNITUDE)
 
-def flatten_subarray(subarr):
+
+def get_contrast(img_array: npt.NDArray, contrast: int) -> npt.NDArray:
+    return get_subarray(img_array, contrast = contrast)
+
+
+def flatten(arr: npt.NDArray) -> list[ismrmrd.Image]:
     images = []
 
-    for cell in subarr.flat:
+    for cell in arr.flat:
         if cell is None:
             continue
         images.extend(cell)

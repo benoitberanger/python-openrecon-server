@@ -7,17 +7,18 @@ from utils.check_OR_arguments import check_OR_arguments
 
 import ismrmrd
 import numpy as np
+import numpy.typing as npt
 import logging
 import os
 import base64
 
-from utils.utils import flatten_subarray
+from utils.utils import flatten, get_subarray
 
 
 # Folder for debug output files
 debugFolder = "/tmp/share/debug"
 
-def process_image(arr_image, configJSON, metadata) -> np.array:
+def process_image(arr_image: npt.NDArray, configJSON: dict, metadata) -> list[ismrmrd.Image]:
     """Invert contrast process image"""
     
     # Create debug folder, if necessary
@@ -29,8 +30,10 @@ def process_image(arr_image, configJSON, metadata) -> np.array:
     logging.info(f'     invertContrast called')
     logging.info(f'-----------------------------------------------')
     
-    mag_images = arr_image[:, 0, :, :, :, :, ismrmrd.IMTYPE_MAGNITUDE]
-    images = flatten_subarray(mag_images)
+    mag_images = get_subarray(arr_image, img_slice = slice(0,20), img_image_type = ismrmrd.IMTYPE_MAGNITUDE)
+    logging.info(f'mag_images shape : {mag_images.shape}')
+    images = flatten(mag_images)
+    logging.info(f'len mag_images : {len(images)}')
 
     # Extract image data into a numpy array
     # (for 5D images: MRD supposed [img cha z y x])
@@ -87,8 +90,6 @@ def process_image(arr_image, configJSON, metadata) -> np.array:
         tmpMeta = meta[iImg]
         tmpMeta['DataRole']                       = 'Image'
         tmpMeta['ImageProcessingHistory']         = ['PYTHON', 'INVERT']
-        # tmpMeta['WindowCenter']                   = str((maxVal+1)/2)
-        # tmpMeta['WindowWidth']                    = str((maxVal+1))
         tmpMeta['Keep_image_geometry']            = 1
 
         metaXml = tmpMeta.serialize()

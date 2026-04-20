@@ -214,7 +214,6 @@ def main(args):
 
                         configAdditionalText = json.dumps(configAdditional, indent=2)
 
-                logging.info("Sending configAdditional found in file %s:\n%s", args.filename, configAdditionalText)
                 connection.send_text(configAdditionalText)
             else:
                 # Do nothing -- no additional config in local .json file or in MRD file
@@ -238,7 +237,6 @@ def main(args):
 
                     localConfigAdditionalText = json.dumps(localConfigAdditional, indent=2)
 
-            logging.info("Sending configAdditional found in file %s:\n%s", configAdditionalFile, localConfigAdditionalText)
             connection.send_text(localConfigAdditionalText)
 
         # --------------- Send raw data ----------------------
