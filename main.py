@@ -17,7 +17,7 @@ defaults = {
 
 def main(args: argparse.Namespace):
     """Lauch the server"""
-    server = Server(args.port, args.host, args.config, args.dirname, args.savedata)
+    server = Server(args.port, args.host, args.config, args.dirname, args.savedata, args.debug)
     
     if args.debug:
         logging.info("Server mode : DEBUG")
@@ -36,7 +36,7 @@ def main(args: argparse.Namespace):
         signal.signal(signal.SIGINT, signal.SIG_DFL)
     
     # Start server
-    server.serve(args.debug)
+    server.serve()
 
 
 if __name__ == '__main__':

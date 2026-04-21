@@ -2,7 +2,8 @@
 
 from utils.ImageFactory import ImageFactory
 from utils.check_OR_arguments import check_OR_arguments
-from utils.utils import flatten, get_magnitude, get_subarray
+from utils.img_array import flatten, get_magnitude, get_subarray
+
 
 import base64
 import ismrmrd
@@ -28,7 +29,7 @@ def process_image(img_array: npt.NDArray, configJSON: dict, metadata) -> list[is
     logging.info(f'     invertContrast called')
     logging.info(f'-----------------------------------------------')
     
-    mag_images = get_magnitude(img_array)
+    mag_images = get_subarray(img_array, img_image_type=ismrmrd.IMTYPE_MAGNITUDE)
     logging.info(f'mag_images shape : {mag_images.shape}')
     images = flatten(mag_images)
     logging.info(f'len mag_images : {len(images)}')
