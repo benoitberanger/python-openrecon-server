@@ -5,6 +5,7 @@ test/
 debug/
 Makefile
 openrecon.json
+test*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -1,17 +1,17 @@
 {
   "general": {
     "name": { "en": "InvertContrast" },
-    "version": "1.0.1",
+    "version": "1.0.2",
     "vendor": "ICM",
     "information": { "en": "Invert Contrast" },
     "id": "InvertContrast",
       "regulatory_information":{
         "device_trade_name":"InvertContrast",
-        "production_identifier":"1.0.1",
+        "production_identifier":"1.0.2",
         "manufacturer_address":"https://github.com/benoitberanger/python-openrecon-server",
         "made_in":"CENIR, ICM, Paris, France",
         "manufacture_date":"2026-04-07",
-        "material_number":"InvertContrast_1.0.1",
+        "material_number":"InvertContrast_1.0.2",
         "gtin":"",
         "udi":"",
         "safety_advices":"",

@@ -29,10 +29,11 @@ def process_image(img_array: npt.NDArray, configJSON: dict, metadata) -> list[is
     logging.info(f'     invertContrast called')
     logging.info(f'-----------------------------------------------')
     
-    mag_images = get_subarray(img_array, img_image_type=ismrmrd.IMTYPE_MAGNITUDE)
-    logging.info(f'mag_images shape : {mag_images.shape}')
+    # mag_images = get_subarray(img_array, contrast= 1, img_image_type=ismrmrd.IMTYPE_MAGNITUDE)
+    mag_images = get_magnitude(img_array)
+    logging.info(f'Magnitude images shape : {mag_images.shape}')
     images = flatten(mag_images)
-    logging.info(f'len mag_images : {len(images)}')
+    logging.debug(f'Number of magnitude images : {len(images)}')
 
     # Extract image data into a numpy array
     # (for 5D images: MRD supposed [img cha z y x])
@@ -92,8 +93,8 @@ def process_image(img_array: npt.NDArray, configJSON: dict, metadata) -> list[is
         tmpMeta['Keep_image_geometry']            = 1
 
         metaXml = tmpMeta.serialize()
-        logging.debug("Image MetaAttributes: %s", xml.dom.minidom.parseString(metaXml).toprettyxml())
-        logging.debug("Image data has %d elements", imagesOut[iImg].data.size)
+        # logging.debug("Image MetaAttributes: %s", xml.dom.minidom.parseString(metaXml).toprettyxml())
+        # logging.debug("Image data has %d elements", imagesOut[iImg].data.size)
 
         imagesOut[iImg].attribute_string = metaXml
 

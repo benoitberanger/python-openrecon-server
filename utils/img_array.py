@@ -81,7 +81,7 @@ def get_subarray(img_array: npt.NDArray,
         to_index(img_image_type),
     )
     
-    logging.info(idx)
+    logging.debug(idx)
     return img_array[idx]
 
 
