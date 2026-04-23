@@ -1,5 +1,7 @@
 #!/usr/bin/python3
 
+import gc
+
 from utils.check_OR_arguments import check_OR_arguments
 from server.debug import send_back_debug
 from server.pipeline import Pipeline
@@ -12,6 +14,8 @@ import logging
 import signal
 import socket
 import traceback
+
+from utils.memory import log_memory, log_memory_delta
 
 
 class Server:
@@ -119,6 +123,7 @@ class Server:
 
         # Continuously parse incoming data parsed from MRD messages
         imgGroup = []
+        mem_start = log_memory("Begining handle_image_stream")
         try:
             for item in connection:
 
@@ -144,6 +149,9 @@ class Server:
                         send_back_debug(item, connection)
                     else:
                         imgGroup.append(item)
+                        # Log tous les 50 images pour ne pas spammer
+                        if len(imgGroup) % 50 == 0:
+                            log_memory_delta(f"{len(imgGroup)} images accumulated", mem_start)
 
                 elif item is None:
                     logging.info("Exit because null item received")
@@ -153,11 +161,18 @@ class Server:
                     raise Exception("Unsupported data type %s", type(item).__name__)
 
             # Process images data.
-            if len(imgGroup) > 0:
+            if imgGroup:
+                log_memory_delta(f"All item received — {len(imgGroup)} images", mem_start)
                 logging.info("Processing a group of images")
                 images = pipeline.run(imgGroup, configJSON, metadata)
-                connection.send_image(images)
+                del imgGroup
+                gc.collect()
 
+                # connection.send_image(images)
+                del images
+                gc.collect()
+                log_memory_delta("After send", mem_start)
+            
         except Exception as e:
             logging.error(traceback.format_exc())
             connection.send_logging("ERROR", traceback.format_exc())
@@ -170,6 +185,7 @@ class Server:
                 connection.send_close()
             except:
                 logging.error("Failed to send close message!")
+            log_memory_delta("End handle_image_stream", mem_start)
 
 
     def handle(self, sock: int)-> None:

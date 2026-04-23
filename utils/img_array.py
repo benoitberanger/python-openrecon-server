@@ -51,6 +51,10 @@ def build_image_array(img_list: list) -> npt.NDArray :
         else:
             img_array[key].append(img)
 
+    # TO-DO: Clear logs about the images array shape to know what is what
+    # Since the image_type have a value between 1 and 6, the subarray (:, :, :, :, :, :, 0)
+    # will always be empty because for clarity this value is directly use as key 
+    # logging.info('array shape: {slice, average, phase, repetition, set, image_type}')
     logging.info(f'array shape : {img_array.shape}')
 
     return img_array

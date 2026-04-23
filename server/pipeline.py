@@ -1,13 +1,17 @@
 #!/bin/python3
 
-import importlib
-
 from server.connection import Connection
 from utils.check_OR_arguments import check_OR_arguments
 from utils.img_array import build_image_array
+from utils.memory import log_memory, log_memory_delta
 from utils.utils import send_original_images
 
+import gc
+import importlib
+import ismrmrd
 import logging
+import numpy as np
+import numpy.typing as npt
 
 
 class Pipeline:
@@ -28,7 +32,7 @@ class Pipeline:
             logging.error("Failed to load config '%s' with error:\n  %s", self.app_config, e)
 
 
-    def run(self, images: list, configJSON, metadata) -> list:
+    def run(self, images: list, configJSON, metadata) -> None:
         """All the process apply on an image group"""
         if (len(images) == 0):
             return []
@@ -43,7 +47,63 @@ class Pipeline:
 
         logging.debug("Processing data with %d images of type %s", len(images), images[0].data.dtype)
 
+        mem = log_memory("Before build_image_array")
         img_array = build_image_array(images)
-        result = self.module.process_image(img_array, configJSON, metadata)
+        del images
+        gc.collect()
+        mem = log_memory_delta("After build_image_array", mem)
 
-        return result
+        data, head, meta = self.module.process_image(img_array, configJSON, metadata)
+        log_memory_delta("After process_image", mem)
+        
+        # Re-slice back into 2D images
+        self.MRD3Dto2DImages(data, head, meta)
+        del data, head, meta
+        gc.collect()
+        log_memory_delta("After MRD3Dto2DImages and gc", mem)
+
+
+    def MRD3Dto2DImages(self, data: npt.NDArray, head: list[ismrmrd.ImageHeader], meta: list[ismrmrd.Meta]) -> None:
+        """ Re-slice back 3D array data of the images into 2D images """
+        mem = log_memory("Before MRD3Dto2DImages")
+
+        n_imgs = data.shape[-1]
+
+        for i in range(n_imgs):
+            slice_view = data[..., i]
+            slice_data = np.ascontiguousarray(slice_view.transpose(3, 2, 0, 1))
+            img = ismrmrd.Image.from_array(
+                slice_data,
+                transpose=False
+            )
+            del slice_data
+
+            # Create a copy of the original fixed header and update the data_type
+            # (we changed it to int16 from all other types)
+            oldHeader = head[i]
+            oldHeader.data_type = img.data_type
+
+            # Set the image_type to match the data_type for complex data
+            if img.data_type in (ismrmrd.DATATYPE_CXFLOAT, ismrmrd.DATATYPE_CXDOUBLE):
+                oldHeader.image_type = ismrmrd.IMTYPE_COMPLEX
+
+            # Unused example, as images are grouped by series before being passed into this function now
+            oldHeader.image_series_index = 99
+            img.setHead(oldHeader)
+
+            #TO-DO: Pass processing history and sequence description additional as arguments ?
+            # (sequence description additional use for the images label)
+            # Create a copy of the original ISMRMRD Meta attributes and update
+            tmpMeta = meta[i]
+            tmpMeta['DataRole']                      = 'Image'
+            tmpMeta['ImageProcessingHistory']        = ['PYTHON', 'INVERT']
+            tmpMeta['SequenceDescriptionAdditional'] = 'invertcontrast'
+            tmpMeta['Keep_image_geometry']           = 1
+
+            img.attribute_string = tmpMeta.serialize()
+            # logging.debug("Image MetaAttributes: %s", xml.dom.minidom.parseString(metaXml).toprettyxml())
+            # logging.debug("Image data has %d elements", imagesOut[iImg].data.size)
+
+            self.connection.send_image(img)
+            del img
+            # log_memory_delta(f"After send image: {i}/{n_imgs - 1}", mem)

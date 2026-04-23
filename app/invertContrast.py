@@ -3,21 +3,24 @@
 from utils.ImageFactory import ImageFactory
 from utils.check_OR_arguments import check_OR_arguments
 from utils.img_array import flatten, get_magnitude, get_subarray
-
+from utils.memory import log_memory, log_memory_delta
+from utils.utils import display_diagnostic
 
 import base64
+import gc
 import ismrmrd
 import logging
 import numpy as np
 import numpy.typing as npt
 import os
+from time import perf_counter
 import xml
 
 
 # Folder for debug output files
 debugFolder = "/tmp/share/debug"
 
-def process_image(img_array: npt.NDArray, configJSON: dict, metadata) -> list[ismrmrd.Image]:
+def process_image(img_array: npt.NDArray, configJSON: dict, metadata) :
     """Invert contrast process image"""
     
     # Create debug folder, if necessary
@@ -29,22 +32,31 @@ def process_image(img_array: npt.NDArray, configJSON: dict, metadata) -> list[is
     logging.info(f'     invertContrast called')
     logging.info(f'-----------------------------------------------')
     
+    mem = log_memory("Begining process_image")
+
+    # Start timer
+    tic = perf_counter()
+    
     # mag_images = get_subarray(img_array, contrast= 1, img_image_type=ismrmrd.IMTYPE_MAGNITUDE)
     mag_images = get_magnitude(img_array)
     logging.info(f'Magnitude images shape : {mag_images.shape}')
     images = flatten(mag_images)
     logging.debug(f'Number of magnitude images : {len(images)}')
+    mem = log_memory_delta("After flatten", mem)
 
     # Extract image data into a numpy array
     # (for 5D images: MRD supposed [img cha z y x])
     data = np.stack([img.data                              for img in images])
     logging.info(f'MRD supposed organization : [img cha z y x]')
     logging.info(f'MRD data shape : {data.shape}')
+    mem = log_memory_delta("After np.stack", mem)
+
     head = [img.getHead()                                  for img in images]
     meta = [ismrmrd.Meta.deserialize(img.attribute_string) for img in images]
-
-    #display diagnostic info in the log
-    # diagnostic = display_diagnostic(images, head, meta)
+    
+    # display diagnostic info in the log
+    display_diagnostic(images, head, meta)
+    del images
 
     data = data.transpose((3, 4, 2, 1, 0))
 
@@ -53,49 +65,22 @@ def process_image(img_array: npt.NDArray, configJSON: dict, metadata) -> list[is
 
     # Normalize and convert to int16
     data = data.astype(np.float64)
+    mem = log_memory_delta("After astype float64", mem)
     data *= maxVal/data.max()
-    data = np.around(data)
+    np.around(data, out=data)
     data = data.astype(np.int16)
+    gc.collect()
+    mem = log_memory_delta("After astype int16", mem)
 
      # Invert image contrast
     data = maxVal-data
     data = np.abs(data)
     np.save(debugFolder + "/" + "imgInverted.npy", data)
-    
-    # TO-DO: Move that part in a dedicated function
-    # Re-slice back into 2D images
-    imagesOut = [None] * data.shape[-1]
-    for iImg in range(data.shape[-1]):
-        # Create new MRD instance for the inverted image
-        # Transpose from convenience shape of [y x z cha] to MRD Image shape of [cha z y x]
-        # from_array() should be called with 'transpose=False' to avoid warnings, and when called
-        # with this option, can take input as: [cha z y x], [z y x], or [y x]
-        imagesOut[iImg] = ismrmrd.Image.from_array(data[...,iImg].transpose((3, 2, 0, 1)), transpose=False)
+    mem = log_memory_delta("After inversion", mem)
 
-        # Create a copy of the original fixed header and update the data_type
-        # (we changed it to int16 from all other types)
-        oldHeader = head[iImg]
-        oldHeader.data_type = imagesOut[iImg].data_type
+    # Measure processing time
+    toc = perf_counter()
+    strProcessTime = "Processing time: %.2f ms" % ((toc-tic)*1000.0)
+    logging.info(strProcessTime)
 
-        # Set the image_type to match the data_type for complex data
-        if (imagesOut[iImg].data_type == ismrmrd.DATATYPE_CXFLOAT) or (imagesOut[iImg].data_type == ismrmrd.DATATYPE_CXDOUBLE):
-            oldHeader.image_type = ismrmrd.IMTYPE_COMPLEX
-
-        # Unused example, as images are grouped by series before being passed into this function now
-        oldHeader.image_series_index = 99
-
-        imagesOut[iImg].setHead(oldHeader)
-
-        # Create a copy of the original ISMRMRD Meta attributes and update
-        tmpMeta = meta[iImg]
-        tmpMeta['DataRole']                       = 'Image'
-        tmpMeta['ImageProcessingHistory']         = ['PYTHON', 'INVERT']
-        tmpMeta['Keep_image_geometry']            = 1
-
-        metaXml = tmpMeta.serialize()
-        # logging.debug("Image MetaAttributes: %s", xml.dom.minidom.parseString(metaXml).toprettyxml())
-        # logging.debug("Image data has %d elements", imagesOut[iImg].data.size)
-
-        imagesOut[iImg].attribute_string = metaXml
-
-    return imagesOut
+    return data, head, meta
