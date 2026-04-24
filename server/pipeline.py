@@ -87,13 +87,14 @@ class Pipeline:
             if img.data_type in (ismrmrd.DATATYPE_CXFLOAT, ismrmrd.DATATYPE_CXDOUBLE):
                 oldHeader.image_type = ismrmrd.IMTYPE_COMPLEX
 
-            # Unused example, as images are grouped by series before being passed into this function now
-            oldHeader.image_series_index = 99
+            # Set the index of the new series image (to not overlap with the original images send)
+            oldHeader.image_series_index += 42
             img.setHead(oldHeader)
 
             # Create a copy of the original ISMRMRD Meta attributes and update
             tmpMeta = meta[i]
             tmpMeta['DataRole']                      = 'Image'
+            # TO-DO: move ImageProcessingHistory and SequenceDescriptionAdditional in the app (utils fonction to set it ?)
             tmpMeta['ImageProcessingHistory']        = ['PYTHON', self.app_config.upper()]
             tmpMeta['SequenceDescriptionAdditional'] = self.app_config
             tmpMeta['Keep_image_geometry']           = 1

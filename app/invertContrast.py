@@ -20,7 +20,7 @@ import xml
 # Folder for debug output files
 debugFolder = "/tmp/share/debug"
 
-def process_image(img_array: npt.NDArray, configJSON: dict, metadata) :
+def process_image(img_array: npt.NDArray[ismrmrd.Images], configJSON: dict, metadata) :
     """Invert contrast process image"""
     
     # Create debug folder, if necessary
@@ -44,6 +44,7 @@ def process_image(img_array: npt.NDArray, configJSON: dict, metadata) :
     logging.debug(f'Number of magnitude images : {len(images)}')
     mem = log_memory_delta("After flatten", mem)
 
+    # TO-DO: move that part in a dedicated function in utils
     # Extract image data into a numpy array
     # (for 5D images: MRD supposed [img cha z y x])
     data = np.stack([img.data                              for img in images])
@@ -64,7 +65,7 @@ def process_image(img_array: npt.NDArray, configJSON: dict, metadata) :
     maxVal = 2**BitsStored - 1
 
     # Normalize and convert to int16
-    data = data.astype(np.float64)
+    data = data.astype(np.float32)
     mem = log_memory_delta("After astype float64", mem)
     data *= maxVal/data.max()
     np.around(data, out=data)

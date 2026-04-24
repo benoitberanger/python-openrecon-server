@@ -120,7 +120,7 @@ def get_subarray(img_array: npt.NDArray,
     (equivalent to ``:`` in NumPy slice notation).
 
     Args:
-        img_array:      7-D NumPy array containing the MRI data.
+        img_array:      7-D NumPy array containing the MRD data.
         img_slice:      Index along the slice dimension, or None for all.
         img_contrast:   Index along the contrast dimension, or None for all.
         img_average:    Index along the average dimension, or None for all.
