@@ -3,16 +3,16 @@
 from server.connection import Connection
 
 import argparse
-import logging
 import datetime
+import ismrmrd
+import json
 import h5py
+import logging
+import multiprocessing
+import os
 import socket
 import sys
-import ismrmrd
-import multiprocessing
 import time
-import os
-import json
 
 defaults = {
     'filename':           '',
@@ -214,7 +214,6 @@ def main(args):
 
                         configAdditionalText = json.dumps(configAdditional, indent=2)
 
-                logging.info("Sending configAdditional found in file %s:\n%s", args.filename, configAdditionalText)
                 connection.send_text(configAdditionalText)
             else:
                 # Do nothing -- no additional config in local .json file or in MRD file
@@ -238,7 +237,6 @@ def main(args):
 
                     localConfigAdditionalText = json.dumps(localConfigAdditional, indent=2)
 
-            logging.info("Sending configAdditional found in file %s:\n%s", configAdditionalFile, localConfigAdditionalText)
             connection.send_text(localConfigAdditionalText)
 
         # --------------- Send raw data ----------------------
@@ -296,20 +294,6 @@ def main(args):
     logging.info("Results written to %s", args.outfile)
     logging.info("Session complete")
 
-    if args.mrd2gif:
-        try:
-            import mrd2gif
-            from types import SimpleNamespace
-
-            mrd2gifargs = SimpleNamespace(**mrd2gif.defaults)
-            mrd2gifargs.filename = args.outfile
-            mrd2gifargs.in_group = args.out_group
-
-            logging.info('Calling mrd2gif...')
-            mrd2gif.main(mrd2gifargs)
-        except:
-            logging.error('Failed to import or call mrd2gif')
-
     return
 
 if __name__ == '__main__':
@@ -327,7 +311,6 @@ if __name__ == '__main__':
     parser.add_argument('-v', '--verbose',            action='store_true', help='Verbose mode')
     parser.add_argument('-l', '--logfile',            type=str,            help='Path to log file')
     parser.add_argument(      '--ignore-json-config', action='store_true', help='Ignore config specified in JSON')
-    parser.add_argument(      '--mrd2gif',            action='store_true', help='Run mrd2gif on output file')
 
     parser.set_defaults(**defaults)
 

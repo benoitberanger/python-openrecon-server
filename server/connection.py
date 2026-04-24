@@ -2,15 +2,15 @@
 
 import server.constants as constants
 
-import socket
-import logging
-import os
-import datetime
-import numpy as np
-import ismrmrd
 import ctypes
-import threading
+import datetime
+import ismrmrd
+import logging
+import numpy as np
+import os
 import random
+import socket
+import threading
 
 
 class Connection:
@@ -256,7 +256,6 @@ class Connection:
         length = self.read_mrd_message_length()
         text = self.read(length)
         text = text.split(b'\x00',1)[0].decode('utf-8')  # Strip off null teminator
-        logging.info("    %s", text)
         return text
         
     def send_text(self, contents: str) -> None:
@@ -283,22 +282,27 @@ class Connection:
         # return ismrmrd.Image.deserialize_from(self.read)
 
         # Explicit version of deserialize_from() for more verbose debugging
-        logging.debug("   Reading in %d bytes of image header", ctypes.sizeof(ismrmrd.ImageHeader))
+        # logging.debug("   Reading in %d bytes of image header", ctypes.sizeof(ismrmrd.ImageHeader))
         header_bytes = self.read(ctypes.sizeof(ismrmrd.ImageHeader))
 
         attribute_length_bytes = self.read(ctypes.sizeof(ctypes.c_uint64))
         attribute_length = ctypes.c_uint64.from_buffer_copy(attribute_length_bytes)
-        logging.debug("   Reading in %d bytes of attributes", attribute_length.value)
+        # logging.debug("   Reading in %d bytes of attributes", attribute_length.value)
 
         attribute_bytes = self.read(attribute_length.value)
-        if (attribute_length.value > 25000):
-            logging.debug("   Attributes (truncated): %s", attribute_bytes[0:24999].decode('utf-8'))
-        else:
-            logging.debug("   Attributes: %s", attribute_bytes.decode('utf-8'))
+        # if (attribute_length.value > 25000):
+        #     logging.debug("   Attributes (truncated): %s", attribute_bytes[0:24999].decode('utf-8'))
+        # else:
+        #     logging.debug("   Attributes: %s", attribute_bytes.decode('utf-8'))
 
         image = ismrmrd.Image(header_bytes, attribute_bytes.split(b'\x00',1)[0].decode('utf-8'))  # Strip off null teminator
 
-        logging.info("    Image is size %d x %d x %d with %d channels of type %s", image.getHead().matrix_size[0], image.getHead().matrix_size[1], image.getHead().matrix_size[2], image.channels, image.data.dtype)
+        logging.info("    Image is size %d x %d x %d with %d channels of type %s", 
+                     image.getHead().matrix_size[0], 
+                     image.getHead().matrix_size[1], 
+                     image.getHead().matrix_size[2], 
+                     image.channels, 
+                     image.data.dtype)
         def calculate_number_of_entries(nchannels, xs, ys, zs):
             return nchannels * xs * ys * zs
 
@@ -322,10 +326,11 @@ class Connection:
             if not isinstance(images, list):
                 images = [images]
             
+            logging.info("--> Sending MRD_MESSAGE_ISMRMRD_IMAGE (1022) (%d images)", len(images))
+            
             if len(images) == 0:
                 return
 
-            logging.info("--> Sending MRD_MESSAGE_ISMRMRD_IMAGE (1022) (%d images)", len(images))
             for image in images:
                 if image is None:
                     continue

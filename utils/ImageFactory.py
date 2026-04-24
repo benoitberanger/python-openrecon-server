@@ -1,11 +1,11 @@
 #!/bin/python3
 
-import logging
-import xml.dom.minidom
 import ismrmrd
+import logging
 import numpy as np
+import xml.dom.minidom
 
-import ants
+# import ants
 
 class ImageFactory:
     
@@ -31,61 +31,61 @@ class ImageFactory:
         
         return data_3d
     
-    def ANTsImageToMRD(self, ants_image: ants.ants_image.ANTsImage, history: str|list[str] = '', seq_descrip_add: str = '') -> list[ismrmrd.Image]:
-        """Convert ANTs Image to MRD format"""
-        if   type(history) is list:
-            self.ImageProcessingHistory += history
-        elif type(history) is str and len(history)>0:
-            self.ImageProcessingHistory.append(history)
-        else:
-            TypeError('bad `history` type')
+    # def ANTsImageToMRD(self, ants_image: ants.ants_image.ANTsImage, history: str|list[str] = '', seq_descrip_add: str = '') -> list[ismrmrd.Image]:
+    #     """Convert ANTs Image to MRD format"""
+    #     if   type(history) is list:
+    #         self.ImageProcessingHistory += history
+    #     elif type(history) is str and len(history)>0:
+    #         self.ImageProcessingHistory.append(history)
+    #     else:
+    #         TypeError('bad `history` type')
 
-        if len(seq_descrip_add)>0:
-            self.image_series_index_offset += 1
-            self.SequenceDescriptionAdditional.append(seq_descrip_add)
+    #     if len(seq_descrip_add)>0:
+    #         self.image_series_index_offset += 1
+    #         self.SequenceDescriptionAdditional.append(seq_descrip_add)
 
-        # Reformat data from [y x img] to [y x z cha img]
-        data = ants_image.numpy()[:,:,np.newaxis,np.newaxis,:].astype(np.int16)
+    #     # Reformat data from [y x img] to [y x z cha img]
+    #     data = ants_image.numpy()[:,:,np.newaxis,np.newaxis,:].astype(np.int16)
 
-        # Re-slice back into 2D images
-        imagesOut = [None] * data.shape[-1]
-        for iImg in range(data.shape[-1]):
+    #     # Re-slice back into 2D images
+    #     imagesOut = [None] * data.shape[-1]
+    #     for iImg in range(data.shape[-1]):
 
-            # Create new MRD instance for the inverted image
-            # Transpose from convenience shape of [y x z cha] to MRD Image shape of [cha z y x]
-            # from_array() should be called with 'transpose=False' to avoid warnings, and when called
-            # with this option, can take input as: [cha z y x], [z y x], or [y x]
-            imagesOut[iImg] = ismrmrd.Image.from_array(data[...,iImg].transpose((3, 2, 0, 1)), transpose=False)
+    #         # Create new MRD instance for the inverted image
+    #         # Transpose from convenience shape of [y x z cha] to MRD Image shape of [cha z y x]
+    #         # from_array() should be called with 'transpose=False' to avoid warnings, and when called
+    #         # with this option, can take input as: [cha z y x], [z y x], or [y x]
+    #         imagesOut[iImg] = ismrmrd.Image.from_array(data[...,iImg].transpose((3, 2, 0, 1)), transpose=False)
 
-            # Create a copy of the original fixed header and update the data_type
-            # (we changed it to int16 from all other types)
-            oldHeader = self.mrdHeader[iImg]
-            oldHeader.data_type = imagesOut[iImg].data_type
+    #         # Create a copy of the original fixed header and update the data_type
+    #         # (we changed it to int16 from all other types)
+    #         oldHeader = self.mrdHeader[iImg]
+    #         oldHeader.data_type = imagesOut[iImg].data_type
 
-            # Set the image_type to match the data_type for complex data
-            if (imagesOut[iImg].data_type == ismrmrd.DATATYPE_CXFLOAT) or (imagesOut[iImg].data_type == ismrmrd.DATATYPE_CXDOUBLE):
-                oldHeader.image_type = ismrmrd.IMTYPE_COMPLEX
+    #         # Set the image_type to match the data_type for complex data
+    #         if (imagesOut[iImg].data_type == ismrmrd.DATATYPE_CXFLOAT) or (imagesOut[iImg].data_type == ismrmrd.DATATYPE_CXDOUBLE):
+    #             oldHeader.image_type = ismrmrd.IMTYPE_COMPLEX
 
-            oldHeader.image_series_index += self.image_series_index_offset
+    #         oldHeader.image_series_index += self.image_series_index_offset
 
-            imagesOut[iImg].setHead(oldHeader)
+    #         imagesOut[iImg].setHead(oldHeader)
 
-            # Create a copy of the original ISMRMRD Meta attributes and update
-            tmpMeta = self.mrdMeta[iImg]
-            tmpMeta['DataRole']                       = 'Image'
-            if len(self.ImageProcessingHistory       ) > 0: tmpMeta['ImageProcessingHistory'       ] = self.ImageProcessingHistory
-            if len(self.SequenceDescriptionAdditional) > 0: tmpMeta['SequenceDescriptionAdditional'] = '_'.join(self.SequenceDescriptionAdditional)
-            tmpMeta['Keep_image_geometry']            = 1
+    #         # Create a copy of the original ISMRMRD Meta attributes and update
+    #         tmpMeta = self.mrdMeta[iImg]
+    #         tmpMeta['DataRole']                       = 'Image'
+    #         if len(self.ImageProcessingHistory       ) > 0: tmpMeta['ImageProcessingHistory'       ] = self.ImageProcessingHistory
+    #         if len(self.SequenceDescriptionAdditional) > 0: tmpMeta['SequenceDescriptionAdditional'] = '_'.join(self.SequenceDescriptionAdditional)
+    #         tmpMeta['Keep_image_geometry']            = 1
 
-            metaXml = tmpMeta.serialize()
-            logging.debug("Image MetaAttributes: %s", xml.dom.minidom.parseString(metaXml).toprettyxml())
-            logging.debug("Image data has %d elements", imagesOut[iImg].data.size)
+    #         metaXml = tmpMeta.serialize()
+    #         logging.debug("Image MetaAttributes: %s", xml.dom.minidom.parseString(metaXml).toprettyxml())
+    #         logging.debug("Image data has %d elements", imagesOut[iImg].data.size)
 
-            imagesOut[iImg].attribute_string = metaXml
+    #         imagesOut[iImg].attribute_string = metaXml
 
-        logging.info(f'ImageFactory: {self.image_series_index_offset=}')
-        logging.info(f'ImageFactory: {self.ImageProcessingHistory=}')
-        logging.info(f'ImageFactory: {self.SequenceDescriptionAdditional=}')
+    #     logging.info(f'ImageFactory: {self.image_series_index_offset=}')
+    #     logging.info(f'ImageFactory: {self.ImageProcessingHistory=}')
+    #     logging.info(f'ImageFactory: {self.SequenceDescriptionAdditional=}')
 
-        return imagesOut
+    #     return imagesOut
     
