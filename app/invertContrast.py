@@ -37,7 +37,7 @@ def process_image(img_array: npt.NDArray, configJSON: dict, metadata) :
     # Start timer
     tic = perf_counter()
     
-    # mag_images = get_subarray(img_array, contrast= 1, img_image_type=ismrmrd.IMTYPE_MAGNITUDE)
+    # mag_images = get_subarray(img_array, img_slice= slice(100,250), img_image_type=ismrmrd.IMTYPE_MAGNITUDE)
     mag_images = get_magnitude(img_array)
     logging.info(f'Magnitude images shape : {mag_images.shape}')
     images = flatten(mag_images)

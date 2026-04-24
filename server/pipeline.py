@@ -65,7 +65,7 @@ class Pipeline:
 
     def MRD3Dto2DImages(self, data: npt.NDArray, head: list[ismrmrd.ImageHeader], meta: list[ismrmrd.Meta]) -> None:
         """ Re-slice back 3D array data of the images into 2D images """
-        mem = log_memory("Before MRD3Dto2DImages")
+        # mem = log_memory("Before MRD3Dto2DImages")
 
         n_imgs = data.shape[-1]
 
@@ -91,13 +91,11 @@ class Pipeline:
             oldHeader.image_series_index = 99
             img.setHead(oldHeader)
 
-            #TO-DO: Pass processing history and sequence description additional as arguments ?
-            # (sequence description additional use for the images label)
             # Create a copy of the original ISMRMRD Meta attributes and update
             tmpMeta = meta[i]
             tmpMeta['DataRole']                      = 'Image'
-            tmpMeta['ImageProcessingHistory']        = ['PYTHON', 'INVERT']
-            tmpMeta['SequenceDescriptionAdditional'] = 'invertcontrast'
+            tmpMeta['ImageProcessingHistory']        = ['PYTHON', self.app_config.upper()]
+            tmpMeta['SequenceDescriptionAdditional'] = self.app_config
             tmpMeta['Keep_image_geometry']           = 1
 
             img.attribute_string = tmpMeta.serialize()

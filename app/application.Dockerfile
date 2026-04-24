@@ -1,7 +1,7 @@
 # import python-openrecon-server as starting point
 FROM python-openrecon-server AS base
 
-LABEL invertcontrast_version="1.0.2"
+LABEL invertcontrast_version="1.0.3"
 
 COPY . .
 
