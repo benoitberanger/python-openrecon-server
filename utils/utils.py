@@ -57,3 +57,27 @@ def display_diagnostic(images: list, head: list, meta: list[ismrmrd.Meta]) -> di
     }
 
     return diagnostic
+
+
+def updateMeta(meta: list[ismrmrd.Meta], process_history: list[str] | str, sequence_description: list[str] | str) -> list[ismrmrd.Meta]:
+    """Update Metadata infos of the images"""
+
+    # image_processing_history = []
+    # if   type(process_history) is str:
+    #     image_processing_history.append(process_history)
+    # elif type(process_history) is str and len(process_history) > 0:
+    #     image_processing_history.append(process_history)
+    # else:
+    #     TypeError('bad `process_history` type')
+    
+    if type(sequence_description) is list:
+        sequence_description = '_'.join(sequence_description)
+
+    for m in meta:
+        tmpMeta = m
+        tmpMeta['DataRole']                      = 'Image'
+        tmpMeta['ImageProcessingHistory']        = process_history
+        tmpMeta['SequenceDescriptionAdditional'] = sequence_description
+        m = tmpMeta
+
+    return meta

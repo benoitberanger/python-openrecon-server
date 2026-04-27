@@ -12,6 +12,7 @@ import ismrmrd
 import logging
 import numpy as np
 import numpy.typing as npt
+from time import perf_counter
 
 
 class Pipeline:
@@ -53,9 +54,18 @@ class Pipeline:
         gc.collect()
         mem = log_memory_delta("After build_image_array", mem)
 
-        data, head, meta = self.module.process_image(img_array, configJSON, metadata)
-        log_memory_delta("After process_image", mem)
+        # Start timer
+        tic = perf_counter()
         
+        data, head, meta = self.module.process_image(img_array, configJSON, metadata)
+
+        # Measure processing time
+        toc = perf_counter()
+        strProcessTime = "Processing time: %.2f ms" % ((toc-tic)*1000.0)
+        logging.info(strProcessTime)
+        
+        log_memory_delta("After process_image", mem)
+
         # Re-slice back into 2D images
         self.MRD3Dto2DImages(data, head, meta)
         del data, head, meta
@@ -93,10 +103,7 @@ class Pipeline:
 
             # Create a copy of the original ISMRMRD Meta attributes and update
             tmpMeta = meta[i]
-            tmpMeta['DataRole']                      = 'Image'
-            # TO-DO: move ImageProcessingHistory and SequenceDescriptionAdditional in the app (utils fonction to set it ?)
-            tmpMeta['ImageProcessingHistory']        = ['PYTHON', self.app_config.upper()]
-            tmpMeta['SequenceDescriptionAdditional'] = self.app_config
+            logging.debug(f"Meta update processing history: {tmpMeta['ImageProcessingHistory']}")
             tmpMeta['Keep_image_geometry']           = 1
 
             img.attribute_string = tmpMeta.serialize()

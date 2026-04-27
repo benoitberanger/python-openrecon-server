@@ -19,7 +19,28 @@ from utils.memory import log_memory, log_memory_delta
 
 
 class Server:
-    """Server class"""
+    """
+    MRD image processing server
+
+    Manages the connection lifecycle and dispatches incoming MRD data
+    to the appropriate handler. Currently supports image data only
+    (raw k-space and waveform data are not supported).
+
+    Attributes
+    ----------
+    connection : Connection
+        Active MRD connection used to receive and send data.
+    app_config : str
+        Name of the application module to load in the pipeline
+        (e.g. 'invertcontrast').
+    app_directory : str
+        Python package directory containing the application module
+        (e.g. 'app').
+    debug : bool
+        If True, images are sent back unmodified with diagnostic info
+        logged for each image. No processing is performed.
+
+    """
 
     def __init__(self, port: int, address: str, app_config: str, app_directory: str, savedata: bool, debug: bool) -> None:
         logging.info(f"Starting server and listening for data at {address}:{port}")
@@ -34,7 +55,9 @@ class Server:
 
 
     def serve(self) -> None:
-        """Serve the server"""
+        """
+        Start the server
+        """
 
         logging.debug("Serving... ")
         self.socket.listen(0)
@@ -94,6 +117,17 @@ class Server:
     def handle_image_stream(self, connection: Connection, configJSON: dict | None, metadata) -> None:
         """
         Treat the images send by the server, send back the result
+
+        Parameters
+        ----------
+        connection : Connection
+            connection object for handling socket
+        configJSON : dict or None
+            JSON configuration sent by the client. May be None if no
+            configuration was provided.
+        metadata : ismrmrd.xsd.ismrmrdHeader or str
+            MRD formatted header describing the acquisition. May be a
+            raw string if header conversion failed upstream.
         """
 
         # Metadata should be MRD formatted header, but may be a string
@@ -189,7 +223,13 @@ class Server:
 
 
     def handle(self, sock: int)-> None:
-        """Handle each connection on the server socket"""
+        """
+        Handle each connection on the server socket and dispatch 
+        incoming data to the appropriate handler
+
+        Currently dispatches traffic to handle_image_stream().
+        Extend this method to support raw k-space.
+        """
 
         try:
             connection = Connection(sock, self.savedata)

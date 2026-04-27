@@ -4,7 +4,7 @@ from utils.ImageFactory import ImageFactory
 from utils.check_OR_arguments import check_OR_arguments
 from utils.img_array import flatten, get_magnitude, get_subarray
 from utils.memory import log_memory, log_memory_delta
-from utils.utils import display_diagnostic
+from utils.utils import display_diagnostic, updateMeta
 
 import base64
 import gc
@@ -13,14 +13,13 @@ import logging
 import numpy as np
 import numpy.typing as npt
 import os
-from time import perf_counter
 import xml
 
 
 # Folder for debug output files
 debugFolder = "/tmp/share/debug"
 
-def process_image(img_array: npt.NDArray[ismrmrd.Images], configJSON: dict, metadata) :
+def process_image(img_array: npt.NDArray, configJSON: dict, metadata) :
     """Invert contrast process image"""
     
     # Create debug folder, if necessary
@@ -33,9 +32,6 @@ def process_image(img_array: npt.NDArray[ismrmrd.Images], configJSON: dict, meta
     logging.info(f'-----------------------------------------------')
     
     mem = log_memory("Begining process_image")
-
-    # Start timer
-    tic = perf_counter()
     
     # mag_images = get_subarray(img_array, img_slice= slice(100,250), img_image_type=ismrmrd.IMTYPE_MAGNITUDE)
     mag_images = get_magnitude(img_array)
@@ -66,7 +62,7 @@ def process_image(img_array: npt.NDArray[ismrmrd.Images], configJSON: dict, meta
 
     # Normalize and convert to int16
     data = data.astype(np.float32)
-    mem = log_memory_delta("After astype float64", mem)
+    mem = log_memory_delta("After astype float32", mem)
     data *= maxVal/data.max()
     np.around(data, out=data)
     data = data.astype(np.int16)
@@ -79,9 +75,7 @@ def process_image(img_array: npt.NDArray[ismrmrd.Images], configJSON: dict, meta
     np.save(debugFolder + "/" + "imgInverted.npy", data)
     mem = log_memory_delta("After inversion", mem)
 
-    # Measure processing time
-    toc = perf_counter()
-    strProcessTime = "Processing time: %.2f ms" % ((toc-tic)*1000.0)
-    logging.info(strProcessTime)
+    # Update Meta informations of the images
+    meta = updateMeta(meta, ['PYTHON', 'INVERT CONTRAST'], 'invertcontrast')
 
     return data, head, meta
