@@ -19,7 +19,7 @@ import xml
 # Folder for debug output files
 debugFolder = "/tmp/share/debug"
 
-def process_image(img_array: npt.NDArray, configJSON: dict, metadata) :
+def process_image(img_array: npt.NDArray, configJSON: dict | None, metadata) :
     """Invert contrast process image"""
     
     # Create debug folder, if necessary

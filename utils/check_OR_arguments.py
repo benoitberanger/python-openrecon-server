@@ -2,7 +2,7 @@
 
 import logging
 
-def check_OR_arguments(configJSON: dict, arg_name: str, arg_type: type, arg_default: any = None) -> any:
+def check_OR_arguments(configJSON: dict | None, arg_name: str, arg_type: type, arg_default: any = None) -> any:
     """Return the value of the OpenRecon arguments with the appropriate type"""
     
     if not isinstance(configJSON, dict):

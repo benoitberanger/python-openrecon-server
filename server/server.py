@@ -1,21 +1,19 @@
 #!/usr/bin/python3
 
-import gc
-
 from utils.check_OR_arguments import check_OR_arguments
+from utils.memory import log_memory, log_memory_delta
 from server.debug import send_back_debug
 from server.pipeline import Pipeline
 from server.connection import Connection
 import server.constants as constants
 
+import gc
 import ismrmrd
 import json
 import logging
 import signal
 import socket
 import traceback
-
-from utils.memory import log_memory, log_memory_delta
 
 
 class Server:
@@ -43,6 +41,24 @@ class Server:
     """
 
     def __init__(self, port: int, address: str, app_config: str, app_directory: str, savedata: bool, debug: bool) -> None:
+        """
+        Initialise and bind the server socket.
+
+        Parameters
+        ----------
+        port : int
+            TCP port to listen on
+        address : str
+            IP address to bind to
+        app_config : str
+            Name of the application module to load in the pipeline
+        app_directory : str
+            Python package containing the application module
+        savedata : bool
+            If True, save incoming MRD data to disk
+        debug : bool
+            If True, enable debug mode at startup
+        """
         logging.info(f"Starting server and listening for data at {address}:{port}")
 
         self.app_config = app_config
@@ -56,7 +72,10 @@ class Server:
 
     def serve(self) -> None:
         """
-        Start the server
+        Start the server main loop and accept incoming connections.
+
+        Listens indefinitely for incoming TCP connections and calls
+        handle() for each one.
         """
 
         logging.debug("Serving... ")
@@ -77,8 +96,26 @@ class Server:
             self.handle(sock)
 
 
-    def handle_metadata(self, connection: Connection) :
-        """Handle the reception of metadata"""
+    def handle_metadata(self, connection: Connection) -> ismrmrd.xsd.ismrmrdHeader | str | None :
+        """
+        Receive and parse the MRD XML header from the connection.
+
+        The MRD header is the first message expected after the config.
+        If the connection is closed before any header is received, 
+        returns None.
+
+        Parameters
+        ----------
+        connection : Connection
+            Active MRD connection.
+
+        Returns
+        -------
+        ismrmrd.xsd.ismrmrdHeader or str or None
+            Parsed MRD header object if the XML is valid.
+            Raw XML string if parsing failed.
+            None if the connection was closed before any data arrived.
+        """
         metadata_xml = next(connection)
 
          # Break if no MRD header was received before a close message (e.g. Gadgetron dependency query)
@@ -98,8 +135,21 @@ class Server:
         return metadata
 
 
-    def handleJSON(self, connection: Connection, config: str):
-        """Handle additional config parameters passed through a JSON text message """
+    def handleJSON(self, connection: Connection) -> dict | None:
+        """
+        Receive and parse an optional JSON configuration message.
+
+        Parameters
+        ----------
+        connection : Connection
+            Active MRD connection
+
+        Returns
+        -------
+        dict or None
+            Parsed JSON configuration dict if a text message was received
+            and successfully parsed, otherwise None.
+        """
         if connection.peek_mrd_message_identifier() == constants.MRD_MESSAGE_TEXT:
             configAdditionalText = next(connection)
             logging.info(f"Received additional config text: {configAdditionalText}")
@@ -109,29 +159,44 @@ class Server:
                 logging.error("Failed to parse as JSON")
                 logging.debug(f"JSON loads error: {e}")
         else:
-            configAdditional = config
+            return None
         
         return configAdditional
 
 
-    def handle_image_stream(self, connection: Connection, configJSON: dict | None, metadata) -> None:
+    def handle_image_stream(self, connection: Connection, configJSON: dict | None, metadata: ismrmrd.xsd.ismrmrdHeader | str) -> None:
         """
-        Treat the images send by the server, send back the result
+        Receive a stream of MRD images, process them via the pipeline,
+        and send results back over the connection.
+
+        Images are accumulated into a group until the connection is
+        closed or a null item is received, then forwarded to the pipeline.
+
+        Debug mode can be activated at instantiation or at runtime via
+        the 'Debug' key in configJSON. In debug mode each image is sent
+        back unmodified with its metadata logged — the pipeline is not
+        called.
 
         Parameters
         ----------
         connection : Connection
-            connection object for handling socket
+            Active MRD connection
         configJSON : dict or None
             JSON configuration sent by the client. May be None if no
             configuration was provided.
         metadata : ismrmrd.xsd.ismrmrdHeader or str
             MRD formatted header describing the acquisition. May be a
             raw string if header conversion failed upstream.
+
+        Raises
+        ------
+        Exception
+            If raw k-space data (ismrmrd.Acquisition) is received —
+            this handler only supports image data.
+        Exception
+            If an unsupported data type is received on the connection.
         """
 
-        # Metadata should be MRD formatted header, but may be a string
-        # if it failed conversion earlier
         try:
             logging.info("Incoming dataset contains %d encodings", len(metadata.encoding))
             logging.info("First encoding is of type '%s', with a matrix size of (%s x %s x %s) and a field of view of (%s x %s x %s)mm^3", 
@@ -224,11 +289,25 @@ class Server:
 
     def handle(self, sock: int)-> None:
         """
-        Handle each connection on the server socket and dispatch 
-        incoming data to the appropriate handler
+        Handle a single client connection and dispatch data to the
+        appropriate handler.
 
-        Currently dispatches traffic to handle_image_stream().
-        Extend this method to support raw k-space.
+        Reads the connection handshake in order:
+
+        1. **Config** — first message, identifies the processing mode.
+           Only ``"openrecon"`` triggers image processing, any other 
+           config value causes the connection to be drained and
+           closed without processing.
+        2. **Metadata** — MRD XML header
+        3. **JSON config** — optional additional parameters selected by
+          the user thanks to the UI.
+        
+        Then dispatches traffic to handle_image_stream().
+
+        Parameters
+        ----------
+        sock : socket.socket
+            Accepted client socket
         """
 
         try:
@@ -243,7 +322,7 @@ class Server:
                 return
             logging.info(f"Received config: {config}")
             
-            # Second messages is the metadata (text)
+            # Second messages is the metadata
             metadata = self.handle_metadata(connection)
             if not metadata:
                 return

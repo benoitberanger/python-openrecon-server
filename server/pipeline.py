@@ -33,7 +33,7 @@ class Pipeline:
             logging.error("Failed to load config '%s' with error:\n  %s", self.app_config, e)
 
 
-    def run(self, images: list, configJSON, metadata) -> None:
+    def run(self, images: list, configJSON: dict | None, metadata) -> None:
         """All the process apply on an image group"""
         if (len(images) == 0):
             return []
