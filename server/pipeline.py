@@ -191,7 +191,6 @@ class Pipeline:
 
             # Create a copy of the original ISMRMRD Meta attributes and update
             tmpMeta = meta[i]
-            logging.debug(f"Meta update processing history: {tmpMeta['ImageProcessingHistory']}")
             tmpMeta['Keep_image_geometry']           = 1
 
             img.attribute_string = tmpMeta.serialize()

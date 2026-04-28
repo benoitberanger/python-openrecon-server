@@ -33,6 +33,10 @@ def process_image(img_array: npt.NDArray, configJSON: dict | None, metadata) :
     
     mem = log_memory("Begining process_image")
 
+    # OR parameters
+    sum_config = check_OR_arguments(configJSON, 'EchoSumConfig', str, 'SimpleSum')
+    logging.info(f"Echos summation config: {sum_config}")
+
     # Get the number of contrasts (dim 1)
     n_contrasts = img_array.shape[1]
     logging.info("Summing %d echoes (contrasts)", n_contrasts)
@@ -46,18 +50,25 @@ def process_image(img_array: npt.NDArray, configJSON: dict | None, metadata) :
     # Stack first contrast : [img, cha, z, y, x]
     data_sum   = np.stack([img.data for img in ref_images]).astype(np.float32)
     del ref_images
+    if (sum_config == 'SoS'):
+        np.square(data_sum, out=data_sum)
     mem = log_memory_delta("After stack contrast 0", mem)
 
     # Sum the following contrast
     for co in range(1, n_contrasts):
         images_co = flatten(get_subarray(img_array, img_contrast=co, img_image_type=ismrmrd.IMTYPE_MAGNITUDE))
         data_co   = np.stack([img.data for img in images_co]).astype(np.float32)
+        if (sum_config == 'SoS'):
+            np.square(data_co, out=data_co)
         data_sum += data_co
         del images_co, data_co
         gc.collect()
         mem = log_memory_delta(f"After adding contrast {co}", mem)
 
     gc.collect()
+
+    if (sum_config == 'SoS'):
+        np.sqrt(data_sum, out=data_sum)
 
     # Normalisation
     BitsStored = 12

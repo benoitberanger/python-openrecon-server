@@ -2,7 +2,7 @@
 
 from utils.ImageFactory import ImageFactory
 from utils.check_OR_arguments import check_OR_arguments
-from utils.img_array import flatten, get_magnitude, get_subarray
+from utils.img_array import flatten, get_magnitude_images, get_subarray
 from utils.memory import log_memory, log_memory_delta
 from utils.utils import display_diagnostic, updateMeta
 
@@ -34,7 +34,7 @@ def process_image(img_array: npt.NDArray, configJSON: dict | None, metadata) :
     mem = log_memory("Begining process_image")
     
     # mag_images = get_subarray(img_array, img_slice= slice(100,250), img_image_type=ismrmrd.IMTYPE_MAGNITUDE)
-    mag_images = get_magnitude(img_array)
+    mag_images = get_magnitude_images(img_array)
     logging.info(f'Magnitude images shape : {mag_images.shape}')
     images = flatten(mag_images)
     logging.debug(f'Number of magnitude images : {len(images)}')

@@ -7,17 +7,43 @@ import numpy.typing as npt
 
 # Dimension names for readable error messages
 DIMENSION_NAMES = [
-    "img_slice",
-    "img_contrast",
-    "img_average",
-    "img_phase",
-    "img_repetition",
-    "img_set",
-    "img_image_type",
+    "slice",
+    "contrast",
+    "average",
+    "phase",
+    "repetition",
+    "set",
+    "image_type",
 ]
 
-def build_image_array(img_list: list) -> npt.NDArray :
-    """Build an array to store the image in an organise way"""
+def build_image_array(img_list: list[ismrmrd.Image]) -> npt.NDArray :
+    """
+    Build a 7D structured array from a flat list of MRD images.
+
+    Each cell of the array corresponds to a unique combination of loop
+    counters and image type. The array axes follow this order:
+
+        [slice, contrast, average, phase, repetition, set, image_type]
+
+    Array size along each axis is ``max_observed_value + 1``, so MRD
+    index values can be used directly as array indices without remapping.
+
+    Each non-empty cell contains a list of ismrmrd.Image objects sharing
+    that exact combination of loop counters and image type.
+
+    Parameters
+    ----------
+    img_list : list of ismrmrd.Image
+        Flat list of MRD images, typically as received from the client.
+
+    Returns
+    -------
+    np.ndarray
+        7-D object array of shape
+        (n_slices, n_contrasts, n_averages, n_phases,
+         n_repetitions, n_sets, n_image_types).
+        Empty cells contain None.
+    """
     
     # Found the max value for each dimension
     max_idx = {
@@ -61,11 +87,12 @@ def build_image_array(img_list: list) -> npt.NDArray :
         else:
             img_array[key].append(img)
 
-    # TO-DO: Clear logs about the images array shape to know what is what
-    # Since the image_type have a value between 1 and 6, the subarray (:, :, :, :, :, :, 0)
-    # will always be empty because for clarity this value is directly use as key 
-    logging.info('MRD images array dimension: {slice, average, phase, repetition, set, image_type}')
-    logging.info(f'MRD images array shape : {img_array.shape}')
+    # Because ismrmrd.IMTYPE_* values start at 1 (magnitude=1, phase=2,
+    # real=3, imag=4, complex=5, rgb=6), index 0 along the image_type
+    # axis is always empty. This is intentional, it preserves direct
+    # index correspondence with the MRD constants.
+    logging.info(' 7D-MRD images array dimensions : {slice, average, phase, repetition, set, image_type}')
+    logging.info(f'7D-MRD images array shape :      {img_array.shape}')
 
     return img_array
 
@@ -74,10 +101,14 @@ def validate_index(value, dim_size: int, dim_name: str) -> None:
     """
     Validate that an index (int or slice) is within bounds for a given dimension.
 
-    Args:
-        value:    None, an integer index, or a slice object.
-        dim_size: The size of the dimension in the array.
-        dim_name: Human-readable name of the dimension (used in error messages).
+    Parameters
+    ----------
+    value : None, int, or slice
+        Index to validate. None is always valid (selects the full axis).
+    dim_size : int
+        Size of the dimension in the array.
+    dim_name : str
+        Human-readable dimension name used in error messages
     """
     if value is None:
         return
@@ -110,27 +141,39 @@ def get_subarray(img_array: npt.NDArray,
                  img_set = None, 
                  img_image_type = None) -> npt.NDArray:
     """
-    Extract a subarray from a 7-D MRD image array by selecting specific indices
+    Extract a subarray from a 7D MRD images array by selecting specific indices
     along one or more dimensions.
 
-    The array axes are expected to follow this order:
-    slice, contrast, average, phase, repetition, set, image_type
+    Array axis order:
+    [slice, contrast, average, phase, repetition, set, image_type]
         
     Any argument left as ``None`` selects all indices along that dimension
     (equivalent to ``:`` in NumPy slice notation).
+    
+    Parameters
+    ----------
+    img_array : np.ndarray
+        7D MRD images array as returned by build_image_array().
+    img_slice : int or None
+        Index along the slice axis, or None for all slices.
+    img_contrast : int or None
+        Index along the contrast axis, or None for all contrasts.
+    img_average : int or None
+        Index along the average axis, or None for all averages.
+    img_phase : int or None
+        Index along the phase axis, or None for all phases.
+    img_repetition : int or None
+        Index along the repetition axis, or None for all repetitions.
+    img_set : int or None
+        Index along the set axis, or None for all sets.
+    img_image_type : int or None
+        Index along the image_type axis. Use ismrmrd.IMTYPE_* constants
+        directly (e.g. ismrmrd.IMTYPE_MAGNITUDE = 1), or None for all types.
 
-    Args:
-        img_array:      7-D NumPy array containing the MRD data.
-        img_slice:      Index along the slice dimension, or None for all.
-        img_contrast:   Index along the contrast dimension, or None for all.
-        img_average:    Index along the average dimension, or None for all.
-        img_phase:      Index along the phase dimension, or None for all.
-        img_repetition: Index along the repetition dimension, or None for all.
-        img_set:        Index along the set dimension, or None for all.
-        img_image_type: Index along the image-type dimension, or None for all.
-
-    Returns:
-        A NumPy subarray corresponding to the requested indices.
+    Returns
+    -------
+    np.ndarray
+        Subarray view corresponding to the requested indices.
     """
 
     args = [
@@ -151,19 +194,85 @@ def get_subarray(img_array: npt.NDArray,
     return img_array[idx]
 
 
-def get_magnitude(img_array: npt.NDArray) -> npt.NDArray:
+def get_magnitude_images(img_array: npt.NDArray) -> npt.NDArray:
+    """
+    Extract the magnitude images from the MRD images array.
+    Shorthand for get_subarray(img_array, img_image_type=ismrmrd.IMTYPE_MAGNITUDE).
+
+    Parameters
+    ----------
+    img_array : np.ndarray
+        7D MRD images array as returned by build_image_array().
+
+    Returns
+    -------
+    np.ndarray
+        6D subarray of shape [slice, contrast, average, phase, repetition, set]
+        containing only magnitude images.
+    """
     return get_subarray(img_array, img_image_type=ismrmrd.IMTYPE_MAGNITUDE)
 
 
-def get_phase(img_array: npt.NDArray) -> npt.NDArray:
+def get_phase_images(img_array: npt.NDArray) -> npt.NDArray:
+    """
+    Extract the phase images from the MRD images array.
+    Shorthand for get_subarray(img_array, img_image_type=ismrmrd.IMTYPE_PHASE).
+
+    Parameters
+    ----------
+    img_array : np.ndarray
+        7D MRD images array as returned by build_image_array().
+
+    Returns
+    -------
+    np.ndarray
+        6D subarray of shape [slice, contrast, average, phase, repetition, set]
+        containing only phase images.
+    """
     return get_subarray(img_array, img_image_type=ismrmrd.IMTYPE_PHASE)
 
 
 def get_contrast(img_array: npt.NDArray, contrast: int) -> npt.NDArray:
+    """
+    Extract all images for a specific contrast index.
+    Shorthand for get_subarray(img_array, img_contrast=contrast).
+
+    Parameters
+    ----------
+    img_array : np.ndarray
+        7D MRD images array as returned by build_image_array().
+    contrast : int
+        Contrast index to extract (0-based, matches MRD idx.contrast).
+
+    Returns
+    -------
+    np.ndarray
+        6D subarray of shape [slice, average, phase, repetition, set, image_type]
+        containing all images for the requested contrast.
+    """
     return get_subarray(img_array, contrast = contrast)
 
 
 def flatten(arr: npt.NDArray) -> list[ismrmrd.Image]:
+    """
+    Return a flat list of all MRD images contained in an array or subarray.
+
+    Iterates over every cell of the array in row-major order, skipping
+    None cells, and extends the output list with the images found in each
+    non-empty cell. Cell order matches NumPy's default flat iteration:
+    slice → contrast → average → phase → repetition → set → image_type.
+
+    Parameters
+    ----------
+    arr : np.ndarray
+        Full 7D MRD image array or any subarray returned by get_subarray(),
+        get_magnitude(), get_phase_images(), or get_contrast()...
+
+    Returns
+    -------
+    list of ismrmrd.Image
+        All non-None images in the array, in row-major iteration order.
+    """
     images = []
 
     for cell in arr.flat:
