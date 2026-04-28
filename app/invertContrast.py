@@ -76,6 +76,6 @@ def process_image(img_array: npt.NDArray, configJSON: dict | None, metadata) :
     mem = log_memory_delta("After inversion", mem)
 
     # Update Meta informations of the images
-    meta = updateMeta(meta, ['PYTHON', 'INVERT CONTRAST'], 'invertcontrast')
+    meta = updateMeta(meta, ['PYTHON', 'INVERT'], 'invertcontrast')
 
     return data, head, meta

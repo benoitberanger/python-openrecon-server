@@ -328,7 +328,7 @@ class Server:
                 return
             
             # Additional config parameters passed through a JSON text message
-            configJSON = self.handleJSON(connection, config)
+            configJSON = self.handleJSON(connection)
 
             # If the config is openrecon load the app config
             # Else do nothing with the data

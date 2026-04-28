@@ -60,24 +60,34 @@ def display_diagnostic(images: list, head: list, meta: list[ismrmrd.Meta]) -> di
 
 
 def updateMeta(meta: list[ismrmrd.Meta], process_history: list[str] | str, sequence_description: list[str] | str) -> list[ismrmrd.Meta]:
-    """Update Metadata infos of the images"""
+    """
+    Update the ImageProcessingHistory and SequenceDescriptionAdditional
+    fields of a list of MRD Meta objects.
 
-    # image_processing_history = []
-    # if   type(process_history) is str:
-    #     image_processing_history.append(process_history)
-    # elif type(process_history) is str and len(process_history) > 0:
-    #     image_processing_history.append(process_history)
-    # else:
-    #     TypeError('bad `process_history` type')
+    Parameters
+    ----------
+    meta : list of ismrmrd.Meta
+        Meta objects to update, one per image
+    process_history : list of str or str
+        Processing steps to record (e.g. ['PYTHON', 'INVERT'] or 'INVERT')
+    sequence_description : list of str or str
+        Sequence label appended to the series name in the client UI.
+        (e.g. ['echo', 'sum'] → 'echo_sum', or 'invertcontrast')
+
+    Returns
+    -------
+    list of ismrmrd.Meta
+        The same list, with each Meta updated.
+    """
+    if isinstance(process_history, str):
+        process_history = [process_history]
     
-    if type(sequence_description) is list:
+    if isinstance(sequence_description, list):
         sequence_description = '_'.join(sequence_description)
 
     for m in meta:
-        tmpMeta = m
-        tmpMeta['DataRole']                      = 'Image'
-        tmpMeta['ImageProcessingHistory']        = process_history
-        tmpMeta['SequenceDescriptionAdditional'] = sequence_description
-        m = tmpMeta
+        m['DataRole']                      = 'Image'
+        m['ImageProcessingHistory']        = process_history
+        m['SequenceDescriptionAdditional'] = sequence_description
 
     return meta

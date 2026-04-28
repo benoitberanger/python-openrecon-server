@@ -67,7 +67,7 @@ def process_image(img_array: npt.NDArray, configJSON: dict | None, metadata) :
     data_sum   = data_sum.astype(np.int16)
     mem = log_memory_delta("After normalisation", mem)
 
-    # Transpose to [y, x, z, cha, img] expected by MRD3Dto2DImages
+    # Transpose to [y, x, z, cha, img] expected by send_volume_as_2Dslices
     data_sum = data_sum.transpose((3, 4, 2, 1, 0))
     np.save(debugFolder + "/imgMagnitudeSum.npy", data_sum)
 

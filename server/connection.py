@@ -14,9 +14,70 @@ import threading
 
 
 class Connection:
-    """Class connection"""
+    """
+    Manages a single MRD client connection over a TCP socket.
+
+    Handles the full MRD message protocol — reading and sending each
+    message type (config, metadata, images, text, close) according to
+    the MRD wire format. Optionally saves all incoming data to an HDF5
+    file for debugging purposes.
+
+    Supported message types:
+
+    - ``MRD_MESSAGE_CONFIG_FILE`` (1) — configuration filename
+    - ``MRD_MESSAGE_CONFIG_TEXT`` (2) — configuration text contents
+    - ``MRD_MESSAGE_METADATA_XML_TEXT`` (3) — MRD XML header
+    - ``MRD_MESSAGE_CLOSE`` (4) — end of stream signal
+    - ``MRD_MESSAGE_TEXT`` (5) — arbitrary text / logging
+    - ``MRD_MESSAGE_ISMRMRD_IMAGE`` (1022) — image data
+
+    Attributes
+    ----------
+    socket : socket.socket
+        Underlying TCP socket for this connection.
+    savedata : bool
+        If True, incoming data is saved to an HDF5 file.
+    savedataFile : str
+        Explicit path for the HDF5 save file. If empty, a timestamped
+        filename is generated automatically in savedataFolder.
+    savedataFolder : str
+        Directory where the HDF5 save file is created.
+    savedataGroup : str
+        HDF5 group name used to store incoming data. Default: 'dataset'.
+    dset : ismrmrd.Dataset or None
+        Open HDF5 dataset for saving, or None if not yet created.
+    open : bool
+        True while the connection is active. Set to False on
+        MRD_MESSAGE_CLOSE or socket error.
+    lock : threading.Lock
+        Mutex protecting all socket send operations for thread safety.
+    sentImages : int
+        Running count of images sent over this connection.
+    recvImages : int
+        Running count of images received over this connection.
+    handlers : dict
+        Maps MRD message identifiers to their read handler methods.
+    """
 
     def __init__(self, socket: int, savedata: bool, savedataFile: str = "", savedataFolder: str = "", savedataGroup: str = "dataset") -> None:
+        """
+        Initialise the connection and register message handlers.
+
+        Parameters
+        ----------
+        socket : socket.socket
+            Accepted TCP socket for this client connection.
+        savedata : bool
+            If True, save all incoming MRD data to an HDF5 file.
+        savedataFile : str, optional
+            Explicit HDF5 output path. If empty, a timestamped filename
+            is generated in savedataFolder.
+        savedataFolder : str, optional
+            Directory for the auto-generated HDF5 file. Created if it
+            does not exist.
+        savedataGroup : str, optional
+            HDF5 group name. Default is 'dataset'.
+        """
         self.socket         = socket
         self.savedata       = savedata
         self.savedataFile   = savedataFile
@@ -37,32 +98,93 @@ class Connection:
         }
 
     def __iter__(self):
+        """
+        Iterate over incoming MRD messages until the connection closes.
+
+        Yields each decoded message object in order of arrival.
+        Stops when self.open becomes False (MRD_MESSAGE_CLOSE received
+        or socket error).
+        """
         while self.open:
             yield self.next()
 
     def __next__(self):
         return self.next()
         
-    def read(self, nbytes):
-        """Read nbytes from the socket"""
+    def read(self, nbytes: int):
+        """
+        Read exactly nbytes from the socket.
+
+        Parameters
+        ----------
+        nbytes : int
+            Number of bytes to read.
+
+        Returns
+        -------
+        bytes
+            Raw bytes read from the socket.
+        """
         return self.socket.recv(nbytes, socket.MSG_WAITALL)
 
-    def peek(self, nbytes):
-        """Read nbytes from the socket without suppressing the buffer"""
+    def peek(self, nbytes: int):
+        """
+        Read nbytes from the socket without consuming the buffer.
+
+        Parameters
+        ----------
+        nbytes : int
+            Number of bytes to peek.
+
+        Returns
+        -------
+        bytes
+            Raw bytes peeked from the socket buffer.
+        """
         return self.socket.recv(nbytes, socket.MSG_PEEK)
     
-    def read_mrd_message_length(self):
+    def read_mrd_message_length(self) -> int:
+        """
+        Read and unpack the 4-byte message length field.
+
+        Returns
+        -------
+        int
+            Length in bytes of the following variable-length message body.
+        """
         length_bytes = self.read(constants.SIZEOF_MRD_MESSAGE_LENGTH)
         return constants.MrdMessageLength.unpack(length_bytes)[0]
 
     @staticmethod
     def unknown_message_identifier(identifier: int) -> None:
-        """Raise an error in case of unknown message id"""
+        """
+        Handle an unrecognised MRD message identifier.
+
+        Parameters
+        ----------
+        identifier : int
+            The unrecognised message identifier received from the socket.
+
+        Raises
+        ------
+        StopIteration
+            Always raised to abort iteration on unknown message types.
+        """
         logging.error("Received unknown message type: %d", identifier)
         raise StopIteration
 
     def read_mrd_message_identifier(self) -> int | None:
-        """Read the message identifier and return it"""
+        """
+        Read and unpack the 2-byte message identifier from the socket.
+
+        Returns
+        -------
+        int
+            MRD message identifier.
+        None
+            If the connection was closed or reset before a full
+            identifier could be read.
+        """
         try:
             identifier_bytes = self.read(constants.SIZEOF_MRD_MESSAGE_IDENTIFIER)
         except ConnectionResetError:
@@ -77,7 +199,16 @@ class Connection:
         return constants.MrdMessageIdentifier.unpack(identifier_bytes)[0]
         
     def peek_mrd_message_identifier(self) -> int | None:
-        """Read the message identifier and return it"""
+        """
+        Peek at the next 2-byte message identifier without consuming it.
+
+        Returns
+        -------
+        int
+            MRD message identifier.
+        None
+            If the connection was closed or reset.
+        """
         try:
             identifier_bytes = self.peek(constants.SIZEOF_MRD_MESSAGE_IDENTIFIER)
         except ConnectionResetError:
@@ -93,7 +224,9 @@ class Connection:
         
 
     def next(self):
-        """Read and handle a new message received"""
+        """
+        Read the next MRD message and dispatch to the appropriate handler.
+        """
         with self.lock:
             id = self.read_mrd_message_identifier()
 
@@ -105,7 +238,18 @@ class Connection:
     
 
     def send_logging(self, level: str, contents: str) -> None:
-        """Send log message"""
+        """
+        Send a log message to the client as an MRD_MESSAGE_TEXT.
+
+        Formats the message as "<level> <contents>" before sending.
+
+        Parameters
+        ----------
+        level : str
+            Log level string, e.g. 'ERROR', 'WARNING', 'INFO'.
+        contents : str
+            Log message body, typically a traceback or status string.
+        """
         try:
             formatted_contents = "%s %s" % (level, contents)
         except:
@@ -116,7 +260,11 @@ class Connection:
     
 
     def shutdown_close(self) -> None:
-        """Shutdown the server without sending MRD_MESSAGE_CLOSE to signal failure"""
+        """
+        Forcefully close the socket without sending MRD_MESSAGE_CLOSE.
+
+        Used to signal failure to the client.
+        """
         # Encapsulate shutdown in a try block because the socket may have
         # already been closed on the other side
         try:
@@ -127,6 +275,9 @@ class Connection:
         logging.info("Socket closed")
 
     def create_save_file(self) -> None:
+        """
+        Create the HDF5 file for saving incoming MRD data.
+        """
         if self.savedata is True:
             # Create savedata folder, if necessary
             if ((self.savedataFolder) and (not os.path.exists(self.savedataFolder))):
@@ -150,7 +301,14 @@ class Connection:
     #   ID               (   2 bytes, unsigned short)
     #   Config file name (1024 bytes, char          )
     def read_config_file(self) -> str:
-        """Reading a config file"""
+        """
+        Read an MRD_MESSAGE_CONFIG_FILE message (1).
+
+        Returns
+        -------
+        str
+            Configuration filename, stripped of null terminators.
+        """
         logging.info("<-- Received MRD_MESSAGE_CONFIG_FILE (1)")
         config_file_bytes = self.read(constants.SIZEOF_MRD_MESSAGE_CONFIGURATION_FILE)
         config_file = constants.MrdMessageConfigurationFile.unpack(config_file_bytes)[0]
@@ -159,7 +317,15 @@ class Connection:
         return config_file
         
     def send_config_file(self, filename: str) -> None:
-        """Send config file"""
+        """
+        Send an MRD_MESSAGE_CONFIG_FILE message (1).
+
+        Parameters
+        ----------
+        filename : str
+            Configuration filename to send. Encoded and padded to
+            1024 bytes per the MRD wire format.
+        """
         with self.lock:
             logging.info("--> Sending MRD_MESSAGE_CONFIG_FILE (1)")
             self.socket.send(constants.MrdMessageIdentifier.pack(constants.MRD_MESSAGE_CONFIG_FILE))
@@ -174,7 +340,14 @@ class Connection:
     #   Length           (   4 bytes, uint32_t      )
     #   Config text data (  variable, char          )
     def read_config_text(self) -> str:
-        """Reading a config text"""
+        """
+        Read an MRD_MESSAGE_CONFIG_TEXT message (2).
+
+        Returns
+        -------
+        str
+            Configuration text contents, stripped of null terminator.
+        """
         logging.info("<-- Received MRD_MESSAGE_CONFIG_TEXT (2)")
         length = self.read_mrd_message_length()
         config = self.read(length)
@@ -183,7 +356,15 @@ class Connection:
         return config
 
     def send_config_text(self, contents: str) -> None:
-        """Send config text"""
+        """
+        Send an MRD_MESSAGE_CONFIG_TEXT message (2).
+
+        Parameters
+        ----------
+        contents : str
+            Configuration text to send. A null terminator is appended
+            automatically before encoding.
+        """
         with self.lock:
             logging.info("--> Sending MRD_MESSAGE_CONFIG_TEXT (2)")
             self.socket.send(constants.MrdMessageIdentifier.pack(constants.MRD_MESSAGE_CONFIG_TEXT))
@@ -199,8 +380,18 @@ class Connection:
     #   ID               (   2 bytes, unsigned short)
     #   Length           (   4 bytes, uint32_t      )
     #   Text xml data    (  variable, char          )
-    def read_metadata(self):
-        """Read metadata formatted as MRD XML flexible data header text"""
+    def read_metadata(self) -> str:
+        """
+        Read an MRD_MESSAGE_METADATA_XML_TEXT message (3).
+
+        Contains the MRD XML flexible data header describing the full
+        acquisition (encoding, system info, sequence parameters, etc.).
+
+        Returns
+        -------
+        str
+            MRD XML header string, stripped of null terminator.
+        """
         logging.info("<-- Received MRD_MESSAGE_METADATA_XML_TEXT (3)")
         length = self.read_mrd_message_length()
         metadata = self.read(length)
@@ -209,7 +400,15 @@ class Connection:
         return metadata
 
     def send_metadata(self, contents) -> None:
-        """Send metadata formatted as MRD XML flexible data header text"""
+        """
+        Send an MRD_MESSAGE_METADATA_XML_TEXT message (3).
+
+        Parameters
+        ----------
+        contents : str or ismrmrd.xsd.ismrmrdHeader
+            MRD XML header to send. A null terminator is appended
+            automatically before encoding.
+        """
         with self.lock:
             logging.info("--> Sending MRD_MESSAGE_METADATA_XML_TEXT (3)")
             self.socket.send(constants.MrdMessageIdentifier.pack(constants.MRD_MESSAGE_METADATA_XML_TEXT))
@@ -220,7 +419,9 @@ class Connection:
 
     # ----- MRD_MESSAGE_CLOSE (4) ------------------------------------------------
     def read_close(self) -> None:
-        """When a MRD_MESSAGE_CLOSE is received"""
+        """
+        Handle an MRD_MESSAGE_CLOSE message (4).
+        """
 
         logging.info("<-- Received MRD_MESSAGE_CLOSE (4)")
         logging.info("    Total received images:       %5d", self.recvImages)
@@ -238,7 +439,12 @@ class Connection:
         return
         
     def send_close(self) -> None:
-        """Send MRD_MESSAGE_CLOSE which signals that all data has been sent (either from server or client)"""
+        """
+        Send an MRD_MESSAGE_CLOSE message (4).
+
+        Signals to the client that all data has been sent and the
+        server is done processing.
+        """
 
         with self.lock:
             logging.info("--> Sending MRD_MESSAGE_CLOSE (4)")
@@ -252,6 +458,14 @@ class Connection:
     #   Length           (   4 bytes, uint32_t      )
     #   Text data        (  variable, char          )
     def read_text(self) -> str:
+        """
+        Read an MRD_MESSAGE_TEXT message (5).
+
+        Returns
+        -------
+        str
+            Decoded text content, stripped of null terminator.
+        """
         logging.info("<-- Received MRD_MESSAGE_TEXT (5)")
         length = self.read_mrd_message_length()
         text = self.read(length)
@@ -259,6 +473,14 @@ class Connection:
         return text
         
     def send_text(self, contents: str) -> None:
+        """
+        Send an MRD_MESSAGE_TEXT message (5).
+
+        Parameters
+        ----------
+        contents : str
+            Text to send. A null terminator is appended automatically.
+        """
         with self.lock:
             logging.info("--> Sending MRD_MESSAGE_TEXT (5)")
             logging.info("    %s", contents)
@@ -276,7 +498,22 @@ class Connection:
     #   Attribute length (   8 bytes, uint64_t      )
     #   Attribute data   (  variable, char          )
     #   Image data       (  variable, variable      )
-    def read_image(self):
+    def read_image(self) -> ismrmrd.Image:
+        """
+        Read an MRD_MESSAGE_ISMRMRD_IMAGE message (1022).
+
+        Reads and assembles the three parts of an MRD image message:
+        fixed header, attribute string, and raw pixel data.
+
+        If savedata is True, the image is appended to the HDF5 dataset
+        under the group ``image_<image_series_index>``.
+
+        Returns
+        -------
+        ismrmrd.Image
+            Fully populated image object with header, attributes,
+            and pixel data.
+        """
         self.recvImages += 1
         logging.info("<-- Received MRD_MESSAGE_ISMRMRD_IMAGE (1022)")
         # return ismrmrd.Image.deserialize_from(self.read)
@@ -321,7 +558,15 @@ class Connection:
 
         return image
         
-    def send_image(self, images) -> None:
+    def send_image(self, images: ismrmrd.Image | list[ismrmrd.Image]) -> None:
+        """
+        Send one or more MRD_MESSAGE_ISMRMRD_IMAGE messages (1022).
+
+        Parameters
+        ----------
+        images : ismrmrd.Image or list of ismrmrd.Image
+            Image or images to send.
+        """
         with self.lock:
             if not isinstance(images, list):
                 images = [images]

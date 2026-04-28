@@ -6,8 +6,25 @@ import ismrmrd
 import logging
 
 
-def display_info_images(image) -> None:
-    """Display in the log info about images info"""
+def display_info_images(image: ismrmrd.Image) -> None:
+    """
+    Log the metadata fields of a single MRD image.
+    
+    Intended for debug mode only. Logs the geometric orientation,
+    loop counters, image type, and all FIRST_IN_* / LAST_IN_* flags.
+
+    The following fields are available but currently commented out:
+    version, data_type, measurement_uid, matrix_size, field_of_view,
+    channels, position, patient_table_position, acquisition_time_stamp,
+    physiology_time_stamp, user_int, user_float, attribute_string_len.
+    Uncomment the relevant lines to include them in the log output.
+
+    Parameters
+    ----------
+    image : ismrmrd.Image
+        MRD image whose metadata is to be logged.
+    
+    """
 
     logging.info('-------------------------------------')
     logging.info('-------------IMAGE INFO--------------')
@@ -65,7 +82,20 @@ def display_info_images(image) -> None:
 
 
 def send_back_debug(image: ismrmrd.Image, connection: Connection) -> None:
-    """Send back the original images without changes and log infos about it"""
+    """
+    Send an image back to the client unmodified and log its metadata.
+
+    Used in debug mode as a passthrough, no processing is applied.
+    Sets Keep_image_geometry to 1 in the Meta attributes before sending
+    to prevent the client from reversing the image orientation.
+
+    Parameters
+    ----------
+    image : ismrmrd.Image
+        MRD image to inspect and send back.
+    connection : Connection
+        Active MRD connection used to send the image.
+    """
     display_info_images(image)
 
     tmpMeta = ismrmrd.Meta.deserialize(image.attribute_string)
