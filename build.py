@@ -29,8 +29,8 @@ def print_section(name: str) -> None:
 
 def check_docker_version() -> bool:
     """
-    Check if the version of Docker is not too high 
-    (>= 25 not supported)
+    Verify that the installed Docker version is compatible with Siemens OpenRecon.
+    (Siemens OpenRecon supports Docker versions up to (but not including) 25)
     """
     logger = logging.getLogger()
 
@@ -52,7 +52,9 @@ def check_docker_version() -> bool:
 
 
 def check_dependencies(dependencies_name: str) -> None:
-    """Check if the specified dependencies is installed in the system"""
+    """
+    Check if the specified dependencies is installed in the system
+    """
     logger = logging.getLogger()
 
     path = shutil.which(dependencies_name)
@@ -65,11 +67,33 @@ def check_dependencies(dependencies_name: str) -> None:
 
 def check_target_dir(target_path: str) -> dict:
     """
-    Check if the files for the app is present.
-    Files needed include:   - *_json_ui.json
-                            - OpenReconSchema_*.json
-                            - *.py (process file)
-    Return a dict with the name of files of interest
+    Check that the application directory contains all required files.
+
+    Expected files:
+        - <process_name>_json_ui.json       : OpenRecon UI parameter definition
+        - OpenReconSchema_*.json            : JSON schema for validation
+        - <process_name>.py (process file)  : main processing script
+    
+    Parameters
+    ----------
+    target_path : str
+        Absolute path to the application directory.
+
+    Returns
+    -------
+    dict with the following structure::
+
+        {
+            'name': {
+                'process': str,   # e.g. 'invertcontrast'
+                'schema':  str,   # e.g. 'OpenReconSchema_1.1.0'
+            },
+            'path': {
+                'process': str,   # path to invertcontrast.py
+                'ui_json': str,   # path to invertcontrast_json_ui.json
+                'schema':  str,   # path to OpenReconSchema_1.1.0.json
+            }
+        }
     """
     logger = logging.getLogger()
 
@@ -120,7 +144,12 @@ def check_target_dir(target_path: str) -> dict:
 
 
 def build_base_image(dockerfile_path: str) -> None:
-    """Build the base image for the server with all the ISMRMRD dependencies"""
+    """
+    Build the base Docker image ``python-openrecon-server``.
+
+    The base image contains all ISMRMRD Python dependencies and serves
+    as the starting point for the application-specific image.
+    """
     logger = logging.getLogger()
 
     result = subprocess.run(['docker', 'images', 'python-openrecon-server'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True)
@@ -136,7 +165,9 @@ def build_base_image(dockerfile_path: str) -> None:
 
 
 def check_json_format(json_content, target_data: dict) -> bool:
-    """Compare json content to the json schema reference"""
+    """
+    Validate JSON object for the application against the JSON schema reference
+    """
     logger = logging.getLogger()
 
     logger.info(f"load JSON Schema : {target_data['path']['schema']}")
@@ -157,7 +188,38 @@ def check_json_format(json_content, target_data: dict) -> bool:
 
 
 def prepare_infos(json_content, build_path: str) -> dict:
-    """Generate the names of the building files(Dockerfile, .tar, .zip)"""
+    """
+    Prepare output files names (Dockerfile, .tar, .zip)
+
+    Parameters
+    ----------
+    json_content : dict
+        Parsed JSON UI content.
+    build_path : str
+        Absolute path to the build output directory.
+
+    Returns
+    -------
+    dict with the following structure::
+
+        {
+            'info': {
+                'version': str,
+                'vendor':  str,
+                'name':    str,
+            },
+            'name': {
+                'docker': str,   # e.g. 'OpenRecon_ICM_InvertContrast:V1.0.0'
+                'base':   str,   # e.g. 'OpenRecon_ICM_InvertContrast_V1.0.0'
+            },
+            'path': {
+                'docker': str,   # path to generated .Dockerfile
+                'tar':    str,   # path to output .tar
+                'pdf':    str,   # path to output .pdf
+                'zip':    str,   # path to output .zip
+            }
+        }
+    """
     logger = logging.getLogger()
 
     # prep build dir
@@ -198,7 +260,26 @@ def prepare_infos(json_content, build_path: str) -> dict:
 
 
 def write_dockerfile(json_content, cmdline: str, docker_path: str, build_docker_path: str) -> None:
-    """Write the content of the Dockerfile"""
+    """
+    Generate the final application Dockerfile for OpenRecon.
+
+    Copies the base application Dockerfile and appends two directives:
+
+    - ``CMD`` — the server launch command line.
+    - ``LABEL`` — the OpenRecon metadata label, containing the full
+      JSON UI content encoded as Base64 (required by Siemens OpenRecon).
+
+    Parameters
+    ----------
+    json_content : dict
+        Parsed JSON UI content to embed in the LABEL directive.
+    cmdline : str
+        Shell command used to start the MRD server inside the container.
+    docker_path : str
+        Path to the source ``application.Dockerfile`` in the app directory.
+    build_docker_path : str
+        Destination path for the generated Dockerfile in the build directory.
+    """
     logger = logging.getLogger()
 
     # encoded the json content in base 64
@@ -224,7 +305,9 @@ def write_dockerfile(json_content, cmdline: str, docker_path: str, build_docker_
 
 
 def create_pdf(file_path: str, lines_of_text: list[str]) -> None:
-    """Generate a pdf with informations about the app"""
+    """
+    Generate a minimal pdf with informations about the app
+    """
     pdf_header = b'%PDF-1.4\n'
     
     objects = []
@@ -263,9 +346,12 @@ def create_pdf(file_path: str, lines_of_text: list[str]) -> None:
 
 def packaging_OR_image(build_data: dict) -> None:
     """
-    Packaging an OpenRecon image into a single .zip file
-    containing the Docker image (.tar), created using docker save,
-    and its documentation('.pdf')
+    Export the OpenRecon Docker image and package it as a .zip file.
+
+    Performs three steps in order:
+    1. Save the Docker image to a ``.tar`` archive via ``docker save``.
+    2. Generate a ``.pdf`` documentation file with vendor/name/version info.
+    3. Bundle the ``.tar`` and ``.pdf`` into a single ``.zip`` file.
     """
     logger = logging.getLogger()
 

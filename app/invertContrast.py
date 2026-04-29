@@ -2,7 +2,7 @@
 
 from utils.ImageFactory import ImageFactory
 from utils.check_OR_arguments import check_OR_arguments
-from utils.img_array import flatten, get_magnitude_images, get_subarray, stack_images
+from utils.img_array import get_magnitude_images, get_subarray, stack_images
 from utils.memory import log_memory, log_memory_delta
 from utils.utils import display_diagnostic, updateMeta
 
@@ -22,7 +22,7 @@ debugFolder = "/tmp/share/debug"
 def process_image(img_array: npt.NDArray, configJSON: dict | None, metadata) -> tuple[npt.NDArray, list, list]:
     """
     Invert contrast process image
-    
+
     Parameters
     ----------
     img_array : np.ndarray
@@ -53,14 +53,14 @@ def process_image(img_array: npt.NDArray, configJSON: dict | None, metadata) -> 
     logging.info(f'-----------------------------------------------')
     
     mem = log_memory("Begining process_image")
-    
+
     # --- stack images ----------------------------------------------------
     # sub_images = get_subarray(img_array, img_slice=slice(50,100), img_image_type=ismrmrd.IMTYPE_MAGNITUDE)
     data, head, meta = stack_images(img_array)
+    del img_array
     
-    # TO-DO: Fix display_diagnostic
     # display diagnostic info in the log
-    # display_diagnostic(images, head, meta)
+    display_diagnostic(head, meta)
 
     # --- Transpose to [y, x, z, cha, img] --------------------------------
     # send_volume_as_slices() expects this axis order to extract

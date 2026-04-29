@@ -1,19 +1,16 @@
 #!/bin/python3
 
-from utils.ImageFactory import ImageFactory
 from utils.check_OR_arguments import check_OR_arguments
-from utils.img_array import flatten, get_magnitude_images, get_subarray, stack_images
+from utils.img_array import get_subarray, stack_images
 from utils.memory import log_memory, log_memory_delta
 from utils.utils import display_diagnostic, updateMeta
 
-import base64
 import gc
 import ismrmrd
 import logging
 import numpy as np
 import numpy.typing as npt
 import os
-import xml
 
 
 # Folder for debug output files
@@ -80,6 +77,9 @@ def process_image(img_array: npt.NDArray, configJSON: dict | None, metadata) -> 
     first_echo_images = get_subarray(img_array, img_contrast=0, img_image_type=ismrmrd.IMTYPE_MAGNITUDE)
     data_sum, head, meta = stack_images(first_echo_images) #[img, cha, z, y, x], head, meta
     del first_echo_images
+
+    # display diagnostic info in the log
+    display_diagnostic(head, meta)
     
     if (sum_config == 'SoS'):
         np.square(data_sum, out=data_sum)

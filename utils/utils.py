@@ -26,8 +26,34 @@ def send_original_images(images: list, connection: Connection) -> None:
     connection.send_image(images_copy)
 
 
-def display_diagnostic(images: list, head: list, meta: list[ismrmrd.Meta]) -> dict:
-    """Display diagnostic info about the images in the log"""
+def display_diagnostic(head: list, meta: list[ismrmrd.Meta]) -> dict:
+    """
+    Log geometric and acquisition properties of an image group.
+
+    Extracts key spatial parameters from the first image header and
+    optionally decodes the Siemens ICE MiniHeader from the first Meta
+    object if present.
+
+    Parameters
+    ----------
+    head : list of ismrmrd.ImageHeader
+        Image headers. Only the first element is used — it is assumed
+        all images in the group share the same geometry.
+    meta : list of ismrmrd.Meta
+        Deserialised Meta objects. Only the first element is inspected
+        for the optional IceMiniHead field.
+
+    Returns
+    -------
+    dict with the following keys:
+
+    - ``'matrix'``    — np.ndarray [x, y, z]
+    - ``'fov'``       — np.ndarray [x, y, z]
+    - ``'voxelsize'`` — np.ndarray [x, y, z]
+    - ``'read_dir'``  — np.ndarray [x, y, z]
+    - ``'phase_dir'`` — np.ndarray [x, y, z]
+    - ``'slice_dir'`` — np.ndarray [x, y, z]
+    """
 
     # Optional serialization of ICE MiniHeader
     if 'IceMiniHead' in meta[0]:
@@ -37,9 +63,9 @@ def display_diagnostic(images: list, head: list, meta: list[ismrmrd.Meta]) -> di
     matrix    = np.array(head[0].matrix_size  [:]) 
     fov       = np.array(head[0].field_of_view[:])
     voxelsize = fov/matrix
-    read_dir  = np.array(images[0].read_dir )
-    phase_dir = np.array(images[0].phase_dir)
-    slice_dir = np.array(images[0].slice_dir)
+    read_dir  = np.array(head[0].read_dir )
+    phase_dir = np.array(head[0].phase_dir)
+    slice_dir = np.array(head[0].slice_dir)
     logging.info(f'MRD computed maxtrix [x y z] : {matrix   }')
     logging.info(f'MRD computed fov     [x y z] : {fov      }')
     logging.info(f'MRD computed voxel   [x y z] : {voxelsize}')
