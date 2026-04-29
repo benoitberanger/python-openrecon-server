@@ -2,7 +2,7 @@
 
 from utils.ImageFactory import ImageFactory
 from utils.check_OR_arguments import check_OR_arguments
-from utils.img_array import flatten, get_magnitude_images, get_subarray
+from utils.img_array import flatten, get_magnitude_images, get_subarray, stack_images
 from utils.memory import log_memory, log_memory_delta
 from utils.utils import display_diagnostic, updateMeta
 
@@ -19,8 +19,29 @@ import xml
 # Folder for debug output files
 debugFolder = "/tmp/share/debug"
 
-def process_image(img_array: npt.NDArray, configJSON: dict | None, metadata) :
-    """Invert contrast process image"""
+def process_image(img_array: npt.NDArray, configJSON: dict | None, metadata) -> tuple[npt.NDArray, list, list]:
+    """
+    Invert contrast process image
+    
+    Parameters
+    ----------
+    img_array : np.ndarray
+        7D MRD image array [slice, contrast, average, phase,
+        repetition, set, image_type] as returned by build_image_array()
+    configJSON : dict or None
+        JSON configuration from the client
+    metadata : ismrmrd.xsd.ismrmrdHeader or str
+        MRD header
+
+    Returns
+    -------
+    data : np.ndarray
+        Inverted image volume, shape [y, x, z, cha, img], dtype int16.
+    head : list of ismrmrd.ImageHeader
+        Original headers from magnitude images.
+    meta : list of ismrmrd.Meta
+        Updated Meta objects
+    """
     
     # Create debug folder, if necessary
     if not os.path.exists(debugFolder):
@@ -33,34 +54,23 @@ def process_image(img_array: npt.NDArray, configJSON: dict | None, metadata) :
     
     mem = log_memory("Begining process_image")
     
-    # mag_images = get_subarray(img_array, img_slice= slice(100,250), img_image_type=ismrmrd.IMTYPE_MAGNITUDE)
-    mag_images = get_magnitude_images(img_array)
-    logging.info(f'Magnitude images shape : {mag_images.shape}')
-    images = flatten(mag_images)
-    logging.debug(f'Number of magnitude images : {len(images)}')
-    mem = log_memory_delta("After flatten", mem)
-
-    # TO-DO: move that part in a dedicated function in utils
-    # Extract image data into a numpy array
-    # (for 5D images: MRD supposed [img cha z y x])
-    data = np.stack([img.data                              for img in images])
-    logging.info(f'MRD supposed organization : [img cha z y x]')
-    logging.info(f'MRD data shape : {data.shape}')
-    mem = log_memory_delta("After np.stack", mem)
-
-    head = [img.getHead()                                  for img in images]
-    meta = [ismrmrd.Meta.deserialize(img.attribute_string) for img in images]
+    # --- stack images ----------------------------------------------------
+    # sub_images = get_subarray(img_array, img_slice=slice(50,100), img_image_type=ismrmrd.IMTYPE_MAGNITUDE)
+    data, head, meta = stack_images(img_array)
     
+    # TO-DO: Fix display_diagnostic
     # display diagnostic info in the log
-    display_diagnostic(images, head, meta)
-    del images
+    # display_diagnostic(images, head, meta)
 
+    # --- Transpose to [y, x, z, cha, img] --------------------------------
+    # send_volume_as_slices() expects this axis order to extract
+    # individual 2D slices along the last dimension.
     data = data.transpose((3, 4, 2, 1, 0))
 
+    # --- Normalise to 12-bit range and convert to int16 ------------------
     BitsStored = 12
     maxVal = 2**BitsStored - 1
 
-    # Normalize and convert to int16
     data = data.astype(np.float32)
     mem = log_memory_delta("After astype float32", mem)
     data *= maxVal/data.max()
@@ -69,13 +79,14 @@ def process_image(img_array: npt.NDArray, configJSON: dict | None, metadata) :
     gc.collect()
     mem = log_memory_delta("After astype int16", mem)
 
-     # Invert image contrast
+    # --- Invert contrast -------------------------------------------------
     data = maxVal-data
     data = np.abs(data)
     np.save(debugFolder + "/" + "imgInverted.npy", data)
     mem = log_memory_delta("After inversion", mem)
 
-    # Update Meta informations of the images
+    # --- Update metadata -------------------------------------------------
     meta = updateMeta(meta, ['PYTHON', 'INVERT'], 'invertcontrast')
 
+    log_memory_delta("End process_image", mem)
     return data, head, meta

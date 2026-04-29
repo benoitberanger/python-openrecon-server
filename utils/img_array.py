@@ -281,3 +281,46 @@ def flatten(arr: npt.NDArray) -> list[ismrmrd.Image]:
         images.extend(cell)
 
     return images
+
+def stack_images(img_array: npt.NDArray, dtype = np.float32) -> tuple[npt.NDArray, list, list]:
+    """
+    Flatten a MRD image array and stack pixel data, headers and metadata.
+
+    Parameters
+    ----------
+    img_array : np.ndarray
+        7D array or any subarray returned by get_subarray(),
+        get_magnitude_images(), get_contrast(), etc.
+    dtype : np.dtype, optional
+        Output array dtype. Default is np.float32.
+
+    Returns
+    -------
+    data : np.ndarray
+        Stacked pixel data, shape [img, cha, z, y, x], cast to dtype.
+    head : list of ismrmrd.ImageHeader
+        Headers in the same order as data.
+    meta : list of ismrmrd.Meta
+        Deserialised Meta objects in the same order as data.
+
+    Raises
+    ------
+    ValueError
+        If img_array contains no images (all cells are None).
+    """
+    images = flatten(img_array)
+
+    if not images:
+        raise ValueError("stack_images: no images found in the provided array.")
+    
+    logging.debug("Stacking %d images of dtype %s", len(images), images[0].data.dtype)
+    
+    # MRD supposed organisation [img cha z y x]
+    data = np.stack([img.data for img in images]).astype(dtype)
+    head = [img.getHead()                                  for img in images]
+    meta = [ismrmrd.Meta.deserialize(img.attribute_string) for img in images]
+
+    del images
+    logging.debug("Stacked data shape [img, cha, z, y, x]: %s", data.shape)
+    
+    return data, head, meta
