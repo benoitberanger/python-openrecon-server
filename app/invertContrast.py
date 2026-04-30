@@ -78,10 +78,10 @@ def process_image(img_array: npt.NDArray, configJSON: dict | None, metadata) -> 
         if image_type == 1:
             display_diagnostic(tmp_head, tmp_meta)
 
-        # --- Transpose to [y, x, z, cha, img] ----------------------------
-        # send_volume_as_slices() expects this axis order to extract
-        # individual 2D slices along the last dimension.
-        tmp_data = tmp_data.transpose((3, 4, 2, 1, 0))
+        # # --- Transpose to [y, x, z, cha, img] ----------------------------
+        # # send_volume_as_slices() expects this axis order to extract
+        # # individual 2D slices along the last dimension.
+        # tmp_data = tmp_data.transpose((3, 4, 2, 1, 0))
 
         # --- Normalise to 12-bit range and convert to int16 --------------
         BitsStored = 12
@@ -112,7 +112,7 @@ def process_image(img_array: npt.NDArray, configJSON: dict | None, metadata) -> 
         mem = log_memory_delta("After results.append", mem)
 
     # --- Concatenate -----------------------------------------------------
-    data = np.concatenate(data_all, axis= -1)
+    data = np.concatenate(data_all, axis= 0)
     del data_all
     gc.collect()
 

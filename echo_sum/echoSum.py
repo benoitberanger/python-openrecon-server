@@ -77,7 +77,7 @@ def process_image(img_array: npt.NDArray, configJSON: dict | None, metadata) -> 
     first_echo_images = get_subarray(img_array, img_contrast=0, img_image_type=ismrmrd.IMTYPE_MAGNITUDE)
     data_sum, head, meta = stack_images(first_echo_images) #[img, cha, z, y, x], head, meta
     del first_echo_images
-    data_sum = data_sum.transpose((3, 4, 2, 1, 0))
+    # data_sum = data_sum.transpose((3, 4, 2, 1, 0))
 
     # display diagnostic info in the log
     display_diagnostic(head, meta)
@@ -92,7 +92,7 @@ def process_image(img_array: npt.NDArray, configJSON: dict | None, metadata) -> 
     for co in range(1, n_contrasts):
         images_co = get_subarray(img_array, img_contrast=co, img_image_type=ismrmrd.IMTYPE_MAGNITUDE)
         data_co, _, _ = stack_images(images_co)
-        data_co = data_co.transpose((3, 4, 2, 1, 0))
+        # data_co = data_co.transpose((3, 4, 2, 1, 0))
         if (sum_config == 'SoS'):
             np.square(data_co, out=data_co)
         data_sum += data_co

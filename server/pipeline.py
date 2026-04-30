@@ -168,11 +168,10 @@ class Pipeline:
         """
         # mem = log_memory("Before MRD3Dto2DImages")
 
-        n_imgs = data.shape[-1]
+        n_imgs = data.shape[0]
 
         for i in range(n_imgs):
-            slice_view = data[..., i]
-            slice_data = np.ascontiguousarray(slice_view.transpose(3, 2, 0, 1))
+            slice_data = np.ascontiguousarray(data[i])
             img = ismrmrd.Image.from_array(
                 slice_data,
                 transpose=False
