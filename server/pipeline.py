@@ -55,6 +55,7 @@ class Pipeline:
         self.connection = connection
         self.app_config = app_config
         self.app_directory = app_directory
+        self.max_image_series_index = 0
         self.module = None
         self.load_module()
 
@@ -118,6 +119,8 @@ class Pipeline:
 
         mem = log_memory("Before build_image_array")
         img_array = build_image_array(images)
+        for img in images:
+            self.max_image_series_index = max(self.max_image_series_index, img.image_series_index)
         del images
         gc.collect()
         mem = log_memory_delta("After build_image_array", mem)
@@ -146,7 +149,7 @@ class Pipeline:
         Re-slice back into 2D MRD images from a processed volume
         and send them to the client one by one.
 
-        Iterates over the first axis of data (image index), extracts each
+        Iterates over the last axis of data (image index), extracts each
         slice as a contiguous [cha, z, y, x] array, wraps it in an
         ismrmrd.Image, updates the header and meta attributes, and sends
         it immediately over the connection.
@@ -157,7 +160,7 @@ class Pipeline:
         Parameters
         ----------
         data : np.ndarray
-            Processed image volume, shape [img, cha, z, y, x].
+            Processed image volume, shape [y, x, z, cha, img].
         head : list of ismrmrd.ImageHeader
             Original headers, one per image.
         meta : list of ismrmrd.Meta
@@ -165,10 +168,11 @@ class Pipeline:
         """
         # mem = log_memory("Before MRD3Dto2DImages")
 
-        n_imgs = data.shape[0]
+        n_imgs = data.shape[-1]
 
         for i in range(n_imgs):
-            slice_data = np.ascontiguousarray(data[i])
+            slice_view = data[..., i]
+            slice_data = np.ascontiguousarray(slice_view.transpose(3, 2, 0, 1))
             img = ismrmrd.Image.from_array(
                 slice_data,
                 transpose=False
@@ -185,7 +189,7 @@ class Pipeline:
                 oldHeader.image_type = ismrmrd.IMTYPE_COMPLEX
 
             # Set the index of the new series image (to not overlap with the original images send)
-            oldHeader.image_series_index += 42
+            oldHeader.image_series_index += (self.max_image_series_index + 1)
             img.setHead(oldHeader)
 
             # Create a copy of the original ISMRMRD Meta attributes and update
