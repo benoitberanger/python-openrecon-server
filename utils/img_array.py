@@ -87,12 +87,13 @@ def build_image_array(img_list: list[ismrmrd.Image]) -> npt.NDArray :
         else:
             img_array[key].append(img)
 
+    # TO-DO: Ameliorate logs lisibility
     # Because ismrmrd.IMTYPE_* values start at 1 (magnitude=1, phase=2,
     # real=3, imag=4, complex=5, rgb=6), index 0 along the image_type
     # axis is always empty. This is intentional, it preserves direct
     # index correspondence with the MRD constants.
-    logging.info(' 7D-MRD images array dimensions : {slice, average, phase, repetition, set, image_type}')
-    logging.info(f'7D-MRD images array shape :      {img_array.shape}')
+    logging.info('7DMRD images array dimensions : {slice, contrast, average, phase, repetition, set, image_type}')
+    logging.info(f'7DMRD images array shape :      {img_array.shape}')
 
     return img_array
 
@@ -177,8 +178,13 @@ def get_subarray(img_array: npt.NDArray,
     """
 
     args = [
-        img_slice, img_contrast, img_average, img_phase,
-        img_repetition, img_set, img_image_type,
+        img_slice, 
+        img_contrast, 
+        img_average, 
+        img_phase,
+        img_repetition, 
+        img_set, 
+        img_image_type,
     ]
 
     # Validate every requested index against the actual array shape
@@ -190,7 +196,8 @@ def get_subarray(img_array: npt.NDArray,
     
     idx = tuple(to_index(v) for v in args)
     
-    logging.debug("Extracting subarray with index tuple: %s", idx)
+    # TO-DO: Make this log understandable and clear
+    # logging.debug("Extracting subarray with index tuple: %s", idx)
     return img_array[idx]
 
 

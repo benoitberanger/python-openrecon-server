@@ -53,40 +53,68 @@ def process_image(img_array: npt.NDArray, configJSON: dict | None, metadata) -> 
     logging.info(f'-----------------------------------------------')
     
     mem = log_memory("Begining process_image")
-
-    # --- stack images ----------------------------------------------------
-    # sub_images = get_subarray(img_array, img_slice=slice(50,100), img_image_type=ismrmrd.IMTYPE_MAGNITUDE)
-    data, head, meta = stack_images(img_array)
-    del img_array
     
-    # display diagnostic info in the log
-    display_diagnostic(head, meta)
+    # --- Dimensions ------------------------------------------------------
+    # Get the number of image_type (img_array axis 6)
+    n_image_type = img_array.shape[6]
+    image_type_name = ('', 'MAGNITUDE', 'PHASE', 'REAL', 'IMAG', 'COMPLEX', 'RGB')
 
-    # --- Transpose to [y, x, z, cha, img] --------------------------------
-    # send_volume_as_slices() expects this axis order to extract
-    # individual 2D slices along the last dimension.
-    data = data.transpose((3, 4, 2, 1, 0))
+    # --- Treat all types of images ---------------------------------------
+    data_all = []
+    head = []
+    meta = []
 
-    # --- Normalise to 12-bit range and convert to int16 ------------------
-    BitsStored = 12
-    maxVal = 2**BitsStored - 1
+    for image_type in range(1, n_image_type):
 
-    data = data.astype(np.float32)
-    mem = log_memory_delta("After astype float32", mem)
-    data *= maxVal/data.max()
-    np.around(data, out=data)
-    data = data.astype(np.int16)
+        logging.info("  --- Invert contrast on %s images ---", image_type_name[image_type])
+
+        # --- stack images ------------------------------------------------
+        sub_array = get_subarray(img_array, img_image_type=image_type)
+        tmp_data, tmp_head, tmp_meta = stack_images(sub_array)
+        mem = log_memory_delta("After stack_images", mem)
+        del sub_array
+        
+        # display diagnostic info in the log
+        if image_type == 1:
+            display_diagnostic(tmp_head, tmp_meta)
+
+        # # --- Transpose to [y, x, z, cha, img] ----------------------------
+        # # send_volume_as_slices() expects this axis order to extract
+        # # individual 2D slices along the last dimension.
+        # tmp_data = tmp_data.transpose((3, 4, 2, 1, 0))
+
+        # --- Normalise to 12-bit range and convert to int16 --------------
+        BitsStored = 12
+        maxVal = 2**BitsStored - 1
+
+        tmp_data *= maxVal/tmp_data.max()
+        np.around(tmp_data, out=tmp_data)
+        tmp_data = tmp_data.astype(np.int16)
+        gc.collect()
+        mem = log_memory_delta("After normalisation", mem)
+
+        # --- Invert contrast ---------------------------------------------
+        tmp_data = maxVal-tmp_data
+        tmp_data = np.abs(tmp_data)
+        np.save(debugFolder + "/" + "imgInverted.npy", tmp_data)
+        mem = log_memory_delta("After inversion", mem)
+
+        # --- Update metadata ---------------------------------------------
+        tmp_meta = updateMeta(tmp_meta, ['PYTHON', 'INVERT'], 'invertcontrast')
+
+        data_all.append(tmp_data)
+        head.extend(tmp_head)
+        meta.extend(tmp_meta)
+
+        del tmp_data
+        gc.collect()
+
+        mem = log_memory_delta("After results.append", mem)
+
+    # --- Concatenate -----------------------------------------------------
+    data = np.concatenate(data_all, axis= -1)
+    del data_all
     gc.collect()
-    mem = log_memory_delta("After astype int16", mem)
-
-    # --- Invert contrast -------------------------------------------------
-    data = maxVal-data
-    data = np.abs(data)
-    np.save(debugFolder + "/" + "imgInverted.npy", data)
-    mem = log_memory_delta("After inversion", mem)
-
-    # --- Update metadata -------------------------------------------------
-    meta = updateMeta(meta, ['PYTHON', 'INVERT'], 'invertcontrast')
 
     log_memory_delta("End process_image", mem)
     return data, head, meta
