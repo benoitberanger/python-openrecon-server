@@ -1,12 +1,12 @@
 #!/usr/bin/python3
 
-from server.server import Server
-
 import argparse
 import logging
 import os
 import signal
 import sys
+
+from server.server import Server
 
 defaults = {
     'host':           '0.0.0.0',

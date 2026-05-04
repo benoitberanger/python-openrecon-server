@@ -159,7 +159,7 @@ def build_base_image(dockerfile_path: str) -> None:
         return
 
     # build docker image for python-openrecon-server
-    # this image is the starting point, that will be refined latter
+    # this image is the starting point, that will be refined later
     logger.info('building docker image `python-openrecon-server`')
     subprocess.run(['docker', 'build', '--tag', 'python-openrecon-server', '--file', dockerfile_path, './'], check=True)
 

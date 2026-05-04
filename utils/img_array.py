@@ -1,9 +1,10 @@
 #!/bin/python3
 
-import ismrmrd
 import logging
+
+import ismrmrd
 import numpy as np
-import numpy.typing as npt
+
 
 # Dimension names for readable error messages
 DIMENSION_NAMES = [
@@ -16,7 +17,7 @@ DIMENSION_NAMES = [
     "image_type",
 ]
 
-def build_image_array(img_list: list[ismrmrd.Image]) -> npt.NDArray :
+def build_image_array(img_list: list[ismrmrd.Image]) -> np.ndarray[ismrmrd.Image] :
     """
     Build a 7D structured array from a flat list of MRD images.
 
@@ -39,7 +40,7 @@ def build_image_array(img_list: list[ismrmrd.Image]) -> npt.NDArray :
     Returns
     -------
     np.ndarray
-        7-D object array of shape
+        7D object array of shape
         (n_slices, n_contrasts, n_averages, n_phases,
          n_repetitions, n_sets, n_image_types).
         Empty cells contain None.
@@ -87,13 +88,14 @@ def build_image_array(img_list: list[ismrmrd.Image]) -> npt.NDArray :
         else:
             img_array[key].append(img)
 
-    # TO-DO: Ameliorate logs lisibility
     # Because ismrmrd.IMTYPE_* values start at 1 (magnitude=1, phase=2,
     # real=3, imag=4, complex=5, rgb=6), index 0 along the image_type
     # axis is always empty. This is intentional, it preserves direct
     # index correspondence with the MRD constants.
-    logging.info('7DMRD images array dimensions : {slice, contrast, average, phase, repetition, set, image_type}')
-    logging.info(f'7DMRD images array shape :      {img_array.shape}')
+    logging.info("7D MRD image array shape :")
+    logging.info("  [%-10s %-10s %-10s %-10s %-10s %-6s %-10s]",
+             "slice", "contrast", "average", "phase", "repetition", "set", "image_type")
+    logging.info("  [%-10d %-10d %-10d %-10d %-10d %-6d %-10d]", *img_array.shape)
 
     return img_array
 
@@ -133,14 +135,14 @@ def validate_index(value, dim_size: int, dim_name: str) -> None:
             return
 
 
-def get_subarray(img_array: npt.NDArray, 
+def get_subarray(img_array: np.ndarray[ismrmrd.Image], 
                  img_slice = None, 
                  img_contrast = None, 
                  img_average = None, 
                  img_phase = None, 
                  img_repetition = None, 
                  img_set = None, 
-                 img_image_type = None) -> npt.NDArray:
+                 img_image_type = None) -> np.ndarray[ismrmrd.Image]:
     """
     Extract a subarray from a 7D MRD images array by selecting specific indices
     along one or more dimensions.
@@ -198,10 +200,12 @@ def get_subarray(img_array: npt.NDArray,
     
     # TO-DO: Make this log understandable and clear
     # logging.debug("Extracting subarray with index tuple: %s", idx)
-    return img_array[idx]
+    new_array = img_array[idx]
+    logging.info(f"Subarray shape: {new_array.shape}")
+    return new_array
 
 
-def get_magnitude_images(img_array: npt.NDArray) -> npt.NDArray:
+def get_magnitude_images(img_array: np.ndarray[ismrmrd.Image]) -> np.ndarray[ismrmrd.Image]:
     """
     Extract the magnitude images from the MRD images array.
     Shorthand for get_subarray(img_array, img_image_type=ismrmrd.IMTYPE_MAGNITUDE).
@@ -220,7 +224,7 @@ def get_magnitude_images(img_array: npt.NDArray) -> npt.NDArray:
     return get_subarray(img_array, img_image_type=ismrmrd.IMTYPE_MAGNITUDE)
 
 
-def get_phase_images(img_array: npt.NDArray) -> npt.NDArray:
+def get_phase_images(img_array: np.ndarray[ismrmrd.Image]) -> np.ndarray[ismrmrd.Image]:
     """
     Extract the phase images from the MRD images array.
     Shorthand for get_subarray(img_array, img_image_type=ismrmrd.IMTYPE_PHASE).
@@ -239,7 +243,7 @@ def get_phase_images(img_array: npt.NDArray) -> npt.NDArray:
     return get_subarray(img_array, img_image_type=ismrmrd.IMTYPE_PHASE)
 
 
-def get_contrast(img_array: npt.NDArray, contrast: int) -> npt.NDArray:
+def get_contrast(img_array: np.ndarray[ismrmrd.Image], contrast: int) -> np.ndarray[ismrmrd.Image]:
     """
     Extract all images for a specific contrast index.
     Shorthand for get_subarray(img_array, img_contrast=contrast).
@@ -260,7 +264,7 @@ def get_contrast(img_array: npt.NDArray, contrast: int) -> npt.NDArray:
     return get_subarray(img_array, contrast = contrast)
 
 
-def flatten(arr: npt.NDArray) -> list[ismrmrd.Image]:
+def flatten(arr: np.ndarray[ismrmrd.Image]) -> list[ismrmrd.Image]:
     """
     Return a flat list of all MRD images contained in an array or subarray.
 
@@ -289,7 +293,7 @@ def flatten(arr: npt.NDArray) -> list[ismrmrd.Image]:
 
     return images
 
-def stack_images(img_array: npt.NDArray, dtype = np.float32) -> tuple[npt.NDArray, list, list]:
+def stack_images(img_array: np.ndarray[ismrmrd.Image], dtype = np.float32) -> tuple[np.ndarray, list, list]:
     """
     Flatten a MRD image array and stack pixel data, headers and metadata.
 

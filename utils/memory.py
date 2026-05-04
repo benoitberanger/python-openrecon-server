@@ -2,6 +2,7 @@
 
 import logging
 import os
+
 import psutil
 
 
@@ -47,7 +48,7 @@ def _memory_limit_mb() -> float:
     return psutil.virtual_memory().total / 1e6
 
 
-def log_memory(label: str = "") -> float:
+def log_memory(level: str, label: str = "") -> float:
     """
     Log memory usage of the current process in Mo
     Return the value in Mo
@@ -55,11 +56,11 @@ def log_memory(label: str = "") -> float:
     mem = _process_memory_mb()
     total = _memory_limit_mb()
     pct   = 100 * mem / total if total > 0 else 0
-    logging.info("RAM [%s] : %.1f Mo / %.0f Mo (%.1f%%)", label, mem, total, pct)
+    logging.info("RAM [%s] [%s] : %.1f Mo / %.0f Mo (%.1f%%)", level, label, mem, total, pct)
     return mem
 
 
-def log_memory_delta(label: str, mem_before: float) -> float:
+def log_memory_delta(level: str, label: str, mem_before: float) -> float:
     """
     Log memory usage of the current process in Mo and
     the delta with the previous memory usage (mem_before)
@@ -69,5 +70,5 @@ def log_memory_delta(label: str, mem_before: float) -> float:
     total = _memory_limit_mb()
     delta = mem - mem_before
     pct   = 100 * mem / total if total > 0 else 0
-    logging.info("RAM [%s] : %.1f Mo / %.0f Mo (%.1f%%)  (%+.1f Mo)", label, mem, total, pct, delta)
+    logging.info("RAM [%s] [%s] : %.1f Mo / %.0f Mo (%.1f%%)  (%+.1f Mo)", level, label, mem, total, pct, delta)
     return mem

@@ -1,25 +1,24 @@
 #!/bin/python3
 
-from utils.ImageFactory import ImageFactory
+import base64
+import gc
+import logging
+import os
+import xml
+
+import ismrmrd
+import numpy as np
+
 from utils.check_OR_arguments import check_OR_arguments
 from utils.img_array import get_magnitude_images, get_subarray, stack_images
 from utils.memory import log_memory, log_memory_delta
 from utils.utils import display_diagnostic, updateMeta
 
-import base64
-import gc
-import ismrmrd
-import logging
-import numpy as np
-import numpy.typing as npt
-import os
-import xml
-
 
 # Folder for debug output files
 debugFolder = "/tmp/share/debug"
 
-def process_image(img_array: npt.NDArray, configJSON: dict | None, metadata) -> tuple[npt.NDArray, list, list]:
+def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None, metadata) -> tuple[np.ndarray, list, list]:
     """
     Invert contrast process image
 
@@ -48,11 +47,11 @@ def process_image(img_array: npt.NDArray, configJSON: dict | None, metadata) -> 
         os.makedirs(debugFolder)
         logging.debug("Created folder " + debugFolder + " for debug output files")
 
-    logging.info(f'-----------------------------------------------')
+    logging.info(f'------------------------------------------------')
     logging.info(f'     invertContrast called')
-    logging.info(f'-----------------------------------------------')
+    logging.info(f'------------------------------------------------')
     
-    mem = log_memory("Begining process_image")
+    mem = log_memory("process_image", "Begining")
     
     # --- Dimensions ------------------------------------------------------
     # Get the number of image_type (img_array axis 6)
@@ -66,13 +65,13 @@ def process_image(img_array: npt.NDArray, configJSON: dict | None, metadata) -> 
 
     for image_type in range(1, n_image_type):
 
-        logging.info("  --- Invert contrast on %s images ---", image_type_name[image_type])
-
         # --- stack images ------------------------------------------------
         sub_array = get_subarray(img_array, img_image_type=image_type)
         tmp_data, tmp_head, tmp_meta = stack_images(sub_array)
-        mem = log_memory_delta("After stack_images", mem)
+        mem = log_memory_delta("process_image", "After stack_images", mem)
         del sub_array
+        
+        logging.info("  --- Invert contrast on %d %s images ---", len(tmp_head), image_type_name[image_type])
         
         # display diagnostic info in the log
         if image_type == 1:
@@ -91,13 +90,13 @@ def process_image(img_array: npt.NDArray, configJSON: dict | None, metadata) -> 
         np.around(tmp_data, out=tmp_data)
         tmp_data = tmp_data.astype(np.int16)
         gc.collect()
-        mem = log_memory_delta("After normalisation", mem)
+        mem = log_memory_delta("process_image", "After normalisation", mem)
 
         # --- Invert contrast ---------------------------------------------
         tmp_data = maxVal-tmp_data
         tmp_data = np.abs(tmp_data)
         np.save(debugFolder + "/" + "imgInverted.npy", tmp_data)
-        mem = log_memory_delta("After inversion", mem)
+        mem = log_memory_delta("process_image", "After inversion", mem)
 
         # --- Update metadata ---------------------------------------------
         tmp_meta = updateMeta(tmp_meta, ['PYTHON', 'INVERT'], 'invertcontrast')
@@ -109,12 +108,14 @@ def process_image(img_array: npt.NDArray, configJSON: dict | None, metadata) -> 
         del tmp_data
         gc.collect()
 
-        mem = log_memory_delta("After results.append", mem)
+        mem = log_memory_delta("process_image", "After results.append", mem)
 
     # --- Concatenate -----------------------------------------------------
     data = np.concatenate(data_all, axis= 0)
     del data_all
     gc.collect()
 
-    log_memory_delta("End process_image", mem)
+    log_memory_delta("process_image", "End", mem)
+
+    logging.info("--- End of invertContrast ---------------------")
     return data, head, meta

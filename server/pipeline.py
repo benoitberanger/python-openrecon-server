@@ -1,18 +1,18 @@
 #!/bin/python3
 
+import gc
+import importlib
+import logging
+
+import ismrmrd
+import numpy as np
+
+from time import perf_counter
 from server.connection import Connection
 from utils.check_OR_arguments import check_OR_arguments
 from utils.img_array import build_image_array
 from utils.memory import log_memory, log_memory_delta
 from utils.utils import send_original_images
-
-import gc
-import importlib
-import ismrmrd
-import logging
-import numpy as np
-import numpy.typing as npt
-from time import perf_counter
 
 
 class Pipeline:
@@ -113,17 +113,20 @@ class Pipeline:
             return []
         
         if check_OR_arguments(configJSON, 'SaveOriginal', bool, True) == True:
+            logging.info("Send original images")
             send_original_images(images, self.connection)
 
         logging.debug("Processing data with %d images of type %s", len(images), images[0].data.dtype)
 
-        mem = log_memory("Before build_image_array")
+        mem = log_memory("run Pipeline", "Before build_image_array")
         img_array = build_image_array(images)
+        # save the max value of image_serie_index to make sure 
+        # the treated images not overlap the original
         for img in images:
             self.max_image_series_index = max(self.max_image_series_index, img.image_series_index)
         del images
         gc.collect()
-        mem = log_memory_delta("After build_image_array", mem)
+        mem = log_memory_delta("run Pipeline", "After build_image_array", mem)
 
         # Start timer
         tic = perf_counter()
@@ -135,16 +138,16 @@ class Pipeline:
         strProcessTime = "Processing time: %.2f ms" % ((toc-tic)*1000.0)
         logging.info(strProcessTime)
         
-        log_memory_delta("After process_image", mem)
+        log_memory_delta("run Pipeline", "After process_image", mem)
 
         # Re-slice back into 2D images and send
         self.send_volume_as_2Dslices(data, head, meta)
         del data, head, meta
         gc.collect()
-        log_memory_delta("After send_volume_as_2Dslices and gc", mem)
+        log_memory_delta("run Pipeline", "After send_volume_as_2Dslices", mem)
 
 
-    def send_volume_as_2Dslices(self, data: npt.NDArray, head: list[ismrmrd.ImageHeader], meta: list[ismrmrd.Meta]) -> None:
+    def send_volume_as_2Dslices(self, data: np.ndarray, head: list[ismrmrd.ImageHeader], meta: list[ismrmrd.Meta]) -> None:
         """
         Re-slice back into 2D MRD images from a processed volume
         and send them to the client one by one.
@@ -166,7 +169,7 @@ class Pipeline:
         meta : list of ismrmrd.Meta
             Original Meta objects, one per image.
         """
-        # mem = log_memory("Before MRD3Dto2DImages")
+        # mem = log_memory("send_volume_as_2Dslices", "Before MRD3Dto2DImages")
 
         n_imgs = data.shape[0]
 
@@ -201,4 +204,4 @@ class Pipeline:
 
             self.connection.send_image(img)
             del img
-            # log_memory_delta(f"After send image: {i}/{n_imgs - 1}", mem)
+            # log_memory_delta("send_volume_as_2Dslices", f"After send image: {i}/{n_imgs - 1}", mem)

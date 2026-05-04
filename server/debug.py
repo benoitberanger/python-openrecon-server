@@ -1,9 +1,10 @@
 #!/bin/python3
 
-from server.connection import Connection
+import logging
 
 import ismrmrd
-import logging
+
+from server.connection import Connection
 
 
 def display_info_images(image: ismrmrd.Image) -> None:

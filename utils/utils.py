@@ -1,14 +1,15 @@
 #!/bin/python3
 
-from server.connection import Connection
-
 import base64
-import ismrmrd
 import logging
+
+import ismrmrd
 import numpy as np
 
+from server.connection import Connection
 
-def send_original_images(images: list, connection: Connection) -> None:
+
+def send_original_images(images: list[ismrmrd.Image], connection: Connection) -> None:
     """Return a copy of original images unprocessed if needed"""
 
     images_copy = []

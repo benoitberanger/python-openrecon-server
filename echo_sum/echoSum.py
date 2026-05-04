@@ -1,22 +1,22 @@
 #!/bin/python3
 
+import gc
+import logging
+import os
+
+import ismrmrd
+import numpy as np
+
 from utils.check_OR_arguments import check_OR_arguments
 from utils.img_array import get_subarray, stack_images
 from utils.memory import log_memory, log_memory_delta
 from utils.utils import display_diagnostic, updateMeta
 
-import gc
-import ismrmrd
-import logging
-import numpy as np
-import numpy.typing as npt
-import os
-
 
 # Folder for debug output files
 debugFolder = "/tmp/share/debug"
 
-def process_image(img_array: npt.NDArray, configJSON: dict | None, metadata) -> tuple[npt.NDArray, list, list]:
+def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None, metadata) -> tuple[np.ndarray, list, list]:
     """
     Combine multi-echo magnitude images into a single image per slice.
 
@@ -58,7 +58,7 @@ def process_image(img_array: npt.NDArray, configJSON: dict | None, metadata) -> 
     logging.info(f'     Echos summation called')
     logging.info(f'-----------------------------------------------')
     
-    mem = log_memory("Begining process_image")
+    mem = log_memory("process_image", "Begining")
 
     # --- OR Parameters ---------------------------------------------------
     sum_config = check_OR_arguments(configJSON, 'EchoSumConfig', str, 'SimpleSum')
@@ -84,7 +84,7 @@ def process_image(img_array: npt.NDArray, configJSON: dict | None, metadata) -> 
     
     if (sum_config == 'SoS'):
         np.square(data_sum, out=data_sum)
-    mem = log_memory_delta("After stacking echo 0", mem)
+    mem = log_memory_delta("process_image", "After stacking echo 0", mem)
 
     # --- Sum with remaining echoes ---------------------------------------
     # SoS: accumulate squared values, then take sqrt at the end
@@ -98,7 +98,7 @@ def process_image(img_array: npt.NDArray, configJSON: dict | None, metadata) -> 
         data_sum += data_co
         del images_co, data_co
         gc.collect()
-        mem = log_memory_delta(f"After adding echo {co}", mem)
+        mem = log_memory_delta("process_image", f"After adding echo {co}", mem)
 
     gc.collect()
 
@@ -113,7 +113,7 @@ def process_image(img_array: npt.NDArray, configJSON: dict | None, metadata) -> 
     data_sum  *= maxVal / data_sum.max()
     np.around(data_sum, out=data_sum)
     data_sum   = data_sum.astype(np.int16)
-    mem = log_memory_delta("After normalisation", mem)
+    mem = log_memory_delta("process_image", "After normalisation", mem)
 
     # # --- Transpose to [y, x, z, cha, img] --------------------------------
     # # send_volume_as_slices() expects this axis order to extract

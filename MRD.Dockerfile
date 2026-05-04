@@ -11,7 +11,7 @@ RUN apt-get update && apt-get install -y git cmake g++ libhdf5-dev libxml2-dev l
 # ISMRMRD library
 RUN git clone https://github.com/ismrmrd/ismrmrd.git && \
     cd ismrmrd && \
-    git checkout d364e03 && \
+    git checkout 2886c1f && \
     mkdir build && cd build && \
     cmake ../ && \
     make -j $(nproc) && \
@@ -20,7 +20,7 @@ RUN git clone https://github.com/ismrmrd/ismrmrd.git && \
 # siemens_to_ismrmrd converter
 RUN git clone https://github.com/ismrmrd/siemens_to_ismrmrd.git && \
     cd siemens_to_ismrmrd && \
-    git checkout v1.2.11 && \
+    git checkout v1.2.13 && \
     mkdir build && cd build && \
     cmake ../ && \
     make -j $(nproc) && \
@@ -55,7 +55,7 @@ RUN apt-get update && apt-get install --no-install-recommends -y libxslt1.1 libh
 RUN echo "set positionlog" > ~/.nanorc
 
 # Python MRD library
-RUN pip3 install h5py==3.10.0 ismrmrd==1.14.1
+RUN pip3 install h5py==3.10.0 ismrmrd==1.14.2
 
 RUN cd /opt/code && \
     git clone https://github.com/ismrmrd/ismrmrd-python-tools.git && \
@@ -64,7 +64,7 @@ RUN cd /opt/code && \
 
 # matplotlib is used by rgb.py and provides various visualization tools including colormaps
 # pydicom is used by dicom2mrd.py to parse DICOM data
-RUN pip3 install --no-cache-dir matplotlib==3.8.2 pydicom==3.0.1 psutil==7.2.2
+RUN pip3 install --no-cache-dir matplotlib==3.8.2 pydicom==3.0.2 psutil==7.2.2
 
 # Cleanup files not required after installation
 RUN apt-get clean && \

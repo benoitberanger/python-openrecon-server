@@ -1,20 +1,20 @@
 #!/usr/bin/python3
 
-from utils.check_OR_arguments import check_OR_arguments
-from utils.memory import log_memory, log_memory_delta
-from server.debug import send_back_debug
-from server.pipeline import Pipeline
-from server.connection import Connection
-import server.constants as constants
-
 import gc
-import ismrmrd
 import json
 import logging
 import signal
 import socket
 import traceback
 
+import ismrmrd
+
+from utils.check_OR_arguments import check_OR_arguments
+from utils.memory import log_memory, log_memory_delta
+from server.debug import send_back_debug
+from server.pipeline import Pipeline
+from server.connection import Connection
+import server.constants as constants
 
 class Server:
     """
@@ -222,7 +222,7 @@ class Server:
 
         # Continuously parse incoming data parsed from MRD messages
         imgGroup = []
-        mem_start = log_memory("Begining handle_image_stream")
+        mem_start = log_memory("handle_image_stream", "Begining")
         try:
             for item in connection:
 
@@ -250,7 +250,7 @@ class Server:
                         imgGroup.append(item)
                         # Log tous les 50 images pour ne pas spammer
                         if len(imgGroup) % 50 == 0:
-                            log_memory_delta(f"{len(imgGroup)} images accumulated", mem_start)
+                            log_memory_delta("handle_image_stream", f"{len(imgGroup)} images accumulated", mem_start)
 
                 elif item is None:
                     logging.info("Exit because null item received")
@@ -261,8 +261,8 @@ class Server:
 
             # Process images data.
             if imgGroup:
-                log_memory_delta(f"All item received — {len(imgGroup)} images", mem_start)
-                logging.info("Processing a group of images")
+                log_memory_delta("handle_image_stream", f"All item received — {len(imgGroup)} images", mem_start)
+                logging.info("---------- PROCESSING IMAGES ----------")
                 images = pipeline.run(imgGroup, configJSON, metadata)
                 del imgGroup
                 gc.collect()
@@ -270,7 +270,7 @@ class Server:
                 # connection.send_image(images)
                 del images
                 gc.collect()
-                log_memory_delta("After send", mem_start)
+                log_memory_delta("handle_image_stream", "After send", mem_start)
             
         except Exception as e:
             logging.error(traceback.format_exc())
@@ -284,7 +284,7 @@ class Server:
                 connection.send_close()
             except:
                 logging.error("Failed to send close message!")
-            log_memory_delta("End handle_image_stream", mem_start)
+            log_memory_delta("handle_image_stream", "End", mem_start)
 
 
     def handle(self, sock: int)-> None:

@@ -1,23 +1,24 @@
 #!/usr/bin/python3
 
-import server.constants as constants
-
 import ctypes
 import datetime
-import ismrmrd
 import logging
-import numpy as np
 import os
 import random
 import socket
 import threading
+
+import ismrmrd
+import numpy as np
+
+import server.constants as constants
 
 
 class Connection:
     """
     Manages a single MRD client connection over a TCP socket.
 
-    Handles the full MRD message protocol — reading and sending each
+    Handles the MRD message protocol — reading and sending different
     message type (config, metadata, images, text, close) according to
     the MRD wire format. Optionally saves all incoming data to an HDF5
     file for debugging purposes.
@@ -420,7 +421,7 @@ class Connection:
     # ----- MRD_MESSAGE_CLOSE (4) ------------------------------------------------
     def read_close(self) -> None:
         """
-        Handle an MRD_MESSAGE_CLOSE message (4).
+        Read an MRD_MESSAGE_CLOSE message (4).
         """
 
         logging.info("<-- Received MRD_MESSAGE_CLOSE (4)")
@@ -448,6 +449,7 @@ class Connection:
 
         with self.lock:
             logging.info("--> Sending MRD_MESSAGE_CLOSE (4)")
+            logging.info("  Total sent images:  %5d", self.sentImages)
             self.socket.send(constants.MrdMessageIdentifier.pack(constants.MRD_MESSAGE_CLOSE))
 
 
@@ -571,7 +573,7 @@ class Connection:
             if not isinstance(images, list):
                 images = [images]
             
-            logging.info("--> Sending MRD_MESSAGE_ISMRMRD_IMAGE (1022) (%d images)", len(images))
+            # logging.info("--> Sending MRD_MESSAGE_ISMRMRD_IMAGE (1022) (%d images)", len(images))
             
             if len(images) == 0:
                 return
