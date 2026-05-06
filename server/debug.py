@@ -15,7 +15,7 @@ def display_info_images(image: ismrmrd.Image) -> None:
     loop counters, image type, and all FIRST_IN_* / LAST_IN_* flags.
 
     The following fields are available but currently commented out:
-    version, data_type, measurement_uid, matrix_size, field_of_view,
+    version, data_type, flags, measurement_uid, matrix_size, field_of_view,
     channels, position, patient_table_position, acquisition_time_stamp,
     physiology_time_stamp, user_int, user_float, attribute_string_len.
     Uncomment the relevant lines to include them in the log output.
@@ -41,7 +41,7 @@ def display_info_images(image: ismrmrd.Image) -> None:
     
     # logging.info(f'version                  : {image.version}')
     # logging.info(f'data_type                : {image.data_type}')
-    logging.info(f'flags                    : {image.flags}')
+    # logging.info(f'flags                    : {image.flags}')
     # logging.info(f'measurement_uid          : {image.measurement_uid}')
     # logging.info(f'matrix_size              : {image.matrix_size}')
     # logging.info(f'field_of_view            : {image.field_of_view}')

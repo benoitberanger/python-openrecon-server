@@ -10,7 +10,16 @@ from server.connection import Connection
 
 
 def send_original_images(images: list[ismrmrd.Image], connection: Connection) -> None:
-    """Return a copy of original images unprocessed if needed"""
+    """
+    Return a copy of original images unprocessed.
+
+    Parameters
+    ----------
+    images : list of ismrmrd.Image
+        List of original MRD Images
+    connection : Connection
+        Active MRD connection.
+    """
 
     images_copy = []
 
@@ -38,7 +47,7 @@ def display_diagnostic(head: list, meta: list[ismrmrd.Meta]) -> dict:
     Parameters
     ----------
     head : list of ismrmrd.ImageHeader
-        Image headers. Only the first element is used — it is assumed
+        Image headers. Only the first element is used, it is assumed
         all images in the group share the same geometry.
     meta : list of ismrmrd.Meta
         Deserialised Meta objects. Only the first element is inspected

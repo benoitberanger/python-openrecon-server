@@ -6,17 +6,6 @@ import ismrmrd
 import numpy as np
 
 
-# Dimension names for readable error messages
-DIMENSION_NAMES = [
-    "slice",
-    "contrast",
-    "average",
-    "phase",
-    "repetition",
-    "set",
-    "image_type",
-]
-
 def build_image_array(img_list: list[ismrmrd.Image]) -> np.ndarray[ismrmrd.Image] :
     """
     Build a 7D structured array from a flat list of MRD images.
@@ -26,11 +15,7 @@ def build_image_array(img_list: list[ismrmrd.Image]) -> np.ndarray[ismrmrd.Image
 
         [slice, contrast, average, phase, repetition, set, image_type]
 
-    Array size along each axis is ``max_observed_value + 1``, so MRD
-    index values can be used directly as array indices without remapping.
-
-    Each non-empty cell contains a list of ismrmrd.Image objects sharing
-    that exact combination of loop counters and image type.
+    MRD index values can be used directly as array indices.
 
     Parameters
     ----------
@@ -136,13 +121,13 @@ def validate_index(value, dim_size: int, dim_name: str) -> None:
 
 
 def get_subarray(img_array: np.ndarray[ismrmrd.Image], 
-                 img_slice = None, 
-                 img_contrast = None, 
-                 img_average = None, 
-                 img_phase = None, 
-                 img_repetition = None, 
-                 img_set = None, 
-                 img_image_type = None) -> np.ndarray[ismrmrd.Image]:
+                 img_slice: int | slice | None = None, 
+                 img_contrast: int | slice | None = None, 
+                 img_average: int | slice | None = None, 
+                 img_phase: int | slice | None = None, 
+                 img_repetition: int | slice | None = None, 
+                 img_set: int | slice | None = None, 
+                 img_image_type: int | slice | None = None) -> np.ndarray[ismrmrd.Image]:
     """
     Extract a subarray from a 7D MRD images array by selecting specific indices
     along one or more dimensions.
@@ -157,19 +142,19 @@ def get_subarray(img_array: np.ndarray[ismrmrd.Image],
     ----------
     img_array : np.ndarray
         7D MRD images array as returned by build_image_array().
-    img_slice : int or None
+    img_slice : int or slice or None
         Index along the slice axis, or None for all slices.
-    img_contrast : int or None
+    img_contrast : int or slice or None
         Index along the contrast axis, or None for all contrasts.
-    img_average : int or None
+    img_average : int or slice or None
         Index along the average axis, or None for all averages.
-    img_phase : int or None
+    img_phase : int or slice or None
         Index along the phase axis, or None for all phases.
-    img_repetition : int or None
+    img_repetition : int or slice or None
         Index along the repetition axis, or None for all repetitions.
-    img_set : int or None
+    img_set : int or slice or None
         Index along the set axis, or None for all sets.
-    img_image_type : int or None
+    img_image_type : int or slice or None
         Index along the image_type axis. Use ismrmrd.IMTYPE_* constants
         directly (e.g. ismrmrd.IMTYPE_MAGNITUDE = 1), or None for all types.
 
@@ -178,6 +163,17 @@ def get_subarray(img_array: np.ndarray[ismrmrd.Image],
     np.ndarray
         Subarray view corresponding to the requested indices.
     """
+
+    # Dimension names for readable error messages
+    dimension_names = [
+        "slice",
+        "contrast",
+        "average",
+        "phase",
+        "repetition",
+        "set",
+        "image_type",
+    ]
 
     args = [
         img_slice, 
@@ -190,7 +186,7 @@ def get_subarray(img_array: np.ndarray[ismrmrd.Image],
     ]
 
     # Validate every requested index against the actual array shape
-    for value, dim_size, dim_name in zip(args, img_array.shape, DIMENSION_NAMES):
+    for value, dim_size, dim_name in zip(args, img_array.shape, dimension_names):
         validate_index(value, dim_size, dim_name)
     
     def to_index(x):
@@ -271,13 +267,12 @@ def flatten(arr: np.ndarray[ismrmrd.Image]) -> list[ismrmrd.Image]:
     Iterates over every cell of the array in row-major order, skipping
     None cells, and extends the output list with the images found in each
     non-empty cell. Cell order matches NumPy's default flat iteration:
-    slice → contrast → average → phase → repetition → set → image_type.
+    slice -> contrast -> average -> phase -> repetition -> set -> image_type.
 
     Parameters
     ----------
     arr : np.ndarray
-        Full 7D MRD image array or any subarray returned by get_subarray(),
-        get_magnitude(), get_phase_images(), or get_contrast()...
+        Full 7D MRD image array or any subarray.
 
     Returns
     -------
@@ -293,6 +288,7 @@ def flatten(arr: np.ndarray[ismrmrd.Image]) -> list[ismrmrd.Image]:
 
     return images
 
+
 def stack_images(img_array: np.ndarray[ismrmrd.Image], dtype = np.float32) -> tuple[np.ndarray, list, list]:
     """
     Flatten a MRD image array and stack pixel data, headers and metadata.
@@ -300,8 +296,7 @@ def stack_images(img_array: np.ndarray[ismrmrd.Image], dtype = np.float32) -> tu
     Parameters
     ----------
     img_array : np.ndarray
-        7D array or any subarray returned by get_subarray(),
-        get_magnitude_images(), get_contrast(), etc.
+        7D array or any subarray.
     dtype : np.dtype, optional
         Output array dtype. Default is np.float32.
 

@@ -3,6 +3,7 @@ build/
 data/
 test/
 debug/
+ANTs/
 Makefile
 openrecon.json
 test*

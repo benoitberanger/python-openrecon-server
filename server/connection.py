@@ -18,19 +18,19 @@ class Connection:
     """
     Manages a single MRD client connection over a TCP socket.
 
-    Handles the MRD message protocol — reading and sending different
+    Handles the MRD message protocol by reading and sending different
     message type (config, metadata, images, text, close) according to
     the MRD wire format. Optionally saves all incoming data to an HDF5
     file for debugging purposes.
 
     Supported message types:
 
-    - ``MRD_MESSAGE_CONFIG_FILE`` (1) — configuration filename
-    - ``MRD_MESSAGE_CONFIG_TEXT`` (2) — configuration text contents
-    - ``MRD_MESSAGE_METADATA_XML_TEXT`` (3) — MRD XML header
-    - ``MRD_MESSAGE_CLOSE`` (4) — end of stream signal
-    - ``MRD_MESSAGE_TEXT`` (5) — arbitrary text / logging
-    - ``MRD_MESSAGE_ISMRMRD_IMAGE`` (1022) — image data
+    - ``MRD_MESSAGE_CONFIG_FILE`` (1) : configuration filename
+    - ``MRD_MESSAGE_CONFIG_TEXT`` (2) : configuration text contents
+    - ``MRD_MESSAGE_METADATA_XML_TEXT`` (3) : MRD XML header
+    - ``MRD_MESSAGE_CLOSE`` (4) : end of stream signal
+    - ``MRD_MESSAGE_TEXT`` (5) : arbitrary text / logging
+    - ``MRD_MESSAGE_ISMRMRD_IMAGE`` (1022) : image data
 
     Attributes
     ----------
@@ -573,7 +573,7 @@ class Connection:
             if not isinstance(images, list):
                 images = [images]
             
-            # logging.info("--> Sending MRD_MESSAGE_ISMRMRD_IMAGE (1022) (%d images)", len(images))
+            logging.info("--> Sending MRD_MESSAGE_ISMRMRD_IMAGE (1022) (%d images)", len(images))
             
             if len(images) == 0:
                 return

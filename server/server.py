@@ -29,10 +29,10 @@ class Server:
     connection : Connection
         Active MRD connection used to receive and send data.
     app_config : str
-        Name of the application module to load in the pipeline
+        Name of the application module to load in the pipeline.
         (e.g. 'invertcontrast').
     app_directory : str
-        Python package directory containing the application module
+        Python package directory containing the application module.
         (e.g. 'app').
     debug : bool
         If True, images are sent back unmodified with diagnostic info
@@ -47,17 +47,17 @@ class Server:
         Parameters
         ----------
         port : int
-            TCP port to listen on
+            TCP port to listen on.
         address : str
-            IP address to bind to
+            IP address to bind to.
         app_config : str
-            Name of the application module to load in the pipeline
+            Name of the application module to load in the pipeline.
         app_directory : str
-            Python package containing the application module
+            Python package containing the application module.
         savedata : bool
-            If True, save incoming MRD data to disk
+            If True, save incoming MRD data to disk.
         debug : bool
-            If True, enable debug mode at startup
+            If True, enable debug mode at startup.
         """
         logging.info(f"Starting server and listening for data at {address}:{port}")
 
@@ -174,27 +174,19 @@ class Server:
 
         Debug mode can be activated at instantiation or at runtime via
         the 'Debug' key in configJSON. In debug mode each image is sent
-        back unmodified with its metadata logged — the pipeline is not
-        called.
+        back unmodified with its metadata logged, therefore the pipeline 
+        is not called.
 
         Parameters
         ----------
         connection : Connection
-            Active MRD connection
+            Active MRD connection.
         configJSON : dict or None
             JSON configuration sent by the client. May be None if no
             configuration was provided.
         metadata : ismrmrd.xsd.ismrmrdHeader or str
             MRD formatted header describing the acquisition. May be a
             raw string if header conversion failed upstream.
-
-        Raises
-        ------
-        Exception
-            If raw k-space data (ismrmrd.Acquisition) is received —
-            this handler only supports image data.
-        Exception
-            If an unsupported data type is received on the connection.
         """
 
         try:
@@ -294,12 +286,12 @@ class Server:
 
         Reads the connection handshake in order:
 
-        1. **Config** — first message, identifies the processing mode.
+        1. **Config** : first message, identifies the processing mode.
            Only ``"openrecon"`` triggers image processing, any other 
            config value causes the connection to be drained and
            closed without processing.
-        2. **Metadata** — MRD XML header
-        3. **JSON config** — optional additional parameters selected by
+        2. **Metadata** : MRD XML header
+        3. **JSON config** : optional additional parameters selected by
           the user thanks to the UI.
         
         Then dispatches traffic to handle_image_stream().
@@ -307,7 +299,7 @@ class Server:
         Parameters
         ----------
         sock : socket.socket
-            Accepted client socket
+            Accepted client socket.
         """
 
         try:

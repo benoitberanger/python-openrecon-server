@@ -31,6 +31,11 @@ def check_docker_version() -> bool:
     """
     Verify that the installed Docker version is compatible with Siemens OpenRecon.
     (Siemens OpenRecon supports Docker versions up to (but not including) 25)
+
+    Returns
+    -------
+    bool
+        True if the Docker version is compatible, False otherwise.
     """
     logger = logging.getLogger()
 
@@ -53,7 +58,12 @@ def check_docker_version() -> bool:
 
 def check_dependencies(dependencies_name: str) -> None:
     """
-    Check if the specified dependencies is installed in the system
+    Check if the specified dependencies is installed in the system.
+
+    Parameters
+    ----------
+    dependencies_name: str
+        e.g. docker, git, zip
     """
     logger = logging.getLogger()
 
@@ -70,6 +80,7 @@ def check_target_dir(target_path: str) -> dict:
     Check that the application directory contains all required files.
 
     Expected files:
+        - application.Dockerfile            : Final dockerfile
         - <process_name>_json_ui.json       : OpenRecon UI parameter definition
         - OpenReconSchema_*.json            : JSON schema for validation
         - <process_name>.py (process file)  : main processing script
@@ -97,7 +108,15 @@ def check_target_dir(target_path: str) -> dict:
     """
     logger = logging.getLogger()
 
-    # files to find
+    # Dockerfile to find
+    dockerfile_path = os.path.join(target_path, 'application.Dockerfile')
+    if os.path.exists(dockerfile_path):
+        logger.info(f'Found application.Dockerfile : {dockerfile_path}')
+    else:
+        logger.error(f'application.Dockerfile not found : {dockerfile_path}')
+        sys.exit(1)
+
+    # JSON files to find
     json_ui_pattern = '*_json_ui.json'
     schema_pattern  = 'OpenReconSchema_*.json'
     json_ui_list = glob.glob(os.path.join(target_path, json_ui_pattern))
@@ -127,6 +146,7 @@ def check_target_dir(target_path: str) -> dict:
         logger.error(f'.py process not found : {process_path}')
         sys.exit(1)
 
+    # create a dict to save the necessary paths and names
     target_data = {
         'name' : {
             'process': process_name,
@@ -149,6 +169,11 @@ def build_base_image(dockerfile_path: str) -> None:
 
     The base image contains all ISMRMRD Python dependencies and serves
     as the starting point for the application-specific image.
+
+    Parameters
+    ----------
+    dockerfile_path : str
+        Path to the MRD.Dockerfile.
     """
     logger = logging.getLogger()
 
@@ -164,9 +189,21 @@ def build_base_image(dockerfile_path: str) -> None:
     subprocess.run(['docker', 'build', '--tag', 'python-openrecon-server', '--file', dockerfile_path, './'], check=True)
 
 
-def check_json_format(json_content, target_data: dict) -> bool:
+def check_json_format(json_content: dict, target_data: dict) -> bool:
     """
     Validate JSON object for the application against the JSON schema reference
+
+    Parameters
+    ----------
+    json_content : any
+        Parsed JSON UI content.
+    target_data : dict
+        Target directory data as returned by check_target_dir().
+
+    Returns
+    -------
+    bool
+        True if the JSON is valid against the schema, False otherwise.
     """
     logger = logging.getLogger()
 
@@ -193,7 +230,7 @@ def prepare_infos(json_content, build_path: str) -> dict:
 
     Parameters
     ----------
-    json_content : dict
+    json_content : any
         Parsed JSON UI content.
     build_path : str
         Absolute path to the build output directory.
@@ -271,7 +308,7 @@ def write_dockerfile(json_content, cmdline: str, docker_path: str, build_docker_
 
     Parameters
     ----------
-    json_content : dict
+    json_content : any
         Parsed JSON UI content to embed in the LABEL directive.
     cmdline : str
         Shell command used to start the MRD server inside the container.
@@ -307,6 +344,13 @@ def write_dockerfile(json_content, cmdline: str, docker_path: str, build_docker_
 def create_pdf(file_path: str, lines_of_text: list[str]) -> None:
     """
     Generate a minimal pdf with informations about the app
+
+    Parameters
+    ----------
+    file_path : str
+        Output path for the generated PDF file.
+    lines_of_text : list[str]
+        Lines of text to write in the PDF file.
     """
     pdf_header = b'%PDF-1.4\n'
     
@@ -352,6 +396,11 @@ def packaging_OR_image(build_data: dict) -> None:
     1. Save the Docker image to a ``.tar`` archive via ``docker save``.
     2. Generate a ``.pdf`` documentation file with vendor/name/version info.
     3. Bundle the ``.tar`` and ``.pdf`` into a single ``.zip`` file.
+
+    Parameters
+    ----------
+    build_data: dict
+        Build data as returned by prepare_infos()
     """
     logger = logging.getLogger()
 

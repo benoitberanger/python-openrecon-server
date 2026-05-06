@@ -20,17 +20,17 @@ debugFolder = "/tmp/share/debug"
 
 def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None, metadata) -> tuple[np.ndarray, list, list]:
     """
-    Invert contrast process image
+    Invert contrast process image.
 
     Parameters
     ----------
     img_array : np.ndarray
         7D MRD image array [slice, contrast, average, phase,
-        repetition, set, image_type] as returned by build_image_array()
+        repetition, set, image_type] as returned by build_image_array().
     configJSON : dict or None
-        JSON configuration from the client
+        JSON configuration from the client.
     metadata : ismrmrd.xsd.ismrmrdHeader or str
-        MRD header
+        MRD header.
 
     Returns
     -------
@@ -39,7 +39,7 @@ def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None,
     head : list of ismrmrd.ImageHeader
         Original headers from magnitude images.
     meta : list of ismrmrd.Meta
-        Updated Meta objects
+        Updated Meta objects.
     """
     
     # Create debug folder, if necessary

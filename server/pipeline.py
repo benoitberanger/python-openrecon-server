@@ -64,9 +64,8 @@ class Pipeline:
         """
         Import the application module from app_directory.app_config.
 
-        Called automatically at instantiation. On ImportError, logs the
-        error and sets self.module to None — run() will fall back to
-        sending the original images unmodified.
+        Called automatically at instantiation. On ImportError, run() 
+        will fall back to sending the original images unmodified.
         """
         try:
             self.module = importlib.import_module(self.app_directory + "." + self.app_config)
@@ -85,11 +84,10 @@ class Pipeline:
           3. Send the processed volume back as individual 2D slices.
 
         If no module is loaded, the original images are sent back
-        unmodified. If SaveOriginal is set in configJSON, a copy of
-        the original images is sent before processing.
+        unmodified. If SaveOriginal is not set on False in configJSON, 
+        a copy of the original images is sent before processing.
 
         Processing time is measured and logged in milliseconds.
-        Memory usage is logged at each major step via log_memory_delta().
 
         Parameters
         ----------
@@ -98,7 +96,7 @@ class Pipeline:
         configJSON : dict or None
             JSON configuration from the client. Supports:
 
-            - ``"SaveOriginal"`` (*bool*) — if True, send the original
+            - ``"SaveOriginal"`` (*bool*) : if True, send the original
               images before the processed ones. Default: True.
 
         metadata : ismrmrd.xsd.ismrmrdHeader or str
@@ -157,13 +155,14 @@ class Pipeline:
         ismrmrd.Image, updates the header and meta attributes, and sends
         it immediately over the connection.
 
-        The image_series_index is incremented by 42 to avoid overlap
-        with the original image series sent by the client.
+        The image_series_index is incremented using the max_image_series_index 
+        stored to avoid overlap with the original image series sent 
+        by the client.
 
         Parameters
         ----------
         data : np.ndarray
-            Processed image volume, shape [y, x, z, cha, img].
+            Processed image volume, shape [img, cha, z, y, x].
         head : list of ismrmrd.ImageHeader
             Original headers, one per image.
         meta : list of ismrmrd.Meta
@@ -196,7 +195,7 @@ class Pipeline:
 
             # Create a copy of the original ISMRMRD Meta attributes and update
             tmpMeta = meta[i]
-            tmpMeta['Keep_image_geometry']           = 1
+            tmpMeta['Keep_image_geometry'] = 1
 
             img.attribute_string = tmpMeta.serialize()
             # logging.debug("Image MetaAttributes: %s", xml.dom.minidom.parseString(metaXml).toprettyxml())
