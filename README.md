@@ -1,13 +1,14 @@
 # python-openrecon-server
 
 A Python template to help building MRD image processing pipelines for Siemens OpenRecon.
-> [kspaceKelvin/python-ismrmrd-server](https://github.com/kspaceKelvin/python-ismrmrd-server) was used as a reference in the developpment of this project.
+This repository [kspaceKelvin/python-ismrmrd-server](https://github.com/kspaceKelvin/python-ismrmrd-server) was used as a reference in the developpment of this project.
 
 
 ## Table of contents
 
 - [Overview](#overview)
-- [Getting started](#getting-started)
+- [Requirements](#requirements)
+- [Testing locally](#testing-locally)
 - [Writing a processing module](#writing-a-processing-module)
 - [OpenRecon JSON Configuration](#openrecon-json-configuration)
 - [Debug mode](#debug-mode)
@@ -25,9 +26,7 @@ slice.
 
 ---
 
-## Getting started
-
-### Requirements
+## Requirements
 
 - [Docker](https://www.docker.com/products/docker-desktop) (version < 25)
 
@@ -38,8 +37,6 @@ For local test:
 ```bash
 pip install jsonschema=4.26.0 ismrmrd=1.14.2 psutil=7.2.2 pydicom=3.0.2
 ```
-
-
 
 
 ## Testing locally
@@ -73,7 +70,7 @@ python converter/dicom2mrd.py <folder of DICOMs> -o <outfile>
 python converter/enhanceddicom2mrd.py <folder of DICOMs> -o <outfile>
 ```
 
-3. Run the client.py to send the images :
+3. Run the client.py, on another terminal, to send the images :
 ```bash
 python client.py -o <output.h5> <input.h5>
 ```
@@ -101,23 +98,21 @@ docker run -p 9002:9002 -t <image_name>:<image_version>
 
 ## Writing a processing module
 
-Create a Python file in the `app/` directory. It must expose a single
-function with this signature:
+Create a Python file in the `app/` directory. It must expose a function with this prototype:
 
 ```python
 def process_image(
-    img_array:  MRDImageArray,
+    img_array:  np.ndarray[ismrmrd.Image],
     configJSON: dict | None,
     metadata,
-) -> tuple[np.ndarray, list, list] | list[tuple]:
-    ...
+) -> tuple[np.ndarray, list, list] :
 ```
 
 ### Parameters
 
 | Parameter | Type | Description |
 |---|---|---|
-| `img_array` | `MRDImageArray` | 7D structured array of MRD images |
+| `img_array` | `np.ndarray[ismrmrd.Image]` | 7D structured array of MRD images |
 | `configJSON` | `dict` or `None` | JSON configuration sent by the client |
 | `metadata` | `ismrmrd.xsd.ismrmrdHeader` | MRD acquisition header |
 
@@ -128,8 +123,7 @@ Images are organised in a 7D numpy array:
 **`img_array[slice, contrast, average, phase, repetition, set, image_type]`**
 
 
-Each cell contains an `ismrmrd.Image` object or `None`.
-`image_type` uses MRD constants directly as indices:
+Each cell contains an `ismrmrd.Image` object or `None`. `image_type` uses MRD constants directly as indices:
 
 | Constant | Value |
 |---|---|
@@ -169,7 +163,6 @@ stacked array has shape **`[img, cha, z, y, x]`**.
 ```python
 from utils.image_array import stack_images
 
-# All magnitude images
 data, head, meta = stack_images(img_array, dtype=float32)
 ```
 
@@ -250,20 +243,29 @@ MRD (`.h5`) format, which is required for local testing.
 
 ### DICOM to MRD
 
-Convert a DICOM series to an MRD `.h5` file for use as input to `client.py`:
+Convert a DICOM series (classic or enhanced) to an MRD `.h5` file for use as input to `client.py`:
 
 ```bash
-python converter/dicom_to_mrd.py --input <input_folder> --output <output.h5>
+# classic DICOM
+python converter/dicom2mrd.py --outFile <output.h5> <input_folder>
+
+# enhanced DICOM
+python converter/enhanceddicom2mrd.py --outFile <output.h5> <input_folder>
 ```
+
+Sources :
+> [kspaceKelvin/python-ismrmrd-server/dicom2mrd.py](https://github.com/kspaceKelvin/python-ismrmrd-server/blob/master/dicom2mrd.py) 
+
+> [stebo85/python-ismrmrd-server/enhanceddicom2mrd.py](https://github.com/stebo85/python-ismrmrd-server/blob/e52ad7b0417156db138e30a21e437e802aec7a9f/enhanceddicom2mrd.py)
 
 ### MRD to DICOM
 
-Convert a processed MRD `.h5` file back to DICOM for inspection in a
-DICOM viewer (e.g. OsiriX, 3D Slicer, RadiAnt):
+Convert a processed MRD `.h5` file back to classic DICOM:
 
 ```bash
-python converter/mrd_to_dicom.py --input <input.h5> --output <path/to/output/folder>
+python converter/dicom2mrd.py --out-folder <output_folder> <input.h5>
 ```
+> Source : [kspaceKelvin/python-ismrmrd-server/mrd2dicom.py](https://github.com/kspaceKelvin/python-ismrmrd-server/blob/master/mrd2dicom.py)
 
 ## Building and packaging
 
@@ -294,13 +296,93 @@ Steps performed:
 |---|---|
 | `--dirname` | Application directory name. Default: `app` |
 | `--debug` | Embed `--debug` flag in the Dockerfile CMD |
-| `--nopackage` | Skip `.zip` packaging (build image only) |
+| `--nopackage` | Skip `.tar`, PDF and `.zip` packaging (build image only) |
 
 ### Required files in the application directory
 
 | File | Description |
 |---|---|
 | `<name>_json_ui.json` | OpenRecon UI parameter |
-| `OpenReconSchema_*.json` | JSON schema for JSON validation |
+| `OpenReconSchema_1.1.0.json` | JSON schema for JSON validation |
 | `<name>.py` | Processing module |
 | `application.Dockerfile` | Application-specific Dockerfile |
+
+> _**Warning** : the name in the processing app and OpenRecon UI parameter have to be identical._
+
+## Project structure
+
+- [**build.py**](build.py) : Build and packaging script: validates, builds, and exports the OpenRecon Docker image as a `.zip` file ready for upload to the scanner.
+- [**main.py**](main.py) : Parses command-line arguments and starts the `Server` on the specified host and port.
+- [**client.py**](client.py) : Local test client who reads images from an MRD `.h5` file, sends them to the server, and writes the processed results to a new `.h5` file. Used in place of a physical scanner for local development.
+- [**MRD.Dockerfile**](MRD.Dockerfile) : Base Docker image containing all ISMRMRD Python
+  dependencies.
+- [**Makefile**](Makefile) : Shortcuts for common development tasks (build, run, clean).
+
+- **Server/** :
+    - [**connection.py**](server/connection.py) : `Connection` class responsible of the ISMRMRD network communications between the server and the client. Handles different type of message (config, metadata, images, text, close) as described in the [MRD documentation](https://ismrmrd.readthedocs.io/en/latest/mrd_messages.html).
+    - [**server.py**](server/server.py) : `Server` class that manages the connection lifecycle and dispatches incoming data. _(Currently, only image data is supported,raw k-space and waveform data are not.)_
+    - [**pipeline.py**](server/pipeline.py) : `Pipeline` class that loads and run the application processing module on the received MRD image group, and send back the result.
+    - [**debug.py**](server/debug.py) : Functions for the debug mode.
+    - [**constants.py**](server/constants.py) : MRD message type identifiers definitions used by the connection protocol.
+
+- **Utils/** :
+    - [**img_array.py**](utils/img_array.py) : Core utilities for organising and accessing the MRD images received.
+    - [**memory.py**](utils/memory.py) : RAM monitoring utilities.
+    - [check_OR_arguments.py](utils/check_OR_arguments.py) :
+    - [utils.py](utils/utils.py)
+
+- **App/** :
+Default application directory for your application code. Contains the invert contrast example.
+    - [**application.Dockerfile**](app/application.Dockerfile) : Application-specific Dockerfile, used as the base for the final image generated by `build.py`.
+    - [**invertContrast_json_ui.json**](app/invertContrast_json_ui.json) : OpenRecon UI parameter definition for the contrast inversion application. Defines the parameters shown in the scanner interface.
+    - [**invertContrast.py**](app/invertContrast.py): Example processing module. Inverts pixel contrast for each image type present in the dataset.
+    - [**OpenReconSchema_1.1.0.json**](app/OpenReconSchema_1.1.0.json) : JSON schema used to validate the JSON UI file before building.
+
+- **EchoSum/** : Example application that combines multi-echo magnitude images.
+    - [**application.Dockerfile**](echoSum/application.Dockerfile) : Application-specific Dockerfile, used as the base for the final image generated by `build.py`.
+    - [**echoSum_json_ui.json**](echoSum/echoSum_json_ui.json) : OpenRecon UI definition exposing the `EchoSumConfig` parameter to the scanner interface.
+    - [**echoSum.py**](echoSum/echoSum.py) : Processing module implementing simple sum and sum-of-squares.
+    - [**OpenReconSchema_1.1.0.json**](echoSum/OpenReconSchema_1.1.0.json) : JSON schema used to validate the JSON UI file before building.
+
+- **Converter/** :
+Tools to convert between DICOM and MRD format, required for local testing with `client.py`.
+    - [**dicom2mrd.py**](converter/dicom2mrd.py) : Converts a folder of classic DICOM files to an MRD `.h5` file.
+    - [**enhanceddicom2mrd.py**](converter/enhanceddicom2mrd.py) : Converts enhanced DICOM files to an MRD `.h5` file.
+    - [**mrd2dicom.py**](converter/mrd2dicom.py): Converts a processed MRD `.h5` file back to classic DICOM. 
+
+## Examples
+
+### Invert Contrast
+
+Simple application that invert the contrast of images:
+
+```bash
+python main.py
+```
+- Package for use on the magnet:
+```bash
+python build.py
+```
+
+### Multi-Echo Combinaison
+
+Combines multi-echo magnitude images into a single image per slice.
+Different mode are available: simple summation (default) or sum of square.
+
+- local test:
+```bash
+python main.py -c echoSum -d echoSum/
+```
+- Package for use on the magnet:
+```bash
+python build.py --dirname echoSum
+```
+
+- JSON :
+```json
+// simple sum, default mode
+{ "EchoSumConfig": "SimpleSum" }
+
+// Sum of Square
+{ "EchoSumConfig": "SoS" }
+```
