@@ -9,16 +9,17 @@ import xml
 import ismrmrd
 import numpy as np
 
+from utils.OutputSeries import OutputSeries, ProcessImageResult
 from utils.check_OR_arguments import check_OR_arguments
 from utils.img_array import get_magnitude_images, get_subarray, stack_images
 from utils.memory import log_memory, log_memory_delta
-from utils.utils import display_diagnostic, updateMeta
+from utils.utils import display_diagnostic
 
 
 # Folder for debug output files
 debugFolder = "/tmp/share/debug"
 
-def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None, metadata) -> tuple[np.ndarray, list, list]:
+def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None, metadata) -> ProcessImageResult:
     """
     Invert contrast process image.
 
@@ -34,12 +35,10 @@ def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None,
 
     Returns
     -------
-    data : np.ndarray
-        Inverted image volume, shape [y, x, z, cha, img], dtype int16.
-    head : list of ismrmrd.ImageHeader
-        Original headers from magnitude images.
-    meta : list of ismrmrd.Meta
-        Updated Meta objects.
+    list of tuple (np.ndarray, list of ismrmrd.ImageHeader, list of ismrmrd.Meta)
+        One tuple per image type present in the dataset, in the order
+        they were encountered. Each data array has shape
+        [img, cha, z, y, x], dtype int16
     """
     
     # Create debug folder, if necessary
@@ -53,69 +52,55 @@ def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None,
     
     mem = log_memory("process_image", "Begining")
     
+    BitsStored = 12
+    maxVal = 2**BitsStored - 1
+
     # --- Dimensions ------------------------------------------------------
     # Get the number of image_type (img_array axis 6)
     n_image_type = img_array.shape[6]
     image_type_name = ('', 'MAGNITUDE', 'PHASE', 'REAL', 'IMAG', 'COMPLEX', 'RGB')
 
     # --- Treat all types of images ---------------------------------------
-    data_all = []
-    head = []
-    meta = []
-
+    series = None
+    
     for image_type in range(1, n_image_type):
 
         # --- stack images ------------------------------------------------
         sub_array = get_subarray(img_array, img_image_type=image_type)
-        tmp_data, tmp_head, tmp_meta = stack_images(sub_array)
+        data, head, meta = stack_images(sub_array)
         mem = log_memory_delta("process_image", "After stack_images", mem)
         del sub_array
         
-        logging.info("  --- Invert contrast on %d %s images ---", len(tmp_head), image_type_name[image_type])
+        logging.info("  --- Invert contrast on %d %s images ---", len(head), image_type_name[image_type])
         
         # display diagnostic info in the log
-        if image_type == 1:
-            display_diagnostic(tmp_head, tmp_meta)
-
-        # # --- Transpose to [y, x, z, cha, img] ----------------------------
-        # # send_volume_as_slices() expects this axis order to extract
-        # # individual 2D slices along the last dimension.
-        # tmp_data = tmp_data.transpose((3, 4, 2, 1, 0))
+        if series is None:
+            display_diagnostic(head, meta)
+            series = OutputSeries(head, meta)
 
         # --- Normalise to 12-bit range and convert to int16 --------------
-        BitsStored = 12
-        maxVal = 2**BitsStored - 1
-
-        tmp_data *= maxVal/tmp_data.max()
-        np.around(tmp_data, out=tmp_data)
-        tmp_data = tmp_data.astype(np.int16)
+        data *= maxVal/data.max()
+        np.around(data, out=data)
+        data = data.astype(np.int16)
         gc.collect()
         mem = log_memory_delta("process_image", "After normalisation", mem)
 
         # --- Invert contrast ---------------------------------------------
-        tmp_data = maxVal-tmp_data
-        tmp_data = np.abs(tmp_data)
-        np.save(debugFolder + "/" + "imgInverted.npy", tmp_data)
+        data = maxVal-data
+        data = np.abs(data)
+        np.save(debugFolder + "/" + "imgInverted.npy", data)
         mem = log_memory_delta("process_image", "After inversion", mem)
 
-        # --- Update metadata ---------------------------------------------
-        tmp_meta = updateMeta(tmp_meta, ['PYTHON', 'INVERT'], 'invertcontrast')
-
-        data_all.append(tmp_data)
-        head.extend(tmp_head)
-        meta.extend(tmp_meta)
-
-        del tmp_data
+        # --- Add series ---------------------------------------------
+        series.add(data = data, process_history = ["PYTHON", "INVERT"], sequence_description = "invertcontrast")
+        del data
         gc.collect()
+        mem = log_memory_delta("process_image", "After series.add", mem)
 
-        mem = log_memory_delta("process_image", "After results.append", mem)
-
-    # --- Concatenate -----------------------------------------------------
-    data = np.concatenate(data_all, axis= 0)
-    del data_all
-    gc.collect()
-
+    if series is None:
+        logging.error("No images found in img_array. Returning empty result.")
+        return []
+    
     log_memory_delta("process_image", "End", mem)
-
     logging.info("--- End of invertContrast ---------------------")
-    return data, head, meta
+    return series.get()

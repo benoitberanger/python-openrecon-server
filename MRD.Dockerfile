@@ -1,5 +1,5 @@
 # ----- 1. First stage to build ismrmrd and siemens_to_ismrmrd -----
-FROM python:3.12.13-slim AS mrd_converter
+FROM python:3.12.0-slim AS mrd_converter
 
 ARG  DEBIAN_FRONTEND=noninteractive
 ENV  TZ=America/Chicago
@@ -31,7 +31,7 @@ RUN cd /usr/local/lib && tar -czvf libismrmrd.tar.gz libismrmrd*
 
 
 # ----- 2. Create a devcontainer without all of the build dependencies of MRD -----
-FROM python:3.12.13-slim AS python-or-devcontainer
+FROM python:3.12.0-slim AS python-or-devcontainer
 
 LABEL org.opencontainers.image.description="Python OpenRecon Server"
 LABEL org.opencontainers.image.url="https://github.com/benoitberanger/python-openrecon-server"
@@ -49,7 +49,7 @@ RUN cd /usr/local/lib && tar -zxvf libismrmrd.tar.gz && rm libismrmrd.tar.gz && 
 COPY --from=mrd_converter /usr/local/bin/siemens_to_ismrmrd  /usr/local/bin/siemens_to_ismrmrd
 
 # Add dependencies for siemens_to_ismrmrd
-RUN apt-get update && apt-get install --no-install-recommends -y libxslt1.1 libhdf5-310 libboost-program-options-dev libpugixml1v5 git dos2unix nano
+RUN apt-get update && apt-get install --no-install-recommends -y libxslt1.1 libhdf5-103 libboost-program-options1.74.0 libpugixml1v5 git dos2unix nano
 
 # Tell nano to remember its position from the last time it opened a file
 RUN echo "set positionlog" > ~/.nanorc

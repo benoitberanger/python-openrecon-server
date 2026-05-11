@@ -126,4 +126,4 @@ def updateMeta(meta: list[ismrmrd.Meta], process_history: list[str] | str, seque
         m['ImageProcessingHistory']        = process_history
         m['SequenceDescriptionAdditional'] = sequence_description
 
-    return meta
+    return meta    

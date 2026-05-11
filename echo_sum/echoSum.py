@@ -7,6 +7,7 @@ import os
 import ismrmrd
 import numpy as np
 
+from utils.OutputSeries import OutputSeries, ProcessImageResult
 from utils.check_OR_arguments import check_OR_arguments
 from utils.img_array import get_subarray, stack_images
 from utils.memory import log_memory, log_memory_delta
@@ -16,7 +17,7 @@ from utils.utils import display_diagnostic, updateMeta
 # Folder for debug output files
 debugFolder = "/tmp/share/debug"
 
-def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None, metadata) -> tuple[np.ndarray, list, list]:
+def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None, metadata) -> ProcessImageResult:
     """
     Combine multi-echo magnitude images into a single image per slice.
 
@@ -41,12 +42,10 @@ def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None,
 
     Returns
     -------
-    data : np.ndarray
-        Combined image volume, shape [y, x, z, cha, img], dtype int16.
-    head : list of ismrmrd.ImageHeader
-        Headers from the first contrast, used as reference for output.
-    meta : list of ismrmrd.Meta
-        Updated Meta objects.
+    list of tuple (np.ndarray, list of ismrmrd.ImageHeader, list of ismrmrd.Meta)
+        One tuple per image type present in the dataset, in the order
+        they were encountered. Each data array has shape
+        [img, cha, z, y, x], dtype int16
     """
     
     # Create debug folder, if necessary
@@ -77,7 +76,8 @@ def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None,
     first_echo_images = get_subarray(img_array, img_contrast=0, img_image_type=ismrmrd.IMTYPE_MAGNITUDE)
     data_sum, head, meta = stack_images(first_echo_images) #[img, cha, z, y, x], head, meta
     del first_echo_images
-    # data_sum = data_sum.transpose((3, 4, 2, 1, 0))
+
+    series = OutputSeries(head, meta)
 
     # display diagnostic info in the log
     display_diagnostic(head, meta)
@@ -115,14 +115,12 @@ def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None,
     data_sum   = data_sum.astype(np.int16)
     mem = log_memory_delta("process_image", "After normalisation", mem)
 
-    # # --- Transpose to [y, x, z, cha, img] --------------------------------
-    # # send_volume_as_slices() expects this axis order to extract
-    # # individual 2D slices along the last dimension.
-    # data_sum = data_sum.transpose((3, 4, 2, 1, 0))
     np.save(debugFolder + "/imgMagnitudeSum.npy", data_sum)
-    
+
     # --- Update metadata -------------------------------------------------
-    # TO-DO: Adapat Metadata to the config of sum
-    meta = updateMeta(meta, ['PYTHON', 'ECHO_SUM'], 'echosum')
+    if sum_config == 'SoS':
+        series.add(data = data_sum, process_history = ["PYTHON", "SOS"], sequence_description = "SoS")
+    else:
+        series.add(data = data_sum, process_history = ["PYTHON", "ECHO_SUM_SIMPLE"], sequence_description = "EchoSumSimple")
     
-    return data_sum, head, meta
+    return series.get()

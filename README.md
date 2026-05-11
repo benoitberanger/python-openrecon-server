@@ -1,18 +1,21 @@
 # python-openrecon-server
 
 A Python template to help building MRD image processing pipelines for Siemens OpenRecon.
-This repository [kspaceKelvin/python-ismrmrd-server](https://github.com/kspaceKelvin/python-ismrmrd-server) was used as a reference in the developpment of this project.
+The puropose is to build a simple invert contrast `i2i` application as described by Siemens on the SDK on https://www.magnetom.net, using a single build script, without any modification.
+
+For later developments, the first step of a new OpenRecon project it to create a new repo based on this `python-openrecon-server`, then modify the `app` dir (or any other dir), to finnaly call the building process.
+
+The repository of [kspaceKelvin/python-ismrmrd-server](https://github.com/kspaceKelvin/python-ismrmrd-server) was used as a reference in the developpment of the server part of this project.
 
 
 ## Table of contents
 
 - [Overview](#overview)
 - [Requirements](#requirements)
-- [Testing locally](#testing-locally)
-- [Writing a processing module](#writing-a-processing-module)
-- [OpenRecon JSON Configuration](#openrecon-json-configuration)
-- [Debug mode](#debug-mode)
 - [Building and packaging](#building-and-packaging)
+- [Writing a processing module](#writing-a-processing-module)
+- [Testing locally](#testing-locally)
+- [Debug mode](#debug-mode)
 - [Converter](#converter)
 - [Project structure](#project-structure)
 - [Examples](#examples)
@@ -28,73 +31,73 @@ slice.
 
 ## Requirements
 
-- [Docker](https://www.docker.com/products/docker-desktop) (version < 25)
+A Python environment manager is **strongly** recomanded.
 
-For local test:
-- Python 3.12
-- Dependencies:
-
-```bash
-pip install jsonschema=4.26.0 ismrmrd=1.14.2 psutil=7.2.2 pydicom=3.0.2
-```
-
-
-## Testing locally
-
-### Workflow
-
-1. Run the main.py in a terminal :
+- [Docker](https://www.docker.com/products/docker-desktop) (version < 25, Siemens constraint)
+- `python 3.12`
+- zip
+- git
 
 ```bash
-python main.py --config your_module --dirname app
+pip install jsonschema=4.26.0
 ```
-Available arguments:
 
-| Argument | Default | Description |
-|---|---|---|
-| `--config` | `invertcontrast` | Processing module name (without `.py`) |
-| `--dirname` | `app` | Directory containing the processing module |
-| `-H` | `0.0.0.0` | Host address |
-| `-p` | `9002` | TCP port |
-| `-v` | — | Verbose logging |
-| `--debug` | — | Enable debug mode (passthrough, no processing) |
-| `-l` | — | Log file path |
-
-2. Convert DICOMs or enhanced DICOMs images to MRD images .h5 file:
+### For local development and testing:
 
 ```bash
-# DICOMs converter
-python converter/dicom2mrd.py <folder of DICOMs> -o <outfile>
-
-# Enhanced DICOMs converter
-python converter/enhanceddicom2mrd.py <folder of DICOMs> -o <outfile>
+# setup Conda environment
+conda create --name openrecon-template
+conda activate openrecon-template
+conda install python=3.12
+conda install ipython
+pip install ismrmrd=1.14.2 pydicom=3.0.2
 ```
 
-3. Run the client.py, on another terminal, to send the images :
+## Building and packaging
+ 
+The `build.py` script automates the full build pipeline to allow the deployment on the scanner :
+
 ```bash
-python client.py -o <output.h5> <input.h5>
+python build.py --dirname <app>
 ```
+By default, it build the `app` directory. 
+The name off the process is automaticaly get from the name of the `.py` file in the directory.
 
-4. The output `.h5` file can be converted back to DICOM for visualisation :
-```bash
-python converter/mrd2dicom.py -o <outdir> <mrdfile>.h5
-```
+This script will build the Docker image of the OpenRecon application and all the necessary files to upload it on the magnet.
+Meaning, the `.zip`file containing the image as a `.tar` and a minimalistic `.pdf`.
 
-### Testing with Docker
+Steps performed:
 
-Follow the same workflow than before but replace the first step by this one :
+1. Checks system dependencies (`docker`, `zip`, `git`) and Docker version.
+2. Verifies required files in the application directory.
+3. Builds the base `python-openrecon-server` Docker image if not present.
+4. Validates the JSON UI file against its schema.
+5. Generates the final Dockerfile with the OpenRecon metadata label.
+6. Builds the application Docker image.
+7. Exports the image as `.tar`, generates a PDF, and bundles both into a `.zip`.
 
-1. Run the `build.py`script with the name of your app directory:
-```bash
-# --nopackage option to skip the packaging part
-python build.py --nopackage -d app
-```
+### Build options
 
-2. Run the Docker Image:
-```bash
-docker run -p 9002:9002 -t <image_name>:<image_version>
-```
+| Argument | Description |
+|---|---|
+| `--dirname` | Application directory name. Default: `app` |
+| `--debug` | Embed `--debug` flag in the Dockerfile CMD |
+| `--nopackage` | Skip `.tar`, PDF and `.zip` packaging (build image only) |
 
+### Required files in the application directory
+
+| File | Description |
+|---|---|
+| `<name>_json_ui.json` | OpenRecon UI parameter |
+| `OpenReconSchema_1.1.0.json` | JSON schema for JSON validation |
+| `<name>.py` | Processing module |
+| `application.Dockerfile` | Application-specific Dockerfile |
+
+> _**Warning** : the name in the processing app and OpenRecon UI parameter have to be identical._
+
+### Output
+
+All output files will be placed in a `build` dir. The finale file, ready for the upload on the magnet will be the `.zip` file.
 
 ## Writing a processing module
 
@@ -115,6 +118,32 @@ def process_image(
 | `img_array` | `np.ndarray[ismrmrd.Image]` | 7D structured array of MRD images |
 | `configJSON` | `dict` or `None` | JSON configuration sent by the client |
 | `metadata` | `ismrmrd.xsd.ismrmrdHeader` | MRD acquisition header |
+
+### Accessing OpenRecon JSON UI Configuration
+
+Processing parameters can be passed at runtime via a JSON configuration
+sent by the client. Use `check_OR_arguments()` to read them safely with
+a default fallback:
+
+```python
+from utils.config import check_OR_arguments
+
+# Read a string parameter, default to 'SimpleSum'
+mode = check_OR_arguments(configJSON, "EchoSumConfig", str, "SimpleSum")
+
+# Read a boolean parameter, default to False
+save = check_OR_arguments(configJSON, "SaveOriginal", bool, False)
+```
+
+#### Reserved keys
+
+The following keys are handled by the pipeline and do not need to be
+read manually in `process_image`. If they are not provided in the JSON configuration, they default value will be used :
+
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `"Debug"` | `bool` | `False` | Enable debug mode at runtime |
+| `"SaveOriginal"` | `bool` | `True` | Send original images before processed ones |
 
 ### The image array
 
@@ -166,57 +195,76 @@ from utils.image_array import stack_images
 data, head, meta = stack_images(img_array, dtype=float32)
 ```
 
-### Updating metadata
+### Managing output series
 
-You can call `update_meta` from `utils.image_array` to update the label and process history of the images.
+Use `OutputSeries` from `utils.output_series` to manage the images to
+send back to the client. It handles metadata updates, deep copies of
+headers, and series index offsets automatically.
 
 ```python
-from utils.image_array import update_meta
+from utils.output_series import OutputSeries
 
-meta = update_meta(
-    meta,
-    process_history=["PYTHON", "MY_PROCESS"],  # shown in ImageProcessingHistory
-    sequence_description="myprocess",           # shown as series label in the client
+# Initialise with the reference headers and metadata
+series = OutputSeries(head, meta)
+
+# Add one or more output series
+series.add(
+    data                 = processed_volume,    # [img, cha, z, y, x], dtype int16
+    process_history      = ["PYTHON", "MY_PROCESS"],  # shown in ImageProcessingHistory
+    sequence_description = "myprocess",               # shown as series label in the client
 )
+
+return series.get()
 ```
+
+Each call to `series.add()` creates an independent series with its own
+copy of the headers and metadata. The `image_series_index` is incremented
+automatically for each new series so they appear as distinct series in
+the client UI.
 
 ### Return value
 
-`process_image` must return the processed volume with its headers and
-updated metadata:
+`process_image` must return `series.get()`, a list of
+`(data, head, meta)` tuples, one per output series:
 
 ```python
-return data, head, meta
-# data shape: [img, cha, z, y, x], dtype int16
+# Single output series (most common case)
+series = OutputSeries(head, meta)
+series.add(data=processed_volume, process_history=["PYTHON", "MY_PROCESS"],
+           sequence_description="myprocess")
+return series.get()
 ```
 
-The pipeline calls `send_volume_as_slices()` on the result, which will re-slice back the processed volume into 2D MRD images and send them to the client one by one.
+The pipeline iterates over the list and calls `send_volume_as_2Dslices()`
+for each series, which re-slices the volume back into 2D MRD images
+and sends them to the client one by one.
 
-## OpenRecon JSON Configuration
+### Sending multiple series
 
-Processing parameters can be passed at runtime via a JSON configuration
-sent by the client. Use `check_OR_arguments()` to read them safely with
-a default fallback:
+`OutputSeries` is particularly useful when your processing produces
+several output series (intermediate results, brain masks, different
+processing steps, etc...):
 
 ```python
-from utils.config import check_OR_arguments
+series = OutputSeries(head, meta)
 
-# Read a string parameter, default to 'SimpleSum'
-mode = check_OR_arguments(configJSON, "EchoSumConfig", str, "SimpleSum")
+# Optional intermediate result
+if save_intermediate:
+    series.add(
+        data                 = intermediate_volume,
+        process_history      = ["PYTHON", "STEP1"],
+        sequence_description = "step1",
+    )
 
-# Read a boolean parameter, default to False
-save = check_OR_arguments(configJSON, "SaveOriginal", bool, False)
+# Final result
+series.add(
+    data                 = final_volume,
+    process_history      = ["PYTHON", "STEP1", "STEP2"],
+    sequence_description = "step1step2",
+)
+
+return series.get()   # pipeline sends both series in order
 ```
-
-### Reserved keys
-
-The following keys are handled by the pipeline and do not need to be
-read manually in `process_image`. If they are not provided in the JSON configuration, they default value will be used :
-
-| Key | Type | Default | Description |
-|---|---|---|---|
-| `"Debug"` | `bool` | `False` | Enable debug mode at runtime |
-| `"SaveOriginal"` | `bool` | `True` | Send original images before processed ones |
 
 
 ## Debug mode
@@ -224,6 +272,7 @@ read manually in `process_image`. If they are not provided in the JSON configura
 When debug mode is active, images are sent back to the client unmodified
 and `process_image` is never called. Infos from each image's metadata is
 logged (image type, orientation, all FIRST/LAST flags,...).
+_This mode is made to be use on the magnet, since the metadata informations from DICOM converted images will be incomplete._
 
 - Enable at startup:
 ```bash
@@ -234,6 +283,62 @@ _**Warning** : `--debug` at startupit overrun any JSON configuration. The proces
 - Enable at runtime in the UI / via JSON:
 ```json
 { "Debug": true }
+```
+
+## Testing locally
+
+### Workflow
+
+1. Run the main.py in a first terminal :
+
+```bash
+python main.py --config <your_module> --dirname <app>
+```
+Available arguments:
+
+| Argument | Default | Description |
+|---|---|---|
+| `--config` | `invertcontrast` | Processing module name (without `.py`) |
+| `--dirname` | `app` | Directory containing the processing module |
+| `-H` | `0.0.0.0` | Host address |
+| `-p` | `9002` | TCP port |
+| `-v` | — | Verbose logging |
+| `--debug` | — | Enable debug mode (passthrough, no processing) |
+| `-l` | — | Log file path |
+
+2. Convert DICOMs or enhanced DICOMs images to MRD images .h5 file:
+
+```bash
+# DICOMs converter
+python converter/dicom2mrd.py <folder of DICOMs> -o <outfile>
+
+# Enhanced DICOMs converter
+python converter/enhanceddicom2mrd.py <folder of DICOMs> -o <outfile>
+```
+
+3. Run the client.py, on another terminal, to send the MRD images :
+```bash
+python client.py -o <output.h5> <input.h5>
+```
+
+4. The output `.h5` file can be converted back to DICOM for visualisation :
+```bash
+python converter/mrd2dicom.py -o <outdir> <mrdfile>.h5
+```
+
+### Testing with Docker
+
+Follow the same workflow than before but replace the first step by this one :
+
+1. Run the `build.py`script with the name of your app directory:
+```bash
+# --nopackage option to skip the packaging part
+python build.py --nopackage -d <app>
+```
+
+2. Run the Docker Image:
+```bash
+docker run -p 9002:9002 -t <image_name>:<image_version>
 ```
 
 ## Converter
@@ -267,47 +372,6 @@ python converter/dicom2mrd.py --out-folder <output_folder> <input.h5>
 ```
 > Source : [kspaceKelvin/python-ismrmrd-server/mrd2dicom.py](https://github.com/kspaceKelvin/python-ismrmrd-server/blob/master/mrd2dicom.py)
 
-## Building and packaging
-
-The `build.py` script automates the full build pipeline:
-
-```bash
-python build.py --dirname app
-```
-By default, it build the `app` directory. 
-The name off the process is automaticaly get from the name of the `.py` file in the directory.
-
-This script will build the Docker image of the OpenRecon application and all the necessary files to upload it on the magnet.
-Meaning, the `.zip`file containing the image as a `.tar` and a minimalistic `.pdf`.
-
-Steps performed:
-
-1. Checks system dependencies (`docker`, `zip`, `git`) and Docker version.
-2. Verifies required files in the application directory.
-3. Builds the base `python-openrecon-server` Docker image if not present.
-4. Validates the JSON UI file against its schema.
-5. Generates the final Dockerfile with the OpenRecon metadata label.
-6. Builds the application Docker image.
-7. Exports the image as `.tar`, generates a PDF, and bundles both into a `.zip`.
-
-### Build options
-
-| Argument | Description |
-|---|---|
-| `--dirname` | Application directory name. Default: `app` |
-| `--debug` | Embed `--debug` flag in the Dockerfile CMD |
-| `--nopackage` | Skip `.tar`, PDF and `.zip` packaging (build image only) |
-
-### Required files in the application directory
-
-| File | Description |
-|---|---|
-| `<name>_json_ui.json` | OpenRecon UI parameter |
-| `OpenReconSchema_1.1.0.json` | JSON schema for JSON validation |
-| `<name>.py` | Processing module |
-| `application.Dockerfile` | Application-specific Dockerfile |
-
-> _**Warning** : the name in the processing app and OpenRecon UI parameter have to be identical._
 
 ## Project structure
 

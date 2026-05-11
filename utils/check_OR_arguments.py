@@ -3,7 +3,37 @@
 import logging
 
 def check_OR_arguments(configJSON: dict | None, arg_name: str, arg_type: type, arg_default: any = None) -> any:
-    """Return the value of the OpenRecon arguments with the appropriate type"""
+    """
+    Return the value of the OpenRecon arguments with the appropriate type.
+    
+    In OpenRecon, the config passes all parameter values as strings, 
+    regardless of their declared type in the JSON UI definition. This 
+    function reads the value from ``configJSON['parameters'][arg_name]`` 
+    and casts it to the requested type. If the parameter is missing or 
+    the config is invalid, the default value is returned.
+    
+    Parameters
+    ----------
+    configJSON : dict or None
+        JSON configuration sent by the OpenRecon client. Expected to
+        contain a ``'parameters'`` key mapping parameter names to their
+        string values. If None or not a dict, arg_default is returned.
+    arg_name : str
+        Name of the parameter to look up in ``configJSON['parameters']``.
+    arg_type : type
+        Expected Python type of the parameter. Supported types:
+        ``str``, ``bool``, ``int``, ``float``.
+
+    arg_default : any, optional
+        Value returned when configJSON is not a dict, when
+        ``'parameters'`` is absent, or when arg_name is not found.
+        Default is None.
+
+    Returns
+    -------
+    any
+        Parameter value cast to arg_type, or arg_default if not found.
+    """
     
     if not isinstance(configJSON, dict):
         logging.warning(f"config is not a dictionary. {arg_name} set to {arg_default} by default.")

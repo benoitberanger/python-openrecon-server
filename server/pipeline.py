@@ -129,7 +129,8 @@ class Pipeline:
         # Start timer
         tic = perf_counter()
         
-        data, head, meta = self.module.process_image(img_array, configJSON, metadata)
+        result = self.module.process_image(img_array, configJSON, metadata)
+        del img_array
 
         # Measure processing time
         toc = perf_counter()
@@ -139,9 +140,11 @@ class Pipeline:
         log_memory_delta("run Pipeline", "After process_image", mem)
 
         # Re-slice back into 2D images and send
-        self.send_volume_as_2Dslices(data, head, meta)
-        del data, head, meta
-        gc.collect()
+        for data, head, meta in result:
+            self.send_volume_as_2Dslices(data, head, meta)
+            del data, head, meta
+            gc.collect()
+
         log_memory_delta("run Pipeline", "After send_volume_as_2Dslices", mem)
 
 
