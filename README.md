@@ -34,9 +34,9 @@ slice.
 A Python environment manager is **strongly** recomanded.
 
 - [Docker](https://www.docker.com/products/docker-desktop) (version < 25, Siemens constraint)
-- `python 3.12`
-- zip
 - git
+- zip
+- `python 3.12`
 
 ```bash
 pip install jsonschema=4.26.0
@@ -108,7 +108,7 @@ def process_image(
     img_array:  np.ndarray[ismrmrd.Image],
     configJSON: dict | None,
     metadata,
-) -> tuple[np.ndarray, list, list] :
+) -> ProcessImageResult :
 ```
 
 ### Parameters
@@ -138,12 +138,14 @@ save = check_OR_arguments(configJSON, "SaveOriginal", bool, False)
 #### Reserved keys
 
 The following keys are handled by the pipeline and do not need to be
-read manually in `process_image`. If they are not provided in the JSON configuration, they default value will be used :
+read manually in `process_image`:
 
 | Key | Type | Default | Description |
 |---|---|---|---|
 | `"Debug"` | `bool` | `False` | Enable debug mode at runtime |
 | `"SaveOriginal"` | `bool` | `True` | Send original images before processed ones |
+
+> _If they are not provided in the JSON configuration, they default value will be used._
 
 ### The image array
 
@@ -204,12 +206,14 @@ headers, and series index offsets automatically.
 ```python
 from utils.output_series import OutputSeries
 
-# Initialise with the reference headers and metadata
-series = OutputSeries(head, meta)
+# Initialise
+series = OutputSeries()
 
 # Add one or more output series
 series.add(
     data                 = processed_volume,    # [img, cha, z, y, x], dtype int16
+    head                 = head,                # reference headers
+    meta                 = meta,                # reference metadata
     process_history      = ["PYTHON", "MY_PROCESS"],  # shown in ImageProcessingHistory
     sequence_description = "myprocess",               # shown as series label in the client
 )
@@ -252,6 +256,8 @@ series = OutputSeries(head, meta)
 if save_intermediate:
     series.add(
         data                 = intermediate_volume,
+        head                 = head,
+        meta                 = meta,
         process_history      = ["PYTHON", "STEP1"],
         sequence_description = "step1",
     )
@@ -259,6 +265,8 @@ if save_intermediate:
 # Final result
 series.add(
     data                 = final_volume,
+    head                 = head,
+    meta                 = meta,
     process_history      = ["PYTHON", "STEP1", "STEP2"],
     sequence_description = "step1step2",
 )
@@ -278,7 +286,7 @@ _This mode is made to be use on the magnet, since the metadata informations from
 ```bash
 python main.py --debug --config your_module --dirname app
 ```
-_**Warning** : `--debug` at startupit overrun any JSON configuration. The processing module will never be called._
+_**Warning** : `--debug` at startup overrun any JSON configuration. The processing module will never be called._
 
 - Enable at runtime in the UI / via JSON:
 ```json

@@ -77,7 +77,7 @@ def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None,
     data_sum, head, meta = stack_images(first_echo_images) #[img, cha, z, y, x], head, meta
     del first_echo_images
 
-    series = OutputSeries(head, meta)
+    series = OutputSeries()
 
     # display diagnostic info in the log
     display_diagnostic(head, meta)
@@ -119,8 +119,12 @@ def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None,
 
     # --- Update metadata -------------------------------------------------
     if sum_config == 'SoS':
-        series.add(data = data_sum, process_history = ["PYTHON", "SOS"], sequence_description = "SoS")
+        series.add(data_sum, head, meta, 
+                   process_history = ["PYTHON", "SOS"], 
+                   sequence_description = "SoS")
     else:
-        series.add(data = data_sum, process_history = ["PYTHON", "ECHO_SUM_SIMPLE"], sequence_description = "EchoSumSimple")
+        series.add(data_sum, head, meta, 
+                   process_history = ["PYTHON", "ECHO_SUM_SIMPLE"], 
+                   sequence_description = "EchoSumSimple")
     
     return series.get()

@@ -42,30 +42,12 @@ class OutputSeries:
         )
 
         return series.get()
-
-    Attributes
-    ----------
-    base_head : list of ismrmrd.ImageHeader
-        Original headers used as template for all series.
-    base_meta : list of ismrmrd.Meta
-        Original Meta objects used as template for all series.
     """
 
-    def __init__(self, head: list[ismrmrd.ImageHeader], meta: list[ismrmrd.Meta]) -> None:
+    def __init__(self) -> None:
         """
         Initialise the output series manager.
-
-        Parameters
-        ----------
-        head : list of ismrmrd.ImageHeader
-            Reference headers from the source images. Copied for each
-            series so the originals are never modified.
-        meta : list of ismrmrd.Meta
-            Reference Meta objects from the source images. Copied for
-            each series so the originals are never modified.
         """
-        self.base_head   = head
-        self.base_meta   = meta
         self.series:  list[tuple[np.ndarray, list, list]] = []
         self.n_series = 0
 
@@ -73,6 +55,8 @@ class OutputSeries:
     def add(
         self,
         data:                 np.ndarray,
+        head:                 list[ismrmrd.ImageHeader],
+        meta:                 list[ismrmrd.Meta],
         process_history:      list[str] | str | None = None,
         sequence_description: list[str] | str | None = None,
     ) -> "OutputSeries":
@@ -87,6 +71,13 @@ class OutputSeries:
         ----------
         data : np.ndarray
             Processed pixel data, shape [img, cha, z, y, x], dtype int16.
+        head : list of ismrmrd.ImageHeader
+            Headers to associate to the serie. If None, use the attribute one 
+            as default.
+        meta : list of ismrmrd.Meta
+            Metadata to associate to the serie. If None, use the attribute one 
+            as default.
+        
         process_history : list of str, str, or None, optional
             Processing steps to record in ImageProcessingHistory.
             Appended to any history already present in the base Meta.
@@ -101,8 +92,20 @@ class OutputSeries:
             Returns self to allow method chaining.
         """
         # Deep copy head and meta so series are fully independent
-        head = [copy.deepcopy(h) for h in self.base_head]
-        meta = [ismrmrd.Meta.deserialize(m.serialize()) for m in self.base_meta]
+        if len(head) != len(meta):
+            raise ValueError(
+                "head and meta must have the same length, "
+                "got %d and %d" % (len(head), len(meta))
+            )
+        if len(head) != data.shape[0]:
+            raise ValueError(
+                "head length (%d) must match data.shape[0] (%d)"
+                % (len(head), data.shape[0])
+            )
+
+        # Deep copy so this series is fully independent
+        head_copy = [copy.deepcopy(h) for h in head]
+        meta_copy = [ismrmrd.Meta.deserialize(m.serialize()) for m in meta]
 
         # Normalise process_history
         if isinstance(process_history, str):
@@ -112,7 +115,7 @@ class OutputSeries:
         if isinstance(sequence_description, list):
             sequence_description = "_".join(sequence_description)
 
-        for h, m in zip(head, meta):
+        for h, m in zip(head_copy, meta_copy):
 
             m["DataRole"]            = "Image"
 
@@ -126,11 +129,9 @@ class OutputSeries:
                 m["SequenceDescriptionAdditional"] = sequence_description
 
             # Incremente image_series_index
-            logging.info(f"serie index before : {h.image_series_index}")
             h.image_series_index += self.n_series
-            logging.info(f"serie index after : {h.image_series_index}")
 
-        self.series.append((data, head, meta))
+        self.series.append((data, head_copy, meta_copy))
         self.n_series += 1
 
         logging.info(

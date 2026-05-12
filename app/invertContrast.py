@@ -76,7 +76,7 @@ def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None,
         # display diagnostic info in the log
         if series is None:
             display_diagnostic(head, meta)
-            series = OutputSeries(head, meta)
+            series = OutputSeries()
 
         # --- Normalise to 12-bit range and convert to int16 --------------
         data *= maxVal/data.max()
@@ -92,7 +92,9 @@ def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None,
         mem = log_memory_delta("process_image", "After inversion", mem)
 
         # --- Add series ---------------------------------------------
-        series.add(data = data, process_history = ["PYTHON", "INVERT"], sequence_description = "invertcontrast")
+        series.add(data, head, meta, 
+            process_history = ["PYTHON", "INVERT"], 
+            sequence_description = "invertcontrast")
         del data
         gc.collect()
         mem = log_memory_delta("process_image", "After series.add", mem)
