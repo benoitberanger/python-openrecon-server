@@ -7,11 +7,12 @@ import os
 import ismrmrd
 import numpy as np
 
+# from converter.mrd2nifti import mrd2nifti
 from utils.OutputSeries import OutputSeries, ProcessImageResult
 from utils.check_OR_arguments import check_OR_arguments
 from utils.img_array import get_subarray, stack_images
 from utils.memory import log_memory, log_memory_delta
-from utils.utils import display_diagnostic, updateMeta
+from utils.utils import display_diagnostic
 
 
 # Folder for debug output files
@@ -75,6 +76,7 @@ def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None,
     # SimpleSum: accumulate raw values directly
     first_echo_images = get_subarray(img_array, img_contrast=0, img_image_type=ismrmrd.IMTYPE_MAGNITUDE)
     data_sum, head, meta = stack_images(first_echo_images) #[img, cha, z, y, x], head, meta
+    # mrd2nifti(data_sum, head, os.path.join(debugFolder, "input.nii.gz"))
     del first_echo_images
 
     series = OutputSeries()
@@ -92,7 +94,8 @@ def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None,
     for co in range(1, n_contrasts):
         images_co = get_subarray(img_array, img_contrast=co, img_image_type=ismrmrd.IMTYPE_MAGNITUDE)
         data_co, _, _ = stack_images(images_co)
-        # data_co = data_co.transpose((3, 4, 2, 1, 0))
+        input_name = str(co) + "_input.nii.gz"
+        # mrd2nifti(data_co, head, os.path.join(debugFolder, input_name))
         if (sum_config == 'SoS'):
             np.square(data_co, out=data_co)
         data_sum += data_co

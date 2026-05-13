@@ -15,7 +15,7 @@ def check_OR_arguments(configJSON: dict | None, arg_name: str, arg_type: type, a
     Parameters
     ----------
     configJSON : dict or None
-        JSON configuration sent by the OpenRecon client. Expected to
+        JSON configuration sent by the client. Expected to
         contain a ``'parameters'`` key mapping parameter names to their
         string values. If None or not a dict, arg_default is returned.
     arg_name : str

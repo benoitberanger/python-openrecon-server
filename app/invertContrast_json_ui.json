@@ -22,7 +22,7 @@
   "reconstruction": {
     "transfer_protocol": {
       "protocol": "ISMRMRD",
-      "version": "1.4.2"
+      "version": "1.4.1"
     },
     "port": 9002,
     "emitter": "image",

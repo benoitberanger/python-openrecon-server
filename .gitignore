@@ -7,7 +7,6 @@ ANTs/
 Makefile
 openrecon.json
 test*
-mrd2nifti.py
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

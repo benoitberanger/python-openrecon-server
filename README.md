@@ -168,14 +168,14 @@ Each cell contains an `ismrmrd.Image` object or `None`. `image_type` uses MRD co
 ### Accessing images
 
 To get the specific images that you need, you can use the following functions:
-`get_subarray`, `get_magnitude_images`, `get_phase_images`, `get_contrast` from `utils.image_array`.
+`get_subarray`, `get_type_magnitude`, `get_type_phase`, `get_contrast` from `utils.image_array`.
 
 examples :
 ```python
-from utils.image_array import get_magnitude_images, get_phase_images, get_subarray
+from utils.image_array import get_type_magnitude, get_type_phase, get_subarray
 
 # All magnitude images
-mag_array = get_magnitude_images(img_array)
+mag_array = get_type_magnitude(img_array)
 
 # Specific contrast
 co0 = get_contrast(img_array, contrast=0)

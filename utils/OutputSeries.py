@@ -64,7 +64,7 @@ class OutputSeries:
         Add an output series.
 
         Headers and Meta are deep-copied from the reference originals
-        so each series is fully independent. The series_index_offset is
+        so each series is fully independent. The images_series_index is
         incremented automatically for each new series.
 
         Parameters

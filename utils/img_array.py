@@ -194,14 +194,12 @@ def get_subarray(img_array: np.ndarray[ismrmrd.Image],
     
     idx = tuple(to_index(v) for v in args)
     
-    # TO-DO: Make this log understandable and clear
-    # logging.debug("Extracting subarray with index tuple: %s", idx)
     new_array = img_array[idx]
     logging.info(f"Subarray shape: {new_array.shape}")
     return new_array
 
 
-def get_magnitude_images(img_array: np.ndarray[ismrmrd.Image]) -> np.ndarray[ismrmrd.Image]:
+def get_type_magnitude(img_array: np.ndarray[ismrmrd.Image]) -> np.ndarray[ismrmrd.Image]:
     """
     Extract the magnitude images from the MRD images array.
     Shorthand for get_subarray(img_array, img_image_type=ismrmrd.IMTYPE_MAGNITUDE).
@@ -220,7 +218,7 @@ def get_magnitude_images(img_array: np.ndarray[ismrmrd.Image]) -> np.ndarray[ism
     return get_subarray(img_array, img_image_type=ismrmrd.IMTYPE_MAGNITUDE)
 
 
-def get_phase_images(img_array: np.ndarray[ismrmrd.Image]) -> np.ndarray[ismrmrd.Image]:
+def get_type_phase(img_array: np.ndarray[ismrmrd.Image]) -> np.ndarray[ismrmrd.Image]:
     """
     Extract the phase images from the MRD images array.
     Shorthand for get_subarray(img_array, img_image_type=ismrmrd.IMTYPE_PHASE).

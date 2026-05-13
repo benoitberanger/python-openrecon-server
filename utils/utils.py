@@ -95,35 +95,35 @@ def display_diagnostic(head: list, meta: list[ismrmrd.Meta]) -> dict:
     return diagnostic
 
 
-def updateMeta(meta: list[ismrmrd.Meta], process_history: list[str] | str, sequence_description: list[str] | str) -> list[ismrmrd.Meta]:
-    """
-    Update the ImageProcessingHistory and SequenceDescriptionAdditional
-    fields of a list of MRD Meta objects.
+# def updateMeta(meta: list[ismrmrd.Meta], process_history: list[str] | str, sequence_description: list[str] | str) -> list[ismrmrd.Meta]:
+#     """
+#     Update the ImageProcessingHistory and SequenceDescriptionAdditional
+#     fields of a list of MRD Meta objects.
 
-    Parameters
-    ----------
-    meta : list of ismrmrd.Meta
-        Meta objects to update, one per image
-    process_history : list of str or str
-        Processing steps to record (e.g. ['PYTHON', 'INVERT'] or 'INVERT')
-    sequence_description : list of str or str
-        Sequence label appended to the series name in the client UI.
-        (e.g. ['echo', 'sum'] → 'echo_sum', or 'invertcontrast')
+#     Parameters
+#     ----------
+#     meta : list of ismrmrd.Meta
+#         Meta objects to update, one per image
+#     process_history : list of str or str
+#         Processing steps to record (e.g. ['PYTHON', 'INVERT'] or 'INVERT')
+#     sequence_description : list of str or str
+#         Sequence label appended to the series name in the client UI.
+#         (e.g. ['echo', 'sum'] → 'echo_sum', or 'invertcontrast')
 
-    Returns
-    -------
-    list of ismrmrd.Meta
-        The same list, with each Meta updated.
-    """
-    if isinstance(process_history, str):
-        process_history = [process_history]
+#     Returns
+#     -------
+#     list of ismrmrd.Meta
+#         The same list, with each Meta updated.
+#     """
+#     if isinstance(process_history, str):
+#         process_history = [process_history]
     
-    if isinstance(sequence_description, list):
-        sequence_description = '_'.join(sequence_description)
+#     if isinstance(sequence_description, list):
+#         sequence_description = '_'.join(sequence_description)
 
-    for m in meta:
-        m['DataRole']                      = 'Image'
-        m['ImageProcessingHistory']        = process_history
-        m['SequenceDescriptionAdditional'] = sequence_description
+#     for m in meta:
+#         m['DataRole']                      = 'Image'
+#         m['ImageProcessingHistory']        = process_history
+#         m['SequenceDescriptionAdditional'] = sequence_description
 
-    return meta    
+#     return meta    

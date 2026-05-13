@@ -9,9 +9,10 @@ import xml
 import ismrmrd
 import numpy as np
 
+# from converter.mrd2nifti import mrd2nifti
 from utils.OutputSeries import OutputSeries, ProcessImageResult
 from utils.check_OR_arguments import check_OR_arguments
-from utils.img_array import get_magnitude_images, get_subarray, stack_images
+from utils.img_array import get_type_magnitude, get_subarray, stack_images
 from utils.memory import log_memory, log_memory_delta
 from utils.utils import display_diagnostic
 
@@ -68,6 +69,7 @@ def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None,
         # --- stack images ------------------------------------------------
         sub_array = get_subarray(img_array, img_image_type=image_type)
         data, head, meta = stack_images(sub_array)
+        # mrd2nifti(data, head, os.path.join(debugFolder, "input.nii.gz"))
         mem = log_memory_delta("process_image", "After stack_images", mem)
         del sub_array
         
