@@ -27,6 +27,43 @@ The server receives MRD images, organises them into a structured 7D array,
 calls your `process_image()` function, and sends the results back slice by
 slice.
 
+```mermaid
+flowchart TB
+    input([ISMRMRD client]) --> handle
+
+    subgraph server[OpenRecon server]
+
+        subgraph handle["Handle MRD protocol"]
+            config["config"]
+            metadata["MRD header"]
+            json["JSON config"]
+            image_stream["Image stream"]
+
+            config --> metadata --> json --> image_stream
+        end
+
+        image_stream --> debug{Debug mode ?}
+
+        debug -->|yes| passthrough["Send back\nunmodified"]
+
+        debug -->|no| pipeline
+
+        subgraph pipeline["Pipeline"]
+            save_orig{"SaveOriginal ?"}
+            nd_array["build_image_array()\n[sl, co, av, ph, re, se, itype]"]
+            app["APP\nprocess_image()\nuser processing module"]
+            send_slices["send_volume_as_slices()\n2D MRD images"]
+
+            save_orig --> nd_array --> app --> output_series --> send_slices
+        end
+
+    end
+
+    passthrough --> output([ISMRMRD client])
+    save_orig -.->|yes| output
+    send_slices --> output
+```
+
 ---
 
 ## Requirements
@@ -233,9 +270,14 @@ the client UI.
 
 ```python
 # Single output series (most common case)
-series = OutputSeries(head, meta)
-series.add(data=processed_volume, process_history=["PYTHON", "MY_PROCESS"],
-           sequence_description="myprocess")
+series = OutputSeries()
+series.add(
+        data                 = processed_volume,
+        head                 = head,
+        meta                 = meta,
+        process_history      = ["PYTHON", "MY_PROCESS"],
+        sequence_description = "myprocess",
+    )
 return series.get()
 ```
 
@@ -250,7 +292,7 @@ several output series (intermediate results, brain masks, different
 processing steps, etc...):
 
 ```python
-series = OutputSeries(head, meta)
+series = OutputSeries()
 
 # Optional intermediate result
 if save_intermediate:

@@ -99,8 +99,7 @@ def mrd2nifti(
 
 def compute_nifti_affine(image_header, voxel_size):
 
-    # --- Affine : LPS (MRD) → RAS (NIfTI) -------------------------------
-    # MRD stores directions in LPS — negate x and y to convert to RAS
+    # --- Affine : LPS (MRD) to RAS (NIfTI) -------------------------------
     def lps_to_ras(v):
         return np.array([-v[0], -v[1], v[2]])
 

@@ -171,7 +171,7 @@ class Pipeline:
         meta : list of ismrmrd.Meta
             Original Meta objects, one per image.
         """
-        # mem = log_memory("send_volume_as_2Dslices", "Before MRD3Dto2DImages")
+        # mem = log_memory("send_volume_as_2Dslices", "Before")
 
         n_imgs = data.shape[0]
 

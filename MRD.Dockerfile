@@ -1,5 +1,5 @@
 # ----- 1. First stage to build ismrmrd and siemens_to_ismrmrd -----
-FROM python:3.12.0-slim AS mrd_converter
+FROM python:3.12.13-slim AS mrd_converter
 
 ARG  DEBIAN_FRONTEND=noninteractive
 ENV  TZ=America/Chicago
@@ -18,20 +18,20 @@ RUN git clone https://github.com/ismrmrd/ismrmrd.git && \
     make install
 
 # siemens_to_ismrmrd converter
-RUN git clone https://github.com/ismrmrd/siemens_to_ismrmrd.git && \
-    cd siemens_to_ismrmrd && \
-    git checkout v1.2.13 && \
-    mkdir build && cd build && \
-    cmake ../ && \
-    make -j $(nproc) && \
-    make install
+# RUN git clone https://github.com/ismrmrd/siemens_to_ismrmrd.git && \
+#     cd siemens_to_ismrmrd && \
+#     git checkout v1.2.13 && \
+#     mkdir build && cd build && \
+#     cmake ../ && \
+#     make -j $(nproc) && \
+#     make install
 
 # Create archive of ISMRMRD libraries (including symlinks) for second stage
 RUN cd /usr/local/lib && tar -czvf libismrmrd.tar.gz libismrmrd*
 
 
 # ----- 2. Create a devcontainer without all of the build dependencies of MRD -----
-FROM python:3.12.0-slim AS python-or-devcontainer
+FROM python:3.12.13-slim AS python-or-devcontainer
 
 LABEL org.opencontainers.image.description="Python OpenRecon Server"
 LABEL org.opencontainers.image.url="https://github.com/benoitberanger/python-openrecon-server"
@@ -46,10 +46,11 @@ COPY --from=mrd_converter /usr/local/lib/libismrmrd.tar.gz  /usr/local/lib/
 RUN cd /usr/local/lib && tar -zxvf libismrmrd.tar.gz && rm libismrmrd.tar.gz && ldconfig
 
 # Copy siemens_to_ismrmrd from last stage
-COPY --from=mrd_converter /usr/local/bin/siemens_to_ismrmrd  /usr/local/bin/siemens_to_ismrmrd
+# COPY --from=mrd_converter /usr/local/bin/siemens_to_ismrmrd  /usr/local/bin/siemens_to_ismrmrd
 
 # Add dependencies for siemens_to_ismrmrd
-RUN apt-get update && apt-get install --no-install-recommends -y libxslt1.1 libhdf5-103 libboost-program-options1.74.0 libpugixml1v5 git dos2unix nano
+# RUN apt-get update && apt-get install --no-install-recommends -y libxslt1.1 libhdf5-103 libboost-program-options1.74.0 libpugixml1v5 git dos2unix nano
+RUN apt-get update && apt-get install --no-install-recommends -y git dos2unix nano
 
 # Tell nano to remember its position from the last time it opened a file
 RUN echo "set positionlog" > ~/.nanorc
@@ -57,10 +58,10 @@ RUN echo "set positionlog" > ~/.nanorc
 # Python MRD library
 RUN pip3 install h5py==3.16.0 ismrmrd==1.14.2
 
-RUN cd /opt/code && \
-    git clone https://github.com/ismrmrd/ismrmrd-python-tools.git && \
-    cd /opt/code/ismrmrd-python-tools && \
-    pip3 install --no-cache-dir .
+# RUN cd /opt/code && \
+#     git clone https://github.com/ismrmrd/ismrmrd-python-tools.git && \
+#     cd /opt/code/ismrmrd-python-tools && \
+#     pip3 install --no-cache-dir .
 
 # matplotlib is used by rgb.py and provides various visualization tools including colormaps
 # pydicom is used by dicom2mrd.py to parse DICOM data
