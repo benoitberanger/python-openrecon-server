@@ -34,7 +34,7 @@ def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None,
     Parameters
     ----------
     img_array : np.ndarray
-        7D MRD image array [slice, contrast, average, phase,
+        7D MRD image array [slice, contrast, average, phase, 
         repetition, set, image_type] as returned by build_image_array().
     configJSON : dict or None
         JSON configuration from the client.
@@ -108,6 +108,9 @@ def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None,
     # SoS finalisation: square root of the accumulated squared sum
     if (sum_config == 'SoS'):
         np.sqrt(data_sum, out=data_sum)
+        data_sum /= np.sqrt(n_contrasts)
+    else:
+        data_sum /= n_contrasts
 
     # --- Normalisation to 12-bit range -----------------------------------
     BitsStored = 12
