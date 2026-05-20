@@ -40,7 +40,7 @@ class Server:
 
     """
 
-    def __init__(self, port: int, address: str, app_config: str, app_directory: str, savedata: bool, debug: bool) -> None:
+    def __init__(self, port: int, address: str, app_config: str, app_directory: str, savedata: bool, savedataFolder: str, debug: bool) -> None:
         """
         Initialise and bind the server socket.
 
@@ -64,6 +64,7 @@ class Server:
         self.app_config = app_config
         self.app_directory = app_directory
         self.savedata = savedata
+        self.saveFolder = savedataFolder
         self.debug = debug
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -303,7 +304,7 @@ class Server:
         """
 
         try:
-            connection = Connection(sock, self.savedata)
+            connection = Connection(sock, savedata=self.savedata, savedataFolder=self.saveFolder)
 
             # First message is the config (file or text)
             # With OpenRecon it supposed to be "openrecon"

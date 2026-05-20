@@ -482,7 +482,7 @@ def main(args: argparse.Namespace):
     # prepare infos 
     # prepare the commande line for the Dockerfile
     if args.debug:
-        cmdline  = f'exec python3 main.py -v --debug -H=0.0.0.0 -p=9002 -l=/tmp/python-openrecon-server.log --config={target_data['name']['process']} --dirname={args.dirname}'
+        cmdline  = f'exec python3 main.py -v --debug -H=0.0.0.0 -p=9002 -l=/tmp/python-openrecon-server.log --config={target_data['name']['process']} --dirname={args.dirname} --savedata --savedataFolder /tmp/or'
     else:
         cmdline  = f'exec python3 main.py -v -H=0.0.0.0 -p=9002 -l=/tmp/python-openrecon-server.log --config={target_data['name']['process']} --dirname={args.dirname}'
 

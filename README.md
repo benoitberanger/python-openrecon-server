@@ -29,7 +29,7 @@ slice.
 
 ```mermaid
 flowchart TB
-    input([ISMRMRD client]) --> handle
+    input([ISMRMRD]) --> handle
 
     subgraph server[OpenRecon server]
 
@@ -44,22 +44,22 @@ flowchart TB
 
         image_stream --> debug{Debug mode ?}
 
-        debug -->|yes| passthrough["Send back\nunmodified"]
+        debug -->|yes| passthrough["Send back\nunmodified\n+ logs"]
 
         debug -->|no| pipeline
 
         subgraph pipeline["Pipeline"]
             save_orig{"SaveOriginal ?"}
-            nd_array["build_image_array()\n[sl, co, av, ph, re, se, itype]"]
+            nd_array["build_image_array()"]
             app["APP\nprocess_image()\nuser processing module"]
             send_slices["send_volume_as_slices()\n2D MRD images"]
 
-            save_orig --> nd_array --> app --> output_series --> send_slices
+            save_orig --> nd_array --> app --> send_slices
         end
 
     end
 
-    passthrough --> output([ISMRMRD client])
+    passthrough --> output([ISMRMRD])
     save_orig -.->|yes| output
     send_slices --> output
 ```

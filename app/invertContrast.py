@@ -12,7 +12,7 @@ import numpy as np
 # from converter.mrd2nifti import mrd2nifti
 from utils.OutputSeries import OutputSeries, ProcessImageResult
 from utils.check_OR_arguments import check_OR_arguments
-from utils.img_array import get_type_magnitude, get_subarray, stack_images
+from utils.img_array import get_type_magnitude, get_subarray, mrd_indexes, stack_images
 from utils.memory import log_memory, log_memory_delta
 from utils.utils import display_diagnostic
 
@@ -58,7 +58,7 @@ def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None,
 
     # --- Dimensions ------------------------------------------------------
     # Get the number of image_type (img_array axis 6)
-    n_image_type = img_array.shape[6]
+    n_image_type = img_array.shape[mrd_indexes.image_type]
     image_type_name = ('', 'MAGNITUDE', 'PHASE', 'REAL', 'IMAG', 'COMPLEX', 'RGB')
 
     # --- Treat all types of images ---------------------------------------
@@ -67,39 +67,42 @@ def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None,
     for image_type in range(1, n_image_type):
 
         # --- stack images ------------------------------------------------
-        sub_array = get_subarray(img_array, img_image_type=image_type)
-        data, head, meta = stack_images(sub_array)
-        # mrd2nifti(data, head, os.path.join(debugFolder, "input.nii.gz"))
-        mem = log_memory_delta("process_image", "After stack_images", mem)
-        del sub_array
-        
-        logging.info("  --- Invert contrast on %d %s images ---", len(head), image_type_name[image_type])
-        
-        # display diagnostic info in the log
-        if series is None:
-            display_diagnostic(head, meta)
-            series = OutputSeries()
+        for serie_index in range(0, img_array.shape[mrd_indexes.image_series_index]):
+            sub_array = get_subarray(img_array, img_image_type=image_type, img_image_series_index=serie_index)
+            if not sub_array.any():
+                continue
+            data, head, meta = stack_images(sub_array)
+            # mrd2nifti(data, head, os.path.join(debugFolder, "input.nii.gz"))
+            mem = log_memory_delta("process_image", "After stack_images", mem)
+            del sub_array
+            
+            logging.info("  --- Invert contrast on %d %s images ---", len(head), image_type_name[image_type])
+            
+            # display diagnostic info in the log
+            if series is None:
+                display_diagnostic(head, meta)
+                series = OutputSeries()
 
-        # --- Normalise to 12-bit range and convert to int16 --------------
-        data *= maxVal/data.max()
-        np.around(data, out=data)
-        data = data.astype(np.int16)
-        gc.collect()
-        mem = log_memory_delta("process_image", "After normalisation", mem)
+            # --- Normalise to 12-bit range and convert to int16 --------------
+            data *= maxVal/data.max()
+            np.around(data, out=data)
+            data = data.astype(np.int16)
+            gc.collect()
+            mem = log_memory_delta("process_image", "After normalisation", mem)
 
-        # --- Invert contrast ---------------------------------------------
-        data = maxVal-data
-        data = np.abs(data)
-        np.save(debugFolder + "/" + "imgInverted.npy", data)
-        mem = log_memory_delta("process_image", "After inversion", mem)
+            # --- Invert contrast ---------------------------------------------
+            data = maxVal-data
+            data = np.abs(data)
+            np.save(debugFolder + "/" + "imgInverted.npy", data)
+            mem = log_memory_delta("process_image", "After inversion", mem)
 
-        # --- Add series ---------------------------------------------
-        series.add(data, head, meta, 
-            process_history = ["PYTHON", "INVERT"], 
-            sequence_description = "invertcontrast")
-        del data
-        gc.collect()
-        mem = log_memory_delta("process_image", "After series.add", mem)
+            # --- Add series ---------------------------------------------
+            series.add(data, head, meta, 
+                process_history = ["PYTHON", "INVERT"], 
+                sequence_description = "invertcontrast")
+            del data
+            gc.collect()
+            mem = log_memory_delta("process_image", "After series.add", mem)
 
     if series is None:
         logging.error("No images found in img_array. Returning empty result.")

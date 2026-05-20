@@ -12,21 +12,27 @@ class mrd_indexes(IntEnum):
 
     Each member maps a dimension name to its axis index in the array.
     To change the axis order or add a dimension, edit only this enum,
-    all functions in this module use it automatically.
+    all functions in this module use it automatically, EXCEPT get_subarray()
+    which requires a manual update if you add or delete a dimension.
 
     To add a dimension (e.g. 'image_index'):
-        1. Add it here:   image_index = 7
+        1. Add it here:   image_index = 8
         2. The attribute name must match the ismrmrd.Image attribute exactly.
+        3. Add the corresponding parameter to get_subarray():
+               def get_subarray(..., img_image_index: int | slice | None = None)
+        4. Add it to the args dict in get_subarray():
+               mrd_indexes.image_index: img_image_index,
 
     To change the axis order, reassign the integer values.
     """
-    slice      = 0
-    contrast   = 1
-    average    = 2
-    phase      = 3
-    repetition = 4
-    set        = 5
-    image_type = 6
+    slice               = 0
+    contrast            = 1
+    average             = 2
+    phase               = 3
+    repetition          = 4
+    set                 = 5
+    image_type          = 6
+    image_series_index  = 7
 
 
 def build_image_array(img_list: list[ismrmrd.Image]) -> np.ndarray[ismrmrd.Image] :
@@ -99,7 +105,7 @@ def validate_index(value, dim_size: int, dim_name: str) -> None:
     dim_size : int
         Size of the dimension in the array.
     dim_name : str
-        Human-readable dimension name used in error messages
+        Human-readable dimension name used in error messages.
     """
     if value is None:
         return
@@ -130,7 +136,8 @@ def get_subarray(img_array: np.ndarray[ismrmrd.Image],
                  img_phase: int | slice | None = None, 
                  img_repetition: int | slice | None = None, 
                  img_set: int | slice | None = None, 
-                 img_image_type: int | slice | None = None) -> np.ndarray[ismrmrd.Image]:
+                 img_image_type: int | slice | None = None,
+                 img_image_series_index: int | slice | None = None) -> np.ndarray[ismrmrd.Image]:
     """
     Extract a subarray from a 7D MRD images array by selecting specific indices
     along one or more dimensions.
@@ -160,6 +167,8 @@ def get_subarray(img_array: np.ndarray[ismrmrd.Image],
     img_image_type : int or slice or None
         Index along the image_type axis. Use ismrmrd.IMTYPE_* constants
         directly (e.g. ismrmrd.IMTYPE_MAGNITUDE = 1), or None for all types.
+    img_image_series_index : int or slice or None
+        Index along the image_series_index axis, or None for all sets.
 
     Returns
     -------
@@ -170,18 +179,30 @@ def get_subarray(img_array: np.ndarray[ismrmrd.Image],
     dimension_names = list(mrd_indexes)
 
     args = {
-        mrd_indexes.slice:      img_slice,
-        mrd_indexes.contrast:   img_contrast,
-        mrd_indexes.average:    img_average,
-        mrd_indexes.phase:      img_phase,
-        mrd_indexes.repetition: img_repetition,
-        mrd_indexes.set:        img_set,
-        mrd_indexes.image_type: img_image_type
+        mrd_indexes.slice:              img_slice,
+        mrd_indexes.contrast:           img_contrast,
+        mrd_indexes.average:            img_average,
+        mrd_indexes.phase:              img_phase,
+        mrd_indexes.repetition:         img_repetition,
+        mrd_indexes.set:                img_set,
+        mrd_indexes.image_type:         img_image_type,
+        mrd_indexes.image_series_index: img_image_series_index
     }
+
+    # Check if mrd_indexes and args are sync
+    missing = set(mrd_indexes) - set(args)
+    if missing:
+        raise NotImplementedError(
+            "get_subarray() is missing parameters for the following "
+            "mrd_indexes members: %s. "
+            "Add the corresponding 'img_<name>' parameter and entry in args. "
+            "See mrd_indexes docstring for instructions."
+            % [dim.name for dim in missing]
+        )
 
     # Validate every requested index against the actual array shape
     for dim in dimension_names:
-        validate_index(args[dim], img_array.shape[dim], dim.name)
+            validate_index(args[dim], img_array.shape[dim], dim.name)
     
     def to_index(x):
         return slice(None) if x is None else x
@@ -190,6 +211,7 @@ def get_subarray(img_array: np.ndarray[ismrmrd.Image],
     
     new_array = img_array[idx]
     logging.info(f"Subarray shape: {new_array.shape}")
+    logging.info(f"number of images in the subarray: {np.count_nonzero(new_array)}")
     return new_array
 
 

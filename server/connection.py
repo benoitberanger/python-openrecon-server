@@ -288,7 +288,8 @@ class Connection:
             if (self.savedataFile):
                 self.mrdFilePath = self.savedataFile
             else:
-                self.mrdFilePath = os.path.join(self.savedataFolder, "MRD_input_" + datetime.now().strftime("%Y-%m-%d-%H%M%S" + "_" + str(random.randint(0,100)) + ".h5"))
+                self.mrdFilePath = os.path.join(self.savedataFolder, "MRD_input_" + datetime.datetime.now().strftime("%Y-%m-%d-%H%M%S") + "_" + str(random.randint(0, 100)) + ".h5")
+                # self.mrdFilePath = os.path.join(self.savedataFolder, "MRD_input_" + datetime.now().strftime("%Y-%m-%d-%H%M%S" + "_" + str(random.randint(0,100)) + ".h5"))
 
             # Create HDF5 file to store incoming MRD data
             logging.info("Incoming data will be saved to: '%s' in group '%s'", self.mrdFilePath, self.savedataGroup)
