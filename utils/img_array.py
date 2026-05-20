@@ -1,9 +1,32 @@
 #!/bin/python3
 
 import logging
+from enum import IntEnum
 
 import ismrmrd
 import numpy as np
+
+class mrd_indexes(IntEnum):
+    """
+    Defines the axis order of the MRD image array.
+
+    Each member maps a dimension name to its axis index in the array.
+    To change the axis order or add a dimension, edit only this enum,
+    all functions in this module use it automatically.
+
+    To add a dimension (e.g. 'image_index'):
+        1. Add it here:   image_index = 7
+        2. The attribute name must match the ismrmrd.Image attribute exactly.
+
+    To change the axis order, reassign the integer values.
+    """
+    slice      = 0
+    contrast   = 1
+    average    = 2
+    phase      = 3
+    repetition = 4
+    set        = 5
+    image_type = 6
 
 
 def build_image_array(img_list: list[ismrmrd.Image]) -> np.ndarray[ismrmrd.Image] :
@@ -31,56 +54,36 @@ def build_image_array(img_list: list[ismrmrd.Image]) -> np.ndarray[ismrmrd.Image
         Empty cells contain None.
     """
     
+    dimensions = list(mrd_indexes)
+    dim_names = [dim.name for dim in dimensions]
+
     # Found the max value for each dimension
-    max_idx = {
-        "slice": 0,
-        "contrast": 0,
-        "average": 0,
-        "phase": 0,
-        "repetition": 0,
-        "set": 0,
-        "image_type": 0
-    }
+    max_idx = { dim: 0 for dim in mrd_indexes}
 
     for img in img_list:
-        max_idx["slice"]      = max(max_idx["slice"], img.slice)
-        max_idx["contrast"]   = max(max_idx["contrast"], img.contrast)
-        max_idx["average"]    = max(max_idx["average"], img.average)
-        max_idx["phase"]      = max(max_idx["phase"], img.phase)
-        max_idx["repetition"] = max(max_idx["repetition"], img.repetition)
-        max_idx["set"]        = max(max_idx["set"], img.set)
-        max_idx["image_type"] = max(max_idx["image_type"], img.image_type)
+        for dim in mrd_indexes:
+            max_idx[dim] = max(max_idx[dim], getattr(img, dim.name))
 
-    shape = tuple(v + 1 for v in max_idx.values())
+    shape = tuple(max_idx[dim] + 1 for dim in dimensions)
 
     # Initialize an empty array with the right size
     img_array = np.full(shape, None, dtype=object)
 
     # Fill the array with the images
     for img in img_list:
-        key = (
-            img.slice,
-            img.contrast,
-            img.average,
-            img.phase,
-            img.repetition,
-            img.set,
-            img.image_type
-        )
+        key = tuple(getattr(img, dim.name) for dim in dimensions)
 
         if img_array[key] is None:
             img_array[key] = [img]
         else:
             img_array[key].append(img)
 
-    # Because ismrmrd.IMTYPE_* values start at 1 (magnitude=1, phase=2,
-    # real=3, imag=4, complex=5, rgb=6), index 0 along the image_type
-    # axis is always empty. This is intentional, it preserves direct
-    # index correspondence with the MRD constants.
-    logging.info("7D MRD image array shape :")
-    logging.info("  [%-10s %-10s %-10s %-10s %-10s %-6s %-10s]",
-             "slice", "contrast", "average", "phase", "repetition", "set", "image_type")
-    logging.info("  [%-10d %-10d %-10d %-10d %-10d %-6d %-10d]", *img_array.shape)
+    header_format = "  [" + " ".join(f"%-{max(len(n), 6)}s" for n in dim_names) + "]"
+    value_format  = "  [" + " ".join(f"%-{max(len(n), 6)}d" for n in dim_names) + "]"
+
+    logging.info("MRD image array :")
+    logging.info(header_format, *dim_names)
+    logging.info(value_format,  *img_array.shape)
 
     return img_array
 
@@ -164,35 +167,26 @@ def get_subarray(img_array: np.ndarray[ismrmrd.Image],
         Subarray view corresponding to the requested indices.
     """
 
-    # Dimension names for readable error messages
-    dimension_names = [
-        "slice",
-        "contrast",
-        "average",
-        "phase",
-        "repetition",
-        "set",
-        "image_type",
-    ]
+    dimension_names = list(mrd_indexes)
 
-    args = [
-        img_slice, 
-        img_contrast, 
-        img_average, 
-        img_phase,
-        img_repetition, 
-        img_set, 
-        img_image_type,
-    ]
+    args = {
+        mrd_indexes.slice:      img_slice,
+        mrd_indexes.contrast:   img_contrast,
+        mrd_indexes.average:    img_average,
+        mrd_indexes.phase:      img_phase,
+        mrd_indexes.repetition: img_repetition,
+        mrd_indexes.set:        img_set,
+        mrd_indexes.image_type: img_image_type
+    }
 
     # Validate every requested index against the actual array shape
-    for value, dim_size, dim_name in zip(args, img_array.shape, dimension_names):
-        validate_index(value, dim_size, dim_name)
+    for dim in dimension_names:
+        validate_index(args[dim], img_array.shape[dim], dim.name)
     
     def to_index(x):
         return slice(None) if x is None else x
     
-    idx = tuple(to_index(v) for v in args)
+    idx = tuple(to_index(args[dim]) for dim in dimension_names)
     
     new_array = img_array[idx]
     logging.info(f"Subarray shape: {new_array.shape}")
