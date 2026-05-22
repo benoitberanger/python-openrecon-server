@@ -10,7 +10,7 @@ import numpy as np
 # from converter.mrd2nifti import mrd2nifti
 from utils.OutputSeries import OutputSeries, ProcessImageResult
 from utils.check_OR_arguments import check_OR_arguments
-from utils.img_array import get_subarray, stack_images
+from utils.img_array import get_subarray, mrd_indexes, stack_images
 from utils.memory import log_memory, log_memory_delta
 from utils.utils import display_diagnostic
 
@@ -65,72 +65,82 @@ def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None,
     logging.info(f"Echos summation config: {sum_config}")
     
     # --- Dimensions ------------------------------------------------------
-    # Get the number of contrasts (img_array axis 1)
-    n_contrasts = img_array.shape[1]
+    # Get the number of contrasts
+    n_contrasts = img_array.shape[mrd_indexes.contrast]
     logging.info("Summing %d echoes (contrasts)", n_contrasts)
 
-    # --- Stack first echo (reference for head and meta) ------------------
-    # Head and meta are taken from contrast 0, magnitude.
-    # Initialise data_sum with the first echo
-    # SoS: accumulate squared values, then take sqrt at the end
-    # SimpleSum: accumulate raw values directly
-    first_echo_images = get_subarray(img_array, img_contrast=0, img_image_type=ismrmrd.IMTYPE_MAGNITUDE)
-    data_sum, head, meta = stack_images(first_echo_images) #[img, cha, z, y, x], head, meta
-    # mrd2nifti(data_sum, head, os.path.join(debugFolder, "input.nii.gz"))
-    del first_echo_images
-
     series = OutputSeries()
+    for serie_index in range(0, img_array.shape[mrd_indexes.image_series_index]):    
+        # --- Stack first echo (reference for head and meta) ------------------
+        # Head and meta are taken from contrast 0, magnitude.
+        # Initialise data_sum with the first echo
+        # SoS: accumulate squared values, then take sqrt at the end
+        # SimpleSum: accumulate raw values directly
+        first_echo_images = get_subarray(img_array, 
+                                         img_contrast=0, 
+                                         img_image_type=ismrmrd.IMTYPE_MAGNITUDE,
+                                         img_image_series_index=serie_index)
+        if not first_echo_images.any():
+            continue
+        data_sum, head, meta = stack_images(first_echo_images) #[img, cha, z, y, x], head, meta
+        # mrd2nifti(data_sum, head, os.path.join(debugFolder, "input.nii.gz"))
+        del first_echo_images
 
-    # display diagnostic info in the log
-    display_diagnostic(head, meta)
-    
-    if (sum_config == 'SoS'):
-        np.square(data_sum, out=data_sum)
-    mem = log_memory_delta("process_image", "After stacking echo 0", mem)
-
-    # --- Sum with remaining echoes ---------------------------------------
-    # SoS: accumulate squared values, then take sqrt at the end
-    # SimpleSum: accumulate raw values directly
-    for co in range(1, n_contrasts):
-        images_co = get_subarray(img_array, img_contrast=co, img_image_type=ismrmrd.IMTYPE_MAGNITUDE)
-        data_co, _, _ = stack_images(images_co)
-        input_name = str(co) + "_input.nii.gz"
-        # mrd2nifti(data_co, head, os.path.join(debugFolder, input_name))
+        # display diagnostic info in the log
+        display_diagnostic(head[0], meta[0])
+        
         if (sum_config == 'SoS'):
-            np.square(data_co, out=data_co)
-        data_sum += data_co
-        del images_co, data_co
+            np.square(data_sum, out=data_sum)
+        mem = log_memory_delta("process_image", "After stacking echo 0", mem)
+
+        # --- Sum with remaining echoes ---------------------------------------
+        # SoS: accumulate squared values, then take sqrt at the end
+        # SimpleSum: accumulate raw values directly
+        for co in range(1, n_contrasts):
+            images_co = get_subarray(img_array, 
+                                     img_contrast=co, 
+                                     img_image_type=ismrmrd.IMTYPE_MAGNITUDE,
+                                     img_image_series_index=serie_index)
+            if not images_co.any():
+                continue
+            data_co, _, _ = stack_images(images_co)
+            input_name = str(co) + "_input.nii.gz"
+            # mrd2nifti(data_co, head, os.path.join(debugFolder, input_name))
+            if (sum_config == 'SoS'):
+                np.square(data_co, out=data_co)
+            data_sum += data_co
+            del images_co, data_co
+            gc.collect()
+            mem = log_memory_delta("process_image", f"After adding echo {co}", mem)
+
         gc.collect()
-        mem = log_memory_delta("process_image", f"After adding echo {co}", mem)
 
-    gc.collect()
+        # SoS finalisation: square root of the accumulated squared sum
+        if (sum_config == 'SoS'):
+            np.sqrt(data_sum, out=data_sum)
+            data_sum /= np.sqrt(n_contrasts)
+        else:
+            data_sum /= n_contrasts
 
-    # SoS finalisation: square root of the accumulated squared sum
-    if (sum_config == 'SoS'):
-        np.sqrt(data_sum, out=data_sum)
-        data_sum /= np.sqrt(n_contrasts)
-    else:
-        data_sum /= n_contrasts
+        # --- Normalisation to 12-bit range -----------------------------------
+        BitsStored = 12
+        maxVal     = 2**BitsStored - 1
 
-    # --- Normalisation to 12-bit range -----------------------------------
-    BitsStored = 12
-    maxVal     = 2**BitsStored - 1
+        data_sum  *= maxVal / data_sum.max()
+        np.around(data_sum, out=data_sum)
+        data_sum   = data_sum.astype(np.int16)
+        mem = log_memory_delta("process_image", "After normalisation", mem)
 
-    data_sum  *= maxVal / data_sum.max()
-    np.around(data_sum, out=data_sum)
-    data_sum   = data_sum.astype(np.int16)
-    mem = log_memory_delta("process_image", "After normalisation", mem)
+        np.save(debugFolder + "/imgMagnitudeSum.npy", data_sum)
 
-    np.save(debugFolder + "/imgMagnitudeSum.npy", data_sum)
-
-    # --- Update metadata -------------------------------------------------
-    if sum_config == 'SoS':
-        series.add(data_sum, head, meta, 
-                   process_history = ["PYTHON", "SOS"], 
-                   sequence_description = "SoS")
-    else:
-        series.add(data_sum, head, meta, 
-                   process_history = ["PYTHON", "ECHO_SUM_SIMPLE"], 
-                   sequence_description = "EchoSumSimple")
+        # --- Update metadata -------------------------------------------------
+        if sum_config == 'SoS':
+            series.add(data_sum, head, meta, 
+                    process_history = ["PYTHON", "SOS"], 
+                    sequence_description = "SoS")
+        else:
+            series.add(data_sum, head, meta, 
+                    process_history = ["PYTHON", "ECHO_SUM_SIMPLE"], 
+                    sequence_description = "EchoSumSimple")
     
     return series.get()

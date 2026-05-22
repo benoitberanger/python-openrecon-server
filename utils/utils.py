@@ -36,22 +36,20 @@ def send_original_images(images: list[ismrmrd.Image], connection: Connection) ->
     connection.send_image(images_copy)
 
 
-def display_diagnostic(head: list, meta: list[ismrmrd.Meta]) -> dict:
+def display_diagnostic(head: ismrmrd.ImageHeader, meta: ismrmrd.Meta) -> dict:
     """
     Log geometric and acquisition properties of an image group.
 
-    Extracts key spatial parameters from the first image header and
-    optionally decodes the Siemens ICE MiniHeader from the first Meta
+    Extracts key spatial parameters from one image header and
+    optionally decodes the Siemens ICE MiniHeader from one Meta
     object if present.
 
     Parameters
     ----------
     head : list of ismrmrd.ImageHeader
-        Image headers. Only the first element is used, it is assumed
-        all images in the group share the same geometry.
+        Image headers.
     meta : list of ismrmrd.Meta
-        Deserialised Meta objects. Only the first element is inspected
-        for the optional IceMiniHead field.
+        Deserialised Meta objects.
 
     Returns
     -------
@@ -66,16 +64,16 @@ def display_diagnostic(head: list, meta: list[ismrmrd.Meta]) -> dict:
     """
 
     # Optional serialization of ICE MiniHeader
-    if 'IceMiniHead' in meta[0]:
-        logging.debug("IceMiniHead[0]: %s", base64.b64decode(meta[0]['IceMiniHead']).decode('utf-8'))
+    if 'IceMiniHead' in meta:
+        logging.debug("IceMiniHead: %s", base64.b64decode(meta['IceMiniHead']).decode('utf-8'))
 
     # Diagnostic info
-    matrix    = np.array(head[0].matrix_size  [:]) 
-    fov       = np.array(head[0].field_of_view[:])
+    matrix    = np.array(head.matrix_size  [:]) 
+    fov       = np.array(head.field_of_view[:])
     voxelsize = fov/matrix
-    read_dir  = np.array(head[0].read_dir )
-    phase_dir = np.array(head[0].phase_dir)
-    slice_dir = np.array(head[0].slice_dir)
+    read_dir  = np.array(head.read_dir )
+    phase_dir = np.array(head.phase_dir)
+    slice_dir = np.array(head.slice_dir)
     logging.info(f'MRD computed maxtrix [x y z] : {matrix   }')
     logging.info(f'MRD computed fov     [x y z] : {fov      }')
     logging.info(f'MRD computed voxel   [x y z] : {voxelsize}')

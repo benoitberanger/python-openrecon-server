@@ -205,8 +205,8 @@ class Server:
             logging.info("Improperly formatted metadata: \n%s", metadata)
 
         # Check if the debug mode is enabled via JSON
-        if (not self.debug) and check_OR_arguments(configJSON, 'Debug', bool, False) == True :
-            self.debug = True
+        if (not self.debug) :
+            self.debug = check_OR_arguments(configJSON, 'Debug', bool, False)
         
         # Initialize the pipeline (only required without the debug mode)
         pipeline = None

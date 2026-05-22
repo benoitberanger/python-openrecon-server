@@ -67,7 +67,7 @@ def main(args):
     print("Found %d mrdImg sub-groups: %s" % (len(imageNames), ", ".join(imageNames)))
 
     for imageName in imageNames:
-        if ((imageName == 'xml') or (imageName == 'config') or (imageName == 'config_file')):
+        if ((imageName == 'xml') or (imageName == 'config') or (imageName == 'config_file') or (imageName == 'configAdditional')):
             continue
 
         mrdImg = group[imageName]
@@ -93,7 +93,7 @@ def main(args):
 
     filesWritten = 0
     for group in groups:
-        if ( (group == 'config') or (group == 'config_file') or (group == 'xml') ):
+        if ( (group == 'config') or (group == 'config_file') or (group == 'xml') or (group == 'configAdditional') ):
             continue
 
         print("Reading images from '/" + args.in_group + "/" + group + "'")
@@ -205,7 +205,8 @@ def main(args):
                     print("Unsupported data type: ", mrdImg.data.dtype)
 
                 dicomDset.SeriesNumber               = mrdImg.image_series_index
-                dicomDset.InstanceNumber             = mrdImg.image_index
+                # dicomDset.InstanceNumber             = mrdImg.image_index
+                dicomDset.InstanceNumber             = imgNum
 
                 # ----- Set some mandatory default values -----
                 if not 'SamplesPerPixel' in dicomDset:
@@ -289,7 +290,7 @@ def main(args):
                 # ROI
 
                 # Write DICOM files
-                fileName = "%02.0f_%s_%01.0f%03.0f.dcm" % (dicomDset.SeriesNumber, dicomDset.SeriesDescription, dicomDset.EchoNumbers, dicomDset.InstanceNumber)
+                fileName = "%02.0f_%s_%01.0f_%03.0f.dcm" % (dicomDset.SeriesNumber, dicomDset.SeriesDescription, dicomDset.EchoNumbers, dicomDset.InstanceNumber)
 
                 print("  Writing file %s" % fileName)
                 dicomDset.save_as(os.path.join(args.out_folder, fileName), enforce_file_format=True, implicit_vr=False, little_endian=True)

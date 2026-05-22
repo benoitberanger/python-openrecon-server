@@ -80,7 +80,7 @@ def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None,
             
             # display diagnostic info in the log
             if series is None:
-                display_diagnostic(head, meta)
+                display_diagnostic(head[0], meta[0])
                 series = OutputSeries()
 
             # --- Normalise to 12-bit range and convert to int16 --------------
