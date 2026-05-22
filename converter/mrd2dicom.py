@@ -124,7 +124,9 @@ def main(args):
 
                 # Enforce explicit little endian for written DICOM files
                 dicomDset.file_meta                            = pydicom.dataset.FileMetaDataset()
-                dicomDset.file_meta.TransferSyntaxUID          = pydicom.uid.ExplicitVRLittleEndian
+                # dicomDset.file_meta.TransferSyntaxUID          = pydicom.uid.ExplicitVRLittleEndian
+               
+                dicomDset.file_meta.TransferSyntaxUID          = pydicom.uid.ImplicitVRLittleEndian
                 dicomDset.file_meta.MediaStorageSOPClassUID    = pydicom.uid.MRImageStorage
                 dicomDset.file_meta.MediaStorageSOPInstanceUID = pydicom.uid.generate_uid()
                 pydicom.dataset.validate_file_meta(dicomDset.file_meta)
@@ -293,7 +295,7 @@ def main(args):
                 fileName = "%02.0f_%s_%01.0f_%03.0f.dcm" % (dicomDset.SeriesNumber, dicomDset.SeriesDescription, dicomDset.EchoNumbers, dicomDset.InstanceNumber)
 
                 print("  Writing file %s" % fileName)
-                dicomDset.save_as(os.path.join(args.out_folder, fileName), enforce_file_format=True, implicit_vr=False, little_endian=True)
+                dicomDset.save_as(os.path.join(args.out_folder, fileName), enforce_file_format=True, implicit_vr=True, little_endian=True)
                 filesWritten += 1
 
     print("Wrote %d DICOM files to %s" % (filesWritten, args.out_folder))

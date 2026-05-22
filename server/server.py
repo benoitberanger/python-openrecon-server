@@ -3,6 +3,7 @@
 import gc
 import json
 import logging
+import os
 import signal
 import socket
 import traceback
@@ -342,3 +343,40 @@ class Server:
         
         finally:
             connection.shutdown_close()
+
+            if connection.savedata is True:
+                self.close_and_renameSaveFile(connection)
+
+
+    def close_and_renameSaveFile(self, connection: Connection) -> None :
+        """
+        TO-DO: docstrings
+        """
+        try:
+            connection.dset.close()
+        except:
+            pass
+        if (connection.savedataFile == ""):
+            try:
+                # Ensure ismrmrd package has a context manager
+                if not (hasattr(ismrmrd.Dataset, '__enter__') and hasattr(ismrmrd.Dataset, '__exit__')):
+                    raise Exception("Current ismrmrd Python package does not support context manager as required by this code.  Please update to 1.14.1 or newer")
+
+                # Rename the saved file to use the protocol name
+                with ismrmrd.Dataset(connection.mrdFilePath, connection.savedataGroup, False) as dset:
+                    groups = dset.list()
+
+                    if ('xml' in groups):
+                        xml_header = dset.read_xml_header()
+                        xml_header = xml_header.decode("utf-8")
+                        mrdHead = ismrmrd.xsd.CreateFromDocument(xml_header)
+
+                if (mrdHead.measurementInformation.protocolName != ""):
+                    newFilePath = connection.mrdFilePath.replace("MRD_input_", mrdHead.measurementInformation.protocolName + "_")
+                    os.rename(connection.mrdFilePath, newFilePath)
+                    connection.mrdFilePath = newFilePath
+            except:
+                pass
+
+        if connection.mrdFilePath is not None:
+            logging.info("Incoming data was saved at %s", connection.mrdFilePath)

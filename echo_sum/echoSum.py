@@ -116,11 +116,9 @@ def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None,
         gc.collect()
 
         # SoS finalisation: square root of the accumulated squared sum
+        data_sum /= n_contrasts
         if (sum_config == 'SoS'):
             np.sqrt(data_sum, out=data_sum)
-            data_sum /= np.sqrt(n_contrasts)
-        else:
-            data_sum /= n_contrasts
 
         # --- Normalisation to 12-bit range -----------------------------------
         BitsStored = 12
