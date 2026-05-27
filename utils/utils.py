@@ -93,35 +93,19 @@ def display_diagnostic(head: ismrmrd.ImageHeader, meta: ismrmrd.Meta) -> dict:
     return diagnostic
 
 
-# def updateMeta(meta: list[ismrmrd.Meta], process_history: list[str] | str, sequence_description: list[str] | str) -> list[ismrmrd.Meta]:
-#     """
-#     Update the ImageProcessingHistory and SequenceDescriptionAdditional
-#     fields of a list of MRD Meta objects.
+def MRD5Dto3D(data_mrd5D: np.array) -> np.array:
+    """
+    TO-DO: docstring
+    """
 
-#     Parameters
-#     ----------
-#     meta : list of ismrmrd.Meta
-#         Meta objects to update, one per image
-#     process_history : list of str or str
-#         Processing steps to record (e.g. ['PYTHON', 'INVERT'] or 'INVERT')
-#     sequence_description : list of str or str
-#         Sequence label appended to the series name in the client UI.
-#         (e.g. ['echo', 'sum'] → 'echo_sum', or 'invertcontrast')
+    # Reformat data to [y x z cha img], i.e. [row col] for the first two dimensions
+    data_mrd5D = data_mrd5D.transpose((3, 4, 2, 1, 0))
 
-#     Returns
-#     -------
-#     list of ismrmrd.Meta
-#         The same list, with each Meta updated.
-#     """
-#     if isinstance(process_history, str):
-#         process_history = [process_history]
-    
-#     if isinstance(sequence_description, list):
-#         sequence_description = '_'.join(sequence_description)
+    logging.debug("Original image data is size %s" % (data_mrd5D.shape,))
 
-#     for m in meta:
-#         m['DataRole']                      = 'Image'
-#         m['ImageProcessingHistory']        = process_history
-#         m['SequenceDescriptionAdditional'] = sequence_description
+    data_5d = data_mrd5D.astype(np.float64)
 
-#     return meta    
+    # Reformat data from [y x z cha img] to [y x img]
+    data_3d = data_5d[:,:,0,0,:]
+        
+    return data_3d

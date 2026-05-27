@@ -115,11 +115,11 @@ def main(args):
                     print("Multi-channel data not yet supported")
                     continue
 
-                # Use previously JSON serialized header as a starting point, if available
-                if meta.get('DicomJson') is not None:
-                    dicomDset = pydicom.dataset.Dataset.from_json(base64.b64decode(meta['DicomJson']))
-                else:
-                    dicomDset = pydicom.dataset.Dataset()
+                # # Use previously JSON serialized header as a starting point, if available
+                # if meta.get('DicomJson') is not None:
+                #     dicomDset = pydicom.dataset.Dataset.from_json(base64.b64decode(meta['DicomJson']))
+                # else:
+                #     dicomDset = pydicom.dataset.Dataset()
                 dicomDset = pydicom.dataset.Dataset()
 
                 # Enforce explicit little endian for written DICOM files
@@ -186,23 +186,64 @@ def main(args):
                 except:
                     print("Error setting header information from MRD header's acquisitionSystemInformation section")
 
-                # Set mrdImg pixel data from MRD mrdImg
-                dicomDset.PixelData = np.squeeze(mrdImg.data).tobytes() # mrdImg.data is [cha z y x] -- squeeze to [y x] for [row col]
-                dicomDset.Rows      = mrdImg.data.shape[2]
-                dicomDset.Columns   = mrdImg.data.shape[3]
+                dicomDset.Rows    = mrdImg.data.shape[2]
+                dicomDset.Columns = mrdImg.data.shape[3]
 
-                if (mrdImg.data.dtype == 'uint16') or (mrdImg.data.dtype == 'int16'):
+                # # Set mrdImg pixel data from MRD mrdImg
+                # if not ((mrdImg.data.dtype == 'uint16') or (mrdImg.data.dtype == 'int16')):
+                #     BitsStored = 12
+                #     maxVal = 2**BitsStored - 1
+                #     img_data = mrdImg.data
+                #     img_data *= maxVal/img_data.max()
+                #     np.around(img_data, out=img_data)
+                #     img_data = img_data.astype(np.int16)
+                #     dicomDset.PixelData = img_data.tobytes()
+                # else:
+                #     dicomDset.PixelData = np.squeeze(mrdImg.data).tobytes() # mrdImg.data is [cha z y x] -- squeeze to [y x] for [row col]
+
+                # dicomDset.BitsAllocated = 16
+                # dicomDset.BitsStored    = 16
+                # dicomDset.HighBit       = 15
+                
+                # Set mrdImg pixel data from MRD mrdImg
+                img_data = np.squeeze(mrdImg.data)  # [y x]
+                dicomDset.Rows    = mrdImg.data.shape[2]
+                dicomDset.Columns = mrdImg.data.shape[3]
+
+                if mrdImg.data.dtype in (np.dtype('uint16'), np.dtype('int16')):
+                    dicomDset.PixelData     = img_data.tobytes()
                     dicomDset.BitsAllocated = 16
                     dicomDset.BitsStored    = 16
                     dicomDset.HighBit       = 15
-                elif (mrdImg.data.dtype == 'uint32') or (mrdImg.data.dtype == 'int') or (mrdImg.data.dtype == 'float32'):
+
+                elif mrdImg.data.dtype in (np.dtype('uint32'), np.dtype('int32')):
+                    dicomDset.PixelData     = img_data.tobytes()
                     dicomDset.BitsAllocated = 32
                     dicomDset.BitsStored    = 32
                     dicomDset.HighBit       = 31
-                elif (mrdImg.data.dtype == 'float64'):
-                    dicomDset.BitsAllocated = 64
-                    dicomDset.BitsStored    = 64
-                    dicomDset.HighBit       = 63
+
+                elif mrdImg.data.dtype in (np.dtype('float32'), np.dtype('float64')):
+                    img_min = float(img_data.min())
+                    img_max = float(img_data.max())
+
+                    if img_max != img_min:
+                        scale     = (img_max - img_min) / 32767.0
+                        intercept = img_min
+                    else:
+                        scale     = 1.0
+                        intercept = 0.0
+
+                    img_int16 = ((img_data - img_min) / (img_max - img_min) * 32767).astype(np.int16)
+
+                    dicomDset.PixelData           = img_int16.tobytes()
+                    dicomDset.BitsAllocated       = 16
+                    dicomDset.BitsStored          = 16
+                    dicomDset.HighBit             = 15
+                    dicomDset.PixelRepresentation = 0
+                    dicomDset.RescaleSlope        = scale
+                    dicomDset.RescaleIntercept    = intercept
+                    dicomDset.RescaleType         = 'US'
+
                 else:
                     print("Unsupported data type: ", mrdImg.data.dtype)
 
