@@ -350,33 +350,62 @@ class Server:
 
     def close_and_renameSaveFile(self, connection: Connection) -> None :
         """
-        TO-DO: docstrings
+        Close the MRD save file and optionally rename it using the protocol name.
+
+        If the connection was configured to auto-generate a save filename
+        (i.e. savedataFile was not explicitly set), attempts to rename the
+        file by replacing the 'MRD_input_' prefix with the protocol name
+        read from the MRD XML header.
+
+        Parameters
+        ----------
+        connection : Connection
+            Active or recently closed MRD connection. The following
+            attributes are used:
+
+            - ``connection.dset`` : HDF5 dataset handle to close.
+            - ``connection.savedataFile`` : explicit save path if set,
+            empty string if auto-generated.
+            - ``connection.mrdFilePath`` : current path of the save file,
+            updated in-place if renamed.
+            - ``connection.savedataGroup`` : HDF5 group name used to
+            read the XML header for the protocol name.
         """
         try:
             connection.dset.close()
         except:
             pass
-        if (connection.savedataFile == ""):
-            try:
-                # Ensure ismrmrd package has a context manager
-                if not (hasattr(ismrmrd.Dataset, '__enter__') and hasattr(ismrmrd.Dataset, '__exit__')):
-                    raise Exception("Current ismrmrd Python package does not support context manager as required by this code.  Please update to 1.14.1 or newer")
 
-                # Rename the saved file to use the protocol name
-                with ismrmrd.Dataset(connection.mrdFilePath, connection.savedataGroup, False) as dset:
-                    groups = dset.list()
+        # --- Rename only if the filename was auto-generated ------------------
+        if (connection.savedataFile != ""):
+            if connection.mrdFilePath is not None:
+                logging.info("Incoming data saved at %s", connection.mrdFilePath)
+            return
+        
+        try:
+            # Ensure ismrmrd package has a context manager
+            if not (hasattr(ismrmrd.Dataset, '__enter__') and hasattr(ismrmrd.Dataset, '__exit__')):
+                raise Exception("Current ismrmrd Python package does not support context manager as required by this code.  Please update to 1.14.1 or newer")
 
-                    if ('xml' in groups):
-                        xml_header = dset.read_xml_header()
-                        xml_header = xml_header.decode("utf-8")
-                        mrdHead = ismrmrd.xsd.CreateFromDocument(xml_header)
+            # Rename the saved file to use the protocol name
+            with ismrmrd.Dataset(connection.mrdFilePath, connection.savedataGroup, False) as dset:
+                groups = dset.list()
 
-                if (mrdHead.measurementInformation.protocolName != ""):
-                    newFilePath = connection.mrdFilePath.replace("MRD_input_", mrdHead.measurementInformation.protocolName + "_")
-                    os.rename(connection.mrdFilePath, newFilePath)
-                    connection.mrdFilePath = newFilePath
-            except:
-                pass
+                if ('xml' not in groups):
+                    return
+                xml_header = dset.read_xml_header()
+                xml_header = xml_header.decode("utf-8")
+                mrdHead = ismrmrd.xsd.CreateFromDocument(xml_header)
+                protocol = mrdHead.measurementInformation.protocolName
 
+            if (protocol ):
+                newFilePath = connection.mrdFilePath.replace("MRD_input_", protocol + "_")
+                os.rename(connection.mrdFilePath, newFilePath)
+                connection.mrdFilePath = newFilePath
+                logging.info("Save file renamed to %s", newFilePath)
+        
+        except Exception as e:
+            logging.debug(f"Could not rename save file : {e}")
+        
         if connection.mrdFilePath is not None:
-            logging.info("Incoming data was saved at %s", connection.mrdFilePath)
+            logging.info("Incoming data saved at %s", connection.mrdFilePath)

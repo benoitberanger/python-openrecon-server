@@ -95,7 +95,22 @@ def display_diagnostic(head: ismrmrd.ImageHeader, meta: ismrmrd.Meta) -> dict:
 
 def MRD5Dto3D(data_mrd5D: np.array) -> np.array:
     """
-    TO-DO: docstring
+    Convert a 5D MRD image stack to a 3D array (y, x, img)
+
+    Transposes the MRD axis order [img, cha, z, y, x] to the spatial
+    convention [y, x, img], keeping only the first channel (cha=0) and
+    first z-slice (z=0). This assumes single-channel, single-slice 2D
+    images as typically produced by MRI reconstructions.
+
+    Parameters
+    ----------
+    data_mrd5D : np.ndarray
+        Stacked MRD image data, shape [img, cha, z, y, x].
+
+    Returns
+    -------
+    np.ndarray
+        3D array of shape [y, x, img].
     """
 
     # Reformat data to [y x z cha img], i.e. [row col] for the first two dimensions
@@ -103,9 +118,7 @@ def MRD5Dto3D(data_mrd5D: np.array) -> np.array:
 
     logging.debug("Original image data is size %s" % (data_mrd5D.shape,))
 
-    data_5d = data_mrd5D.astype(np.float64)
-
     # Reformat data from [y x z cha img] to [y x img]
-    data_3d = data_5d[:,:,0,0,:]
+    data_3d = data_mrd5D[:,:,0,0,:]
         
     return data_3d
