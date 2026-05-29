@@ -129,7 +129,7 @@ class OutputSeries:
                 m["SequenceDescriptionAdditional"] = sequence_description
 
             # Incremente image_series_index
-            h.image_series_index += self.n_series
+            h.image_series_index = self.n_series
 
         self.series.append((data, head_copy, meta_copy))
         self.n_series += 1
