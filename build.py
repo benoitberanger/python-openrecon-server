@@ -296,7 +296,7 @@ def prepare_infos(json_content, build_path: str) -> dict:
     return build_data
 
 
-def write_dockerfile(json_content, cmdline: str, docker_path: str, build_docker_path: str) -> None:
+def write_dockerfile(json_content, cmdline: str, docker_path: str, build_data: dict) -> None:
     """
     Generate the final application Dockerfile for OpenRecon.
 
@@ -314,8 +314,9 @@ def write_dockerfile(json_content, cmdline: str, docker_path: str, build_docker_
         Shell command used to start the MRD server inside the container.
     docker_path : str
         Path to the source ``application.Dockerfile`` in the app directory.
-    build_docker_path : str
-        Destination path for the generated Dockerfile in the build directory.
+    build_data : dict
+        Dict containing the path for the generated Dockerfile in the build 
+        directory, and the name and version of the application.
     """
     logger = logging.getLogger()
 
@@ -326,6 +327,9 @@ def write_dockerfile(json_content, cmdline: str, docker_path: str, build_docker_
     logger.info(f"Write `build` Dockerfile : {docker_path}")
     dockerfile_content = [
         f'',
+        f'# Version',
+        f'LABEL "{build_data['info']['name']}_version"="{build_data['info']['version']}"',
+        f'',
         f'# CMD line',
         f'CMD [ "/bin/bash", "-c", "/usr/sbin/ldconfig && {cmdline}" ] ',
         f'',
@@ -335,9 +339,9 @@ def write_dockerfile(json_content, cmdline: str, docker_path: str, build_docker_
     ]
     dockerfile_content = "\n".join(dockerfile_content)
 
-    shutil.copy(docker_path, build_docker_path)
+    shutil.copy(docker_path, build_data['path']['docker'])
 
-    with open(file=build_docker_path, mode='a') as fid:
+    with open(file=build_data['path']['docker'], mode='a') as fid:
         fid.writelines(dockerfile_content)
 
 
@@ -490,7 +494,7 @@ def main(args: argparse.Namespace):
 
     # Write the Dockerfile
     app_docker_path = os.path.join(target_path, 'application.Dockerfile')
-    write_dockerfile(json_content, cmdline, app_docker_path, build_data['path']['docker'])
+    write_dockerfile(json_content, cmdline, app_docker_path, build_data)
 
     # build docker image
     logger.info(f"building docker image `{build_data['name']['docker']}` from Docker file {build_data['path']['docker']}")

@@ -1,9 +1,9 @@
 # import python-openrecon-server as starting point
 FROM python-openrecon-server AS base
 
-LABEL invertcontrast_version="1.0.4"
-
 COPY . .
+
+# Label with version of the app will be set automaticaly by the build.py script
 
 # Command line will be added automaticaly by the build.py script
 
