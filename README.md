@@ -1,7 +1,7 @@
 # python-openrecon-server
 
 A Python template to help building MRD image processing pipelines for Siemens OpenRecon.
-The puropose is to build a simple invert contrast `i2i` application as described by Siemens on the SDK on https://www.magnetom.net, using a single build script, without any modification.
+The puropose is to build a simple invert contrast `i2i` application as described by Siemens on the SDK on [MAGNETOM Community](https://www.magnetom.net), using a single build script, without any modification.
 
 For later developments, the first step of a new OpenRecon project it to create a new repo based on this `python-openrecon-server`, then modify the `app` dir (or any other dir), to finnaly call the building process.
 
@@ -111,26 +111,29 @@ Steps performed:
 4. Validates the JSON UI file against its schema.
 5. Generates the final Dockerfile with the OpenRecon metadata label.
 6. Builds the application Docker image.
-7. Exports the image as `.tar`, generates a PDF, and bundles both into a `.zip`.
+7. Exports the image as `.tar`, generates a PDF if none was given, and bundles both into a `.zip`.
 
 ### Build options
 
-| Argument | Description |
-|---|---|
-| `--dirname` | Application directory name. Default: `app` |
-| `--debug` | Embed `--debug` flag in the Dockerfile CMD |
+| Argument      | Description                                              |
+|---------------|----------------------------------------------------------|
+| `--dirname`   | Application directory name. Default: `app`               |
+| `--pdf-file`  | optional PDF file. Default : `None`
+| `--debug`     | Embed `--debug` flag in the Dockerfile CMD               |
 | `--nopackage` | Skip `.tar`, PDF and `.zip` packaging (build image only) |
 
 ### Required files in the application directory
 
-| File | Description |
-|---|---|
-| `<name>_json_ui.json` | OpenRecon UI parameter |
+| File                         | Description                     |
+|------------------------------|---------------------------------|
+| `<name>_json_ui.json`        | OpenRecon UI parameter          |
 | `OpenReconSchema_1.1.0.json` | JSON schema for JSON validation |
-| `<name>.py` | Processing module |
-| `application.Dockerfile` | Application-specific Dockerfile |
+| `<name>.py`                  | Processing module               |
+| `application.Dockerfile`     | Application-specific Dockerfile |  
 
 > _**Warning** : the name in the processing app and OpenRecon UI parameter have to be identical._
+
+See OpenRecon SDK from [MAGNETOM Community](https://www.magnetom.net) for documentation about JSON file.
 
 ### Output
 
@@ -150,11 +153,11 @@ def process_image(
 
 ### Parameters
 
-| Parameter | Type | Description |
-|---|---|---|
-| `img_array` | `np.ndarray[ismrmrd.Image]` | 7D structured array of MRD images |
-| `configJSON` | `dict` or `None` | JSON configuration sent by the client |
-| `metadata` | `ismrmrd.xsd.ismrmrdHeader` | MRD acquisition header |
+| Parameter    | Type                        | Description                           |
+|--------------|-----------------------------|---------------------------------------|
+| `img_array`  | `np.ndarray[ismrmrd.Image]` | ND structured array of MRD images     |
+| `configJSON` | `dict` or `None`            | JSON configuration sent by the client |
+| `metadata`   | `ismrmrd.xsd.ismrmrdHeader` | MRD acquisition header                |
 
 ### Accessing OpenRecon JSON UI Configuration
 
@@ -163,7 +166,7 @@ sent by the client. Use `check_OR_arguments()` to read them safely with
 a default fallback:
 
 ```python
-from utils.config import check_OR_arguments
+from utils.check_OR_arguments import check_OR_arguments
 
 # Read a string parameter, default to 'SimpleSum'
 mode = check_OR_arguments(configJSON, "EchoSumConfig", str, "SimpleSum")
@@ -177,30 +180,31 @@ save = check_OR_arguments(configJSON, "SaveOriginal", bool, False)
 The following keys are handled by the pipeline and do not need to be
 read manually in `process_image`:
 
-| Key | Type | Default | Description |
-|---|---|---|---|
-| `"Debug"` | `bool` | `False` | Enable debug mode at runtime |
-| `"SaveOriginal"` | `bool` | `True` | Send original images before processed ones |
+| Key              | Type   | Default | Description                                |
+|------------------|--------|---------|--------------------------------------------|
+| `"Debug"`        | `bool` | `False` | Enable debug mode                          |
+| `"SaveOriginal"` | `bool` | `True`  | Send original images before processed ones |
 
 > _If they are not provided in the JSON configuration, they default value will be used._
 
 ### The image array
 
-Images are organised in a 7D numpy array:
+Images are organised in a 8D numpy array:
 
-**`img_array[slice, contrast, average, phase, repetition, set, image_type]`**
+**`img_array[slice, contrast, average, phase, repetition, set, image_type, image_series_index]`**
 
+> _See `mrd_indexes` in utils.img_array if you want to modify this array._
 
 Each cell contains an `ismrmrd.Image` object or `None`. `image_type` uses MRD constants directly as indices:
 
-| Constant | Value |
-|---|---|
-| `ismrmrd.IMTYPE_MAGNITUDE` | 1 |
-| `ismrmrd.IMTYPE_PHASE` | 2 |
-| `ismrmrd.IMTYPE_REAL` | 3 |
-| `ismrmrd.IMTYPE_IMAG` | 4 |
-| `ismrmrd.IMTYPE_COMPLEX` | 5 |
-| `ismrmrd.IMTYPE_RGB` | 6 |
+| Constant                   | Value |
+|----------------------------|-------|
+| `ismrmrd.IMTYPE_MAGNITUDE` | 1     |
+| `ismrmrd.IMTYPE_PHASE`     | 2     |
+| `ismrmrd.IMTYPE_REAL`      | 3     |
+| `ismrmrd.IMTYPE_IMAG`      | 4     |
+| `ismrmrd.IMTYPE_COMPLEX`   | 5     |
+| `ismrmrd.IMTYPE_RGB`       | 6     |
 
 ### Accessing images
 
@@ -313,7 +317,7 @@ series.add(
     sequence_description = "step1step2",
 )
 
-return series.get()   # pipeline sends both series in order
+return series.get()   # pipeline sends both series
 ```
 
 
@@ -346,15 +350,15 @@ python main.py --config <your_module> --dirname <app>
 ```
 Available arguments:
 
-| Argument | Default | Description |
-|---|---|---|
-| `--config` | `invertcontrast` | Processing module name (without `.py`) |
-| `--dirname` | `app` | Directory containing the processing module |
-| `-H` | `0.0.0.0` | Host address |
-| `-p` | `9002` | TCP port |
-| `-v` | — | Verbose logging |
-| `--debug` | — | Enable debug mode (passthrough, no processing) |
-| `-l` | — | Log file path |
+| Argument    | Default          | Description                                    |
+|-------------|------------------|------------------------------------------------|
+| `--config`  | `invertcontrast` | Processing module name (without `.py`)         |
+| `--dirname` | `app`            | Directory containing the processing module     |
+| `-H`        | `0.0.0.0`        | Host address                                   |
+| `-p`        | `9002`           | TCP port                                       |
+| `-v`        | —                | Verbose logging                                |
+| `--debug`   | —                | Enable debug mode (passthrough, no processing) |
+| `-l`        | —                | Log file path                                  |
 
 2. Convert DICOMs or enhanced DICOMs images to MRD images .h5 file:
 

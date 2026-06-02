@@ -207,7 +207,7 @@ class Server:
 
         # Check if the debug mode is enabled via JSON
         if (not self.debug) :
-            self.debug = check_OR_arguments(configJSON, 'Debug', bool, False)
+            self.debug = check_OR_arguments(configJSON, arg_name='Debug', arg_type=bool, arg_default=False)
         
         # Initialize the pipeline (only required without the debug mode)
         pipeline = None

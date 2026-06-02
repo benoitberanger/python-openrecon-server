@@ -392,7 +392,7 @@ def create_pdf(file_path: str, lines_of_text: list[str]) -> None:
         f.write(trailer)
 
 
-def packaging_OR_image(build_data: dict) -> None:
+def packaging_OR_image(build_data: dict, pdf_file: str | None) -> None:
     """
     Export the OpenRecon Docker image and package it as a .zip file.
 
@@ -405,6 +405,8 @@ def packaging_OR_image(build_data: dict) -> None:
     ----------
     build_data: dict
         Build data as returned by prepare_infos()
+    pdf_file: str or None
+        Path the a pdf file
     """
     logger = logging.getLogger()
 
@@ -416,18 +418,24 @@ def packaging_OR_image(build_data: dict) -> None:
     subprocess.run(['docker', 'save', '-o', build_data['path']['tar'], build_data['name']['docker']], check=True)
     logger.info(f"(2/2) saving image DONE")
 
-    # generate PDF
-    lines = [
-        f'vendor={build_data['info']['vendor']}',
-        f'name={build_data['info']['name']}',
-        f'version={build_data['info']['version']}',
-    ]
-    logger.info(f"write PDF file : {build_data['path']['pdf']}")
-    create_pdf(file_path=build_data['path']['pdf'], lines_of_text=lines)
+    if pdf_file:
+        pdf_path = os.path.join(cwd, pdf_file)
+
+    if (not pdf_file) or (not os.path.exists(pdf_path)):
+        logging.info(f"PDF file {pdf_file} not found. Generation of a minimal PDF.")
+        pdf_path = build_data['path']['pdf']
+        # generate PDF
+        lines = [
+            f'vendor={build_data['info']['vendor']}',
+            f'name={build_data['info']['name']}',
+            f'version={build_data['info']['version']}',
+        ]
+        logger.info(f"write PDF file : {build_data['path']['pdf']}")
+        create_pdf(file_path=build_data['path']['pdf'], lines_of_text=lines)
 
     # save everything in a ZIP file
     logger.info(f"(1/2) zip all files : {build_data['path']['zip']}")
-    subprocess.run(['zip', build_data['name']['base']+'.zip', build_data['name']['base']+'.tar', build_data['name']['base']+'.pdf'], check=True, cwd=build_path)
+    subprocess.run(['zip', '-j', build_data['name']['base']+'.zip', build_data['path']['tar'], pdf_path], check=True, cwd=build_path)
     logger.info(f"(2/2) zip all files DONE")
 
 
@@ -502,7 +510,7 @@ def main(args: argparse.Namespace):
 
     # generate a pdf documentation and save the docker image and its doc in a .zip
     if not args.nopackage : 
-        packaging_OR_image(build_data)
+        packaging_OR_image(build_data, args.pdf_file)
 
     # END
     print_section('All done !')
@@ -538,8 +546,9 @@ if __name__ == '__main__':
         help    = 'Application directory name. ex: `demo-i2i`, `app`',
         default = 'app'
     )
-    parser.add_argument('-D', '--debug', action='store_true', help='Build the server in debug mode')
-    parser.add_argument('--nopackage',   action='store_true', help='Do not save the docker image in a .zip file')
+    parser.add_argument('-p', '--pdf-file', type=str,              help='PDF file to put in the app .zip file. If None, genrate a minimal one.', default=None)
+    parser.add_argument('-D', '--debug',    action='store_true',   help='Build the server in debug mode')
+    parser.add_argument('--nopackage',      action='store_true',   help='Do not save the docker image in a .zip file')
 
     args = parser.parse_args()
 

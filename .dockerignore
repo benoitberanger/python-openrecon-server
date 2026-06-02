@@ -2,6 +2,7 @@
 build/
 data/
 ExampleData/
+build.py
 
 # Git
 .git

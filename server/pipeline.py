@@ -110,7 +110,7 @@ class Pipeline:
             send_original_images(images, self.connection)
             return []
         
-        if check_OR_arguments(configJSON, 'SaveOriginal', bool, True) == True:
+        if check_OR_arguments(configJSON, arg_name='SaveOriginal', arg_type=bool, arg_default=True) == True:
             logging.info("Send original images")
             send_original_images(images, self.connection)
 

@@ -62,27 +62,26 @@ def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None,
     image_type_name = ('', 'MAGNITUDE', 'PHASE', 'REAL', 'IMAG', 'COMPLEX', 'RGB')
 
     # --- Treat all types of images ---------------------------------------
-    series = None
+    series = OutputSeries()
     
     for image_type in range(1, n_image_type):
 
-        # --- stack images ------------------------------------------------
         for serie_index in range(0, img_array.shape[mrd_indexes.image_series_index]):
             sub_array = get_subarray(img_array, img_image_type=image_type, img_image_series_index=serie_index)
             if not sub_array.any():
                 continue
+            # --- stack images ------------------------------------------------
             data, head, meta = stack_images(sub_array)
             # mrd2nifti(data, head, os.path.join(debugFolder, "input.nii.gz"))
             mem = log_memory_delta("process_image", "After stack_images", mem)
             del sub_array
             
             logging.info("  --- Invert contrast on %d %s images ---", len(head), image_type_name[image_type])
-            
+
             # display diagnostic info in the log
             if series is None:
                 display_diagnostic(head[0], meta[0])
-                series = OutputSeries()
-
+            
             # --- Normalise to 12-bit range and convert to int16 --------------
             data *= maxVal/data.max()
             np.around(data, out=data)

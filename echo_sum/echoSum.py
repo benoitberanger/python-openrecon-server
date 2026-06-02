@@ -61,7 +61,10 @@ def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None,
     mem = log_memory("process_image", "Begining")
 
     # --- OR Parameters ---------------------------------------------------
-    sum_config = check_OR_arguments(configJSON, 'EchoSumConfig', str, 'SimpleSum')
+    sum_config = check_OR_arguments(configJSON, 
+                                    arg_name='EchoSumConfig', 
+                                    arg_type=str, 
+                                    arg_default='SimpleSum')
     logging.info(f"Echos summation config: {sum_config}")
     
     # --- Dimensions ------------------------------------------------------
