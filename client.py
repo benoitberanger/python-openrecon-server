@@ -22,7 +22,7 @@ defaults = {
     'port':               9002,
     'outfile':            None,
     'out_group':          str(datetime.datetime.now()),
-    'config_json':        'openrecon.json',
+    'config_json':        None,
     'send_waveforms':     False,
     'verbose':            False,
     'logfile':            '',

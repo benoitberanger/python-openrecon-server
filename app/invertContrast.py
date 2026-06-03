@@ -14,7 +14,7 @@ from utils.OutputSeries import OutputSeries, ProcessImageResult
 from utils.check_OR_arguments import check_OR_arguments
 from utils.img_array import get_type_magnitude, get_subarray, mrd_indexes, stack_images
 from utils.memory import log_memory, log_memory_delta
-from utils.utils import display_diagnostic
+from utils.utils import display_diagnostic, normalise
 
 
 # Folder for debug output files
@@ -64,9 +64,9 @@ def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None,
     # --- Treat all types of images ---------------------------------------
     series = OutputSeries()
     
-    for image_type in range(1, n_image_type):
+    for serie_index in range(0, img_array.shape[mrd_indexes.image_series_index]):
 
-        for serie_index in range(0, img_array.shape[mrd_indexes.image_series_index]):
+        for image_type in range(1, n_image_type):
             sub_array = get_subarray(img_array, img_image_type=image_type, img_image_series_index=serie_index)
             if not sub_array.any():
                 continue
@@ -83,8 +83,7 @@ def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None,
                 display_diagnostic(head[0], meta[0])
             
             # --- Normalise to 12-bit range and convert to int16 --------------
-            data *= maxVal/data.max()
-            np.around(data, out=data)
+            data = normalise(data)
             data = data.astype(np.int16)
             gc.collect()
             mem = log_memory_delta("process_image", "After normalisation", mem)
@@ -95,7 +94,7 @@ def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None,
             np.save(debugFolder + "/" + "imgInverted.npy", data)
             mem = log_memory_delta("process_image", "After inversion", mem)
 
-            # --- Add series ---------------------------------------------
+            # --- Add series --------------------------------------------------
             series.add(data, head, meta, 
                 process_history = ["PYTHON", "INVERT"], 
                 sequence_description = "invertcontrast")

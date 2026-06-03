@@ -12,7 +12,7 @@ from utils.OutputSeries import OutputSeries, ProcessImageResult
 from utils.check_OR_arguments import check_OR_arguments
 from utils.img_array import get_subarray, mrd_indexes, stack_images
 from utils.memory import log_memory, log_memory_delta
-from utils.utils import display_diagnostic
+from utils.utils import display_diagnostic, normalise
 
 
 # Folder for debug output files
@@ -123,13 +123,9 @@ def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None,
         if (sum_config == 'SoS'):
             np.sqrt(data_sum, out=data_sum)
 
-        # --- Normalisation to 12-bit range -----------------------------------
-        BitsStored = 12
-        maxVal     = 2**BitsStored - 1
-
-        data_sum  *= maxVal / data_sum.max()
-        np.around(data_sum, out=data_sum)
-        data_sum   = data_sum.astype(np.int16)
+        # --- Normalisation to 12-bit range and convert to int16 --------------
+        data_sum = normalise(data_sum)
+        data_sum = data_sum.astype(np.int16)
         mem = log_memory_delta("process_image", "After normalisation", mem)
 
         np.save(debugFolder + "/imgMagnitudeSum.npy", data_sum)

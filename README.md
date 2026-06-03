@@ -54,7 +54,7 @@ flowchart TB
             app["APP\nprocess_image()\nuser processing module"]
             send_slices["send_volume_as_slices()\n2D MRD images"]
 
-            save_orig --> nd_array --> app --> send_slices
+            save_orig --> nd_array --> app:::test --> send_slices
         end
 
     end
@@ -62,6 +62,48 @@ flowchart TB
     passthrough --> output([ISMRMRD])
     save_orig -.->|yes| output
     send_slices --> output
+    classDef test fill: #487685
+```
+
+Flowchart example of a generic processing module:
+```mermaid
+---
+config:
+  theme: 'base'
+  themeVariables:
+    primaryColor: '#2f5864'
+    primaryTextColor: '#fff'
+    tertiaryTextColor: '#fff'
+    primaryBorderColor: '#fff'
+    tertiaryBorderColor: '#303030'
+    lineColor: '#303030'
+    tertiaryColor: '#6893a0'
+---
+flowchart LR
+
+    subgraph app["app/you_module.py"]
+        subgraph process_image["process_image(img_array, configJSON, metadata)"]
+
+            init_series["initialise OutputSeries"] --> process
+            or_arg["check OR arguments"] -.-> process
+
+            subgraph process[" "]
+                subarray["extract images\nget_subarray()"]
+                stack["stack images\npixel data [img,cha,z,y,x],\n[head],\n[meta]"]
+                your_code["Your processing code"]
+                recast["Convert to int16"]
+                add["OutputSeries.add()"]
+
+                subarray --> stack --> your_code --> recast --> add
+
+            end
+        process --> get["OutputSeries.get()"]
+        
+        end
+
+    end
+
+    get --> output([ProcessImageResult])
 ```
 
 ---

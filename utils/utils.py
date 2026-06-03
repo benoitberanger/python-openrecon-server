@@ -93,6 +93,29 @@ def display_diagnostic(head: ismrmrd.ImageHeader, meta: ismrmrd.Meta) -> dict:
     return diagnostic
 
 
+def normalise(data: np.array) -> np.array:
+    """
+    Normalise pixel data of MRD images.
+
+    Parameters
+    ----------
+    data : np.ndarray
+        Stacked MRD image data.
+    
+    Returns
+    -------
+    np.ndarray
+        normalise data.
+    """
+    BitsStored = 12
+    maxVal = 2**BitsStored - 1
+
+    data *= maxVal/data.max()
+    np.around(data, out=data)
+
+    return data
+
+
 def MRD5Dto3D(data_mrd5D: np.array) -> np.array:
     """
     Convert a 5D MRD image stack to a 3D array (y, x, img)
