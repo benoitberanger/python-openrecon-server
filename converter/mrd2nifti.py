@@ -1,8 +1,11 @@
 #!/bin/python3
 
+import argparse
 import logging
 import os
+import re
 
+import h5py
 import ismrmrd
 import numpy as np
 import nibabel as nib
@@ -98,6 +101,9 @@ def mrd2nifti(
 
 
 def compute_nifti_affine(image_header, voxel_size):
+    """
+    TO-DO
+    """
 
     # --- Affine : LPS (MRD) to RAS (NIfTI) -------------------------------
     def lps_to_ras(v):
@@ -120,3 +126,158 @@ def compute_nifti_affine(image_header, voxel_size):
     affine[:3, 3]  = position
     
     return affine
+
+
+def assemble_volume(images: list, extra_dims: list) :
+    if not images: 
+        raise ValueError("Empty image list")
+    
+
+def detect_extra_dims(images: list) -> list:
+    possible_dims = ["contrast", "phase", "repetition", "set", "average"]
+    active = []
+
+    for dim in possible_dims:
+        values = {int(getattr(img.getHead(), dim, 0)) for img in images}
+        if len(values) > 1:
+            active.append(dim)
+    return active
+
+
+def make_nifti(data: np.ndarray, affine: np.ndarray, meta: dict) -> nib.Nifti1Image:
+    img = nib.Nifti1Image(data, affine)
+    hdr = img.header
+
+def main(args):
+    dset = h5py.File(args.filename, 'r')
+    if not dset:
+        print(f"Not a valid dataset: {args.filename}")
+        return
+
+    dsetNames = list(dset.keys())
+    print(f"File {args.filename} contains {len(dsetNames)} groups:")
+    print(" ", "\n  ".join(dsetNames))
+
+    if not args.in_group:
+        if len(dsetNames) > 1:
+            print("Input group not specified -- selecting most recent")
+        args.in_group = dsetNames[-1]
+
+    if not args.out_folder:
+        args.out_folder = re.sub('.h5$', '', args.filename)
+        print(f"Output folder not specified -- using {args.out_folder}")
+
+    if args.in_group not in dset:
+        print(f"Could not find group {args.in_group}")
+        return
+
+    if not os.path.exists(args.out_folder):
+        os.makedirs(args.out_folder)
+
+    group = dset.get(args.in_group)
+
+    print(f"Reading data from group '{args.in_group}' in file '{args.filename}'")
+
+    # mrdImg data is stored as:
+    #   /group/config              text of recon config parameters (optional)
+    #   /group/xml                 text of ISMRMRD flexible data header (optional)
+    #   /group/image_0/data        array of IsmrmrdImage data
+    #   /group/image_0/header      array of ImageHeader
+    #   /group/image_0/attributes  text of mrdImg MetaAttributes
+
+    isImage = True
+    imageNames = group.keys()
+    print(f"Found {len(imageNames)} mrdImg sub-groups: {", ".join(imageNames)}")
+
+    for imageName in imageNames:
+        if imageName in ("config", "config_file", "xml", "configAdditional"):
+            continue
+
+        mrdImg = group[imageName]
+        if not (('data' in mrdImg) and ('header' in mrdImg) and ('attributes' in mrdImg)):
+            isImage = False
+
+    dset.close()
+
+    if (isImage is False):
+        print("File does not contain properly formatted MRD raw or mrdImg data")
+        return
+
+    dset = ismrmrd.Dataset(args.filename, args.in_group, False)
+    groups = dset.list()
+
+    if ('xml' in groups):
+        xml_header = dset.read_xml_header()
+        xml_header = xml_header.decode("utf-8")
+        mrdHead = ismrmrd.xsd.CreateFromDocument(xml_header)
+    else:
+        mrdHead = ismrmrd.xsd.ismrmrdHeader()
+
+    filesWritten = 0
+
+    for group in groups:
+        if group in ("config", "config_file", "xml", "configAdditional"):
+            continue
+
+        print("Reading images from '/" + args.in_group + "/" + group + "'")
+        n_images = dset.number_of_images(group)
+
+        for imgNum in range(n_images):
+            mrdImg = dset.read_image(group, imgNum)
+        
+            if ((mrdImg.data.shape[0] == 3) and (mrdImg.getHead().image_type == 6)):
+                # RGB images
+                print("RGB data not yet supported")
+                continue
+            else:
+                if (mrdImg.data.shape[1] != 1):
+                    print("Multi-slice data not yet supported")
+                    continue
+
+                if (mrdImg.data.shape[0] != 1):
+                    print("Multi-channel data not yet supported")
+                    continue
+            
+            images = []
+            images.append(mrdImg)
+        
+        if args.no_auto:
+            extra_dims = []
+        else:
+            extra_dims = detect_extra_dims(images)
+
+        try:
+            volume, affine, meta = assemble_volume(images, extra_dims)
+
+        except:
+            print("Error during assembly")
+            continue
+        
+        nifti_img = make_nifti(volume, affine, meta)
+
+        sequence_desc = str(meta.get("SequenceDescription", "")).strip()
+        extra_label = ("_" + "+".join(extra_dims)) if extra_dims else ""
+
+        if sequence_desc:
+            fname = "%02d_%s_%s%s.nii.gz" % (
+                files_written, sequence_desc, type_label, extra_label)
+        else:
+            fname = "%02d_%s%s.nii.gz" % (files_written, type_label, extra_label)
+
+        out_path = os.path.join(args.out_folder, fname)
+        nib.save(nifti_img, out_path)
+        files_written += 1
+
+
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Convert MRD image file to NIfTI files",
+                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument('filename',                                         help="Input MRD (.h5) file")
+    parser.add_argument('-g', '--in-group',                                 help="Input data group (default: last group)")
+    parser.add_argument('-o', '--out-folder',                               help="Output folder")
+    parser.add_argument('--no-auto', action='store_true', default=False,    help="Disable automatic extra-dimension detection, write a single 3D volume per series")
+
+    args = parser.parse_args()
+    main(args)

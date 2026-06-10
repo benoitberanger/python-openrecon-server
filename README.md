@@ -69,6 +69,7 @@ Flowchart example of a generic processing module:
 ```mermaid
 ---
 config:
+  htmlLabels: false
   theme: 'base'
   themeVariables:
     primaryColor: '#2f5864'
@@ -81,23 +82,27 @@ config:
 ---
 flowchart LR
 
-    subgraph app["app/you_module.py"]
+    subgraph app["`**app/your_module.py**`"]
         subgraph process_image["process_image(img_array, configJSON, metadata)"]
 
-            init_series["initialise OutputSeries"] --> process
-            or_arg["check OR arguments"] -.-> process
+            init_series["`**initialise OutputSeries**`"] --> process
+            or_arg["`**check OR arguments**`"] -.-> process
 
             subgraph process[" "]
-                subarray["extract images\nget_subarray()"]
-                stack["stack images\npixel data [img,cha,z,y,x],\n[head],\n[meta]"]
-                your_code["Your processing code"]
-                recast["Convert to int16"]
-                add["OutputSeries.add()"]
+                subarray["`**extract images**
+                            get_subarray()`"]
+                stack["`**stack images**
+                        pixel data [img,cha,z,y,x]
+                        [head]
+                        [meta]`"]
+                your_code["`**Your processing code**`"]
+                recast["`**Convert to int16**`"]
+                add["`**OutputSeries.add()**`"]
 
                 subarray --> stack --> your_code --> recast --> add
 
             end
-        process --> get["OutputSeries.get()"]
+        process --> get["`**OutputSeries.get()**`"]
         
         end
 

@@ -67,7 +67,7 @@ def main(args):
     print("Found %d mrdImg sub-groups: %s" % (len(imageNames), ", ".join(imageNames)))
 
     for imageName in imageNames:
-        if ((imageName == 'xml') or (imageName == 'config') or (imageName == 'config_file') or (imageName == 'configAdditional')):
+        if imageName in ("config", "config_file", "xml", "configAdditional"):
             continue
 
         mrdImg = group[imageName]
@@ -93,7 +93,7 @@ def main(args):
 
     filesWritten = 0
     for group in groups:
-        if ( (group == 'config') or (group == 'config_file') or (group == 'xml') or (group == 'configAdditional') ):
+        if group in ("config", "config_file", "xml", "configAdditional"):
             continue
 
         print("Reading images from '/" + args.in_group + "/" + group + "'")
