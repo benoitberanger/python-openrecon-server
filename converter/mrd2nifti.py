@@ -177,8 +177,8 @@ def make_nifti(data: np.ndarray, affine: np.ndarray, meta: dict) -> nib.Nifti1Im
     hdr.set_xyzt_units("mm", "sec")
 
     desc_parts = []
-    if meta.get("SeriesDescription"):
-        desc_parts.append(str(meta["SeriesDescription"]))
+    if meta.get("SequenceDescription"):
+        desc_parts.append(str(meta["SequenceDescription"]))
     if meta.get("extra_dims"):
         desc_parts.append("+".join(meta["extra_dims"]))
     hdr["descrip"] = ", ".join(desc_parts)[:80].encode()
@@ -249,6 +249,7 @@ def check_MRDfile(filename: str, in_group: str, out_folder: str) -> str | None:
 
 ###############################################################################
 
+# NOT TESTED YET
 def nifti_from_image_array(image_array: np.ndarray, extra_dims: list[str] | None = None) -> nib.Nifti1Image:
     # Flatten the object array and drop None cells
     images = [img for img in image_array.flat if img is not None]
