@@ -11,9 +11,6 @@ import ismrmrd
 import numpy as np
 import nibabel as nib
 
-# Candidate extra dimensions, in priority order
-CANDIDATE_DIMS = ["contrast", "phase", "repetition", "set", "average"]
-
 IMTYPE_LABEL = {
     ismrmrd.IMTYPE_MAGNITUDE: "M",
     ismrmrd.IMTYPE_PHASE    : "P",
@@ -23,17 +20,17 @@ IMTYPE_LABEL = {
 }
 
 
-def _slice_pos(img: ismrmrd.image.Image) -> float:
+def slice_pos(img: ismrmrd.image.Image) -> float:
     h = img.getHead()
-    return float(np.dot(
-        np.array(h.position,  dtype=float),
-        np.array(h.slice_dir, dtype=float),
-    ))
+    position = np.array(h.position,  dtype=float)
+    slice_dir = np.array(h.slice_dir, dtype=float)
+
+    return float(np.dot(position, slice_dir))
 
 
-def _detect_stack_dir(images: list) -> float:
-    first = min(images, key=_slice_pos)
-    last  = max(images, key=_slice_pos)
+def detect_stack_dir(images: list) -> float:
+    first = min(images, key=slice_pos)
+    last  = max(images, key=slice_pos)
     h0    = first.getHead()
 
     # single slice case
@@ -50,9 +47,6 @@ def _detect_stack_dir(images: list) -> float:
 
 
 def build_affine(first_img: ismrmrd.Image, stack_dir: float) -> np.ndarray:
-    """
-    TO-DO
-    """
 
     img_header = first_img.getHead()
 
@@ -98,10 +92,12 @@ def assemble_volume(images: list, extra_dims: list) :
     if not images: 
         raise ValueError("Empty image list")
     
-    slice_positions = sorted({_slice_pos(img) for img in images})
+    # Slice indexation
+    slice_positions = sorted({slice_pos(img) for img in images})
     n_slices   = len(slice_positions)
     pos_to_idx = {p: i for i, p in enumerate(slice_positions)}
 
+    # Extra dimension indexation
     extra_value_sets = []
     for dim in extra_dims:
         vals = sorted({int(getattr(img.getHead(), dim, 0)) for img in images})
@@ -118,12 +114,13 @@ def assemble_volume(images: list, extra_dims: list) :
     vol = np.zeros((n_slices, ny, nx, *extra_sizes), dtype=dtype)
 
     # Determine stack direction before building the affine
-    stack_dir  = _detect_stack_dir(images)
-    first_img  = min(images, key=_slice_pos)
+    stack_dir  = detect_stack_dir(images)
+    first_img  = min(images, key=slice_pos)
     affine     = build_affine(first_img, stack_dir)
 
+    # Populate volume
     for img in images:
-        s_idx      = pos_to_idx[_slice_pos(img)]
+        s_idx      = pos_to_idx[slice_pos(img)]
         slice_data = np.squeeze(img.data)   # [y, x]
         e_idxs     = tuple(
             extra_to_idx[k][int(getattr(img.getHead(), dim, 0))]
@@ -131,10 +128,12 @@ def assemble_volume(images: list, extra_dims: list) :
         )
         vol[(s_idx, slice(None), slice(None), *e_idxs)] = slice_data
 
+    # Transpose to NIfTI convention (z,y,x,...) -> (x,y,z,...)
     n_extra = len(extra_dims)
     perm    = (2, 1, 0, *range(3, 3 + n_extra))
     vol     = np.transpose(vol, perm)
 
+    # Get metadata
     h = first_img.getHead()
     meta = {
         "image_type"  : IMTYPE_LABEL.get(int(h.image_type), "M"),
@@ -150,6 +149,7 @@ def assemble_volume(images: list, extra_dims: list) :
                     "WindowCenter", "WindowWidth"):
             if attr.get(key) is not None:
                 meta[key] = attr[key]
+                logging.debug(f" DEBUG: {key} = {meta[key]}")
     except Exception:
         pass
 
@@ -185,30 +185,32 @@ def make_nifti(data: np.ndarray, affine: np.ndarray, meta: dict) -> nib.Nifti1Im
 
     return img
 
-#### CLI ######################################################################
+
+#### MRD file checks ##########################################################
+# TO-DO: Move to converter/utils.py ?
 
 def check_MRDfile(filename: str, in_group: str, out_folder: str) -> str | None:
     # Check file and get group name
     dset = h5py.File(filename, 'r')
     if not dset:
-        print(f"Not a valid dataset: {filename}")
+        logging.error(f"Not a valid dataset: {filename}")
         return None
 
     dsetNames = list(dset.keys())
-    print(f"File {filename} contains {len(dsetNames)} groups:")
-    print(" ", "\n  ".join(dsetNames))
+    logging.info(f"File {filename} contains {len(dsetNames)} groups:")
+    logging.info(" \n  ".join(dsetNames))
 
     if not in_group:
         if len(dsetNames) > 1:
-            print("Input group not specified -- selecting most recent")
+            logging.info("Input group not specified -- selecting most recent")
         in_group = dsetNames[-1]
 
     if not out_folder:
         out_folder = re.sub('.h5$', '', filename)
-        print(f"Output folder not specified -- using {out_folder}")
+        logging.info(f"Output folder not specified -- using {out_folder}")
 
     if in_group not in dset:
-        print(f"Could not find group {in_group}")
+        logging.error(f"Could not find group {in_group}")
         return None
 
     if not os.path.exists(out_folder):
@@ -216,7 +218,7 @@ def check_MRDfile(filename: str, in_group: str, out_folder: str) -> str | None:
 
     group = dset.get(in_group)
 
-    print(f"Reading data from group '{in_group}' in file '{filename}'")
+    logging.info(f"Reading data from group '{in_group}' in file '{filename}'")
 
     # mrdImg data is stored as:
     #   /group/config              text of recon config parameters (optional)
@@ -227,7 +229,7 @@ def check_MRDfile(filename: str, in_group: str, out_folder: str) -> str | None:
 
     isImage = True
     imageNames = group.keys()
-    print(f"Found {len(imageNames)} mrdImg sub-groups: {", ".join(imageNames)}")
+    logging.info(f"Found {len(imageNames)} mrdImg sub-groups: {", ".join(imageNames)}")
 
     for imageName in imageNames:
         if imageName in ("config", "config_file", "xml", "configAdditional"):
@@ -240,11 +242,38 @@ def check_MRDfile(filename: str, in_group: str, out_folder: str) -> str | None:
     dset.close()
 
     if (isImage is False):
-        print("File does not contain properly formatted MRD raw or mrdImg data")
+        logging.error("File does not contain properly formatted MRD raw or mrdImg data")
         return None
 
     return in_group
 
+###############################################################################
+
+def nifti_from_image_array(image_array: np.ndarray, extra_dims: list[str] | None = None) -> nib.Nifti1Image:
+    # Flatten the object array and drop None cells
+    images = [img for img in image_array.flat if img is not None]
+    if not images:
+        raise ValueError("nifti_from_image_array: all cells are None")
+    if extra_dims is None:
+        extra_dims = detect_extra_dims(images)
+    data, affine, meta = assemble_volume(images, extra_dims)
+    nifti_image = make_nifti(data, affine, meta)
+
+    sequence_desc = str(meta.get("SequenceDescription", "")).strip()
+    img_type = images[0].getHead().image_type
+    serie_number = images[0].getHead().image_series_index
+    type_label = IMTYPE_LABEL.get(img_type, "X")
+
+    if sequence_desc:
+        outfile = "%s_%s_%s.nii" % (serie_number, sequence_desc, type_label)
+    else:
+        outfile = "%s_%s.nii" % (serie_number, type_label)
+
+    out_path = os.path.join(args.out_folder, outfile)
+    nib.save(nifti_image, out_path)
+    logging.info(f"{outfile} - shape={str(data.shape)}")
+
+#### CLI ######################################################################
 
 def main(args):
     
@@ -270,7 +299,7 @@ def main(args):
             continue
 
         n_images = dset.number_of_images(group)
-        print(f"Reading images from '{in_group}' ({n_images} images)")
+        logging.info(f"Reading images from '{in_group}' ({n_images} images)")
 
         #  --- Read all images in a group -------------------------------------
         images = []
@@ -281,21 +310,21 @@ def main(args):
             # Skip unsupported (multi-channel, multi-slice per header, RGB data)
             if ((mrdImg.data.shape[0] == 3) and (mrdImg.getHead().image_type == 6)):
                 # RGB images
-                print("RGB data not yet supported")
+                logging.warning("RGB data not yet supported")
                 continue
             else:
                 if (mrdImg.data.shape[1] != 1):
-                    print("Multi-slice data not yet supported")
+                    logging.warning("Multi-slice data not yet supported")
                     continue
 
                 if (mrdImg.data.shape[0] != 1):
-                    print("Multi-channel data not yet supported")
+                    logging.warning("Multi-channel data not yet supported")
                     continue
             
             images.append(mrdImg)
         
         if not images:
-            print("No usable images. Skipping group")
+            logging.warning("No usable images. Skipping group")
             continue
 
         # --- Separate by image_type if multiple types coexist in this group --
@@ -314,36 +343,50 @@ def main(args):
             try:
                 data, affine, meta = assemble_volume(type_images, extra_dims)
             except Exception as e:
-                print(f"  ERROR: {e}")
+                logging.error(e)
                 continue
 
             nifti_image = make_nifti(data, affine, meta)
 
             # Build filename
             sequence_desc = str(meta.get("SequenceDescription", "")).strip()
+            serie_number = type_images[0].getHead().image_series_index
 
             if sequence_desc:
-                outfile = "%s_%s_%s.nii.gz" % (filesWritten, sequence_desc, type_label)
+                outfile = "%s_%s_%s.nii" % (serie_number, sequence_desc, type_label)
             else:
-                outfile = "%s_%s.nii.gz" % (filesWritten, type_label)
+                outfile = "%s_%s.nii" % (serie_number, type_label)
 
             out_path = os.path.join(args.out_folder, outfile)
             nib.save(nifti_image, out_path)
-            print(f"{outfile} - shape={str(data.shape)}")
+            logging.info(f"{outfile} - shape={str(data.shape)}")
             filesWritten += 1
 
     dset.close()
-    print(f"Wrote {filesWritten} NIfTI file(s) to {args.out_folder}")
+    logging.info(f"Wrote {filesWritten} NIfTI file(s) to {args.out_folder}")
 
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Convert MRD image file to NIfTI files",
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('filename',                                         help="Input MRD (.h5) file")
-    parser.add_argument('-g', '--in-group',                                 help="Input data group (default: last group)")
-    parser.add_argument('-o', '--out-folder',                               help="Output folder")
-    parser.add_argument('--no-auto', action='store_true', default=False,    help="Disable automatic extra-dimension detection, write a single 3D volume per series")
+    parser.add_argument('filename',                                                 help="Input MRD (.h5) file")
+    parser.add_argument('-g', '--in-group',                                         help="Input data group (default: last group)")
+    parser.add_argument('-o', '--out-folder',                                       help="Output folder")
+    parser.add_argument('--no-auto',        action='store_true', default=False,     help="Disable automatic extra-dimension detection, write a single 3D volume per series")
+    parser.add_argument('-v', '--verbose',  action='store_true',                    help='Verbose output.')
 
     args = parser.parse_args()
+
+    if args.verbose:
+        logLevel = logging.DEBUG
+    else:
+        logLevel = logging.INFO
+
+    # setup logging
+    logging.basicConfig(
+        level=logLevel,
+        format=f"%(levelname)8s: %(message)s"
+    )
+    
     main(args)
