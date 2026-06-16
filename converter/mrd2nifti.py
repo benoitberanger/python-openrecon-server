@@ -20,7 +20,28 @@ IMTYPE_LABEL = {
 }
 
 
-def slice_pos(img: ismrmrd.image.Image) -> float:
+def slice_pos(img: ismrmrd.Image) -> float:
+    """
+    Compute the scalar position of an image along the slice direction.
+ 
+    Projects the image corner position (LPS) onto the slice normal vector
+    (also LPS) using a dot product. The result is a signed scalar that
+    increases monotonically from the first to the last slice of the stack,
+    regardless of patient orientation.
+ 
+    Parameters
+    ----------
+    img : ismrmrd.Image
+        A single MRD image. The following ImageHeader fields are used:
+        - position  : [x, y, z] LPS coordinates of the image corner (mm)
+        - slice_dir : [x, y, z] unit vector normal to the slice plane (LPS)
+ 
+    Returns
+    -------
+    float
+        Signed scalar position along the slice normal (mm).
+    """
+
     h = img.getHead()
     position = np.array(h.position,  dtype=float)
     slice_dir = np.array(h.slice_dir, dtype=float)
@@ -29,6 +50,33 @@ def slice_pos(img: ismrmrd.image.Image) -> float:
 
 
 def detect_stack_dir(images: list) -> float:
+    """
+    Determine whether the scanner slice_dir agrees with the array stacking order.
+ 
+    MRD images are sorted by increasing slice_pos before being assembled into
+    a volume. The NIfTI affine slice column must point in the same direction
+    as that increasing order. However, the scanner's slice_dir may point either
+    way depending on the acquisition.
+ 
+    This function detects the sign mismatch by computing the displacement
+    vector between the first and last slice (in LPS space) and projecting it
+    onto slice_dir:
+    - If the dot product is positive, slice_dir already points toward
+      increasing slice index → stack_dir = +1
+    - If negative, the slice column of the affine must be negated → stack_dir = -1
+ 
+    Parameters
+    ----------
+    images : list of ismrmrd.image.Image
+        All images belonging to one series and image_type. Must contain at
+        least one image; single-image stacks always return +1.
+ 
+    Returns
+    -------
+    float
+        +1.0 if slice_dir agrees with stacking order, -1.0 otherwise.
+    """
+
     first = min(images, key=slice_pos)
     last  = max(images, key=slice_pos)
     h0    = first.getHead()
@@ -47,7 +95,27 @@ def detect_stack_dir(images: list) -> float:
 
 
 def build_affine(first_img: ismrmrd.Image, stack_dir: float) -> np.ndarray:
-
+    """
+    Build a 4x4 RAS affine matrix from MRD ImageHeader geometry fields.
+ 
+    The affine encodes the mapping from voxel indices [i, j, k] to millimetre
+    coordinates in RAS space (Right-Anterior-Superior), as expected by NIfTI.
+ 
+    Parameters
+    ----------
+    first_img : ismrmrd.Image
+        The image with the lowest slice_pos in the stack (index 0 in the
+        assembled array). Its header provides all geometry fields.
+    stack_dir : float
+        Sign correction for the slice column, as returned by detect_stack_dir.
+        Must be +1.0 or -1.0.
+ 
+    Returns
+    -------
+    np.ndarray
+        4x4 float64 affine matrix in RAS space.
+    """
+    
     img_header = first_img.getHead()
 
     fov        = np.array(img_header.field_of_view[:3])    # [x, y, z] in mm
@@ -64,6 +132,10 @@ def build_affine(first_img: ismrmrd.Image, stack_dir: float) -> np.ndarray:
     position  = lps_to_ras(img_header.position)
 
     # Construct rotation-scaling matrix
+    # The stack_dir factor on the slice column ensures that the affine step
+    # matches the actual direction of increasing voxel index in the assembled
+    # array, correcting for acquisitions where slice_dir points opposite to
+    # the stacking order.
     rotation_scaling_matrix = np.column_stack([
         voxel_size[0] * np.array(read_dir),
         voxel_size[1] * np.array(phase_dir),
@@ -77,7 +149,32 @@ def build_affine(first_img: ismrmrd.Image, stack_dir: float) -> np.ndarray:
     return affine
 
 
-def detect_extra_dims(images: list) -> list:
+def detect_extra_dims(images: list[ismrmrd.Image]) -> list[str]:
+    """
+    Detect which ImageHeader index fields vary across a set of images.
+ 
+    Inspects the following fields on every image header, in order:
+    contrast, phase, repetition, set, average
+ 
+    A field is considered an active extra dimension when at least two distinct
+    integer values are found across all images. The returned list preserves
+    the inspection order, which also determines the axis order in the assembled
+    NIfTI volume (e.g. [x, y, z, echo, rep] for contrast + repetition).
+ 
+    Parameters
+    ----------
+    images : list of ismrmrd.Image
+        All images to inspect. Typically the full contents of one MRD
+        image sub-group, after filtering by image_type.
+ 
+    Returns
+    -------
+    list of str
+        Ordered list of active dimension field names, e.g. ["contrast"] for
+        a multi-echo series, or ["contrast", "repetition"] for multi-echo
+        dynamic data. Empty list if all images share the same index values.
+    """
+
     possible_dims = ["contrast", "phase", "repetition", "set", "average"]
     active = []
 
@@ -88,7 +185,51 @@ def detect_extra_dims(images: list) -> list:
     return active
 
 
-def assemble_volume(images: list, extra_dims: list) :
+def assemble_volume(images: list[ismrmrd.Image], extra_dims: list[str]) :
+    """
+    Reassemble a flat list of 2D MRD images into a NIfTI-ready ndarray.
+ 
+    Each MRD image carries one 2D slice with shape [cha, z, y, x] where
+    cha=1 and z=1 for standard reconstructed images. This function:
+      1. Sorts slices by their position along the slice normal (slice_pos).
+      2. For each active extra dimension, discovers all unique index values
+         and maps them to contiguous array indices.
+      3. Allocates a volume of shape [n_slices, ny, nx, *extra_sizes].
+      4. Fills each slot using the slice position and extra-dimension indices
+         read from the ImageHeader.
+      5. Transposes the volume from [z, y, x, ...] to [x, y, z, ...] to
+         match the NIfTI storage convention.
+      6. Builds the RAS affine from the first image (lowest slice_pos).
+      7. Collects scalar metadata from the first image's Meta attributes.
+ 
+    Parameters
+    ----------
+    images : list of ismrmrd.Image
+        All images for one series and one image_type. Multi-channel and
+        multi-z-per-header images are not supported and must be filtered
+        out before calling this function.
+    extra_dims : list of str
+        Ordered list of ImageHeader field names to stack as extra axes,
+        as returned by detect_extra_dims. Pass [] for a plain 3D volume.
+ 
+    Returns
+    -------
+    vol : np.ndarray
+        Assembled volume with shape [x, y, z] or [x, y, z, d0, d1, ...].
+    affine : np.ndarray
+        4x4 RAS affine matrix built from the first image's geometry.
+    meta : dict
+        Scalar metadata with the following guaranteed keys:
+            image_type   (str)  : one of M, P, R, I, C
+            series_index (int)  : image_series_index from the header
+            extra_dims   (list) : copy of the extra_dims argument
+            extra_values (list) : list of sorted value lists, one per extra dim
+            stack_dir    (float): +1.0 or -1.0, as returned by detect_stack_dir
+        Optional keys populated from Meta attributes when present:
+            EchoTime, InversionTime, RepetitionTime,
+            SeriesDescription, SequenceDescription,
+            WindowCenter, WindowWidth
+    """
     if not images: 
         raise ValueError("Empty image list")
     
@@ -159,6 +300,36 @@ def assemble_volume(images: list, extra_dims: list) :
 #### NIfTI construction #######################################################
 
 def make_nifti(data: np.ndarray, affine: np.ndarray, meta: dict) -> nib.Nifti1Image:
+    """
+    Wrap a numpy volume and RAS affine into a Nifti1Image with a populated header.
+ 
+    Sets voxel dimensions (zooms), spatial and temporal units, and the 80 character
+    description field. For 4D or higher volumes, extra-dimension zooms are filled
+    from metadata when available (TR for repetition, TE for contrast/echo),
+    defaulting to 1.0 otherwise.
+ 
+    Parameters
+    ----------
+    data : np.ndarray
+        Volume array with shape [x, y, z] or [x, y, z, d0, d1, ...].
+        The first three axes must correspond to the RAS spatial axes encoded
+        in the affine.
+    affine : np.ndarray
+        4x4 RAS affine matrix.
+    meta : dict
+        Metadata dict as returned by assemble_volume. The following keys are
+        used when present:
+            extra_dims        (list of str) : names of extra axes beyond z
+            RepetitionTime    (float)       : TR in ms, used for "repetition" zoom
+            EchoTime          (float)       : TE in ms, used for "contrast" zoom
+            SequenceDescription (str)       : written to the descrip header field
+ 
+    Returns
+    -------
+    nib.Nifti1Image
+        NIfTI image ready to be saved with nib.save().
+    """
+
     img = nib.Nifti1Image(data, affine)
     hdr = img.header
 
@@ -190,6 +361,35 @@ def make_nifti(data: np.ndarray, affine: np.ndarray, meta: dict) -> nib.Nifti1Im
 # TO-DO: Move to converter/utils.py ?
 
 def check_MRDfile(filename: str, in_group: str, out_folder: str) -> str | None:
+    """
+    Validate an MRD HDF5 file and resolve the input group and output folder.
+ 
+    Performs the following checks and side effects:
+      - Opens the file and lists top-level HDF5 groups.
+      - Selects the last group if in_group is not specified.
+      - Creates out_folder on disk if it does not already exist;
+        defaults to the original filename if not specified.
+      - Verifies that each image sub-group inside the selected group contains
+        the three mandatory datasets: data, header, attributes.
+ 
+    Parameters
+    ----------
+    filename : str
+        Path to the MRD (.h5) file.
+    in_group : str or None
+        Top-level HDF5 group to read from. If None or empty, the last group
+        in the file is selected automatically.
+    out_folder : str or None
+        Directory where NIfTI files will be written. Created if absent.
+        If None or empty, defaults to the original filename.
+ 
+    Returns
+    -------
+    str or None
+        The resolved group name to use for reading, or None if validation
+        failed (file unreadable, group not found, or malformed image data).
+    """
+
     # Check file and get group name
     dset = h5py.File(filename, 'r')
     if not dset:
@@ -250,7 +450,32 @@ def check_MRDfile(filename: str, in_group: str, out_folder: str) -> str | None:
 ###############################################################################
 
 # NOT TESTED YET
-def nifti_from_image_array(image_array: np.ndarray, extra_dims: list[str] | None = None) -> nib.Nifti1Image:
+def nifti_from_image_array(image_array: np.ndarray, outfolder: str, extra_dims: list[str] | None = None):
+    """
+    Convert an MRDImageArray into a NIfTI image and save it to disk.
+ 
+    MRDImageArray is a numpy object array of shape:
+    [slice, contrast, average, phase, repetition, set, image_type]
+    where each populated cell holds an ismrmrd.Image. Unpopulated cells
+    are None and are silently ignored.
+ 
+    The output filename is derived from the SequenceDescription metadata
+    field and the image type label (M, P, R, I, C). The file is written
+    to args.out_folder.
+ 
+    Parameters
+    ----------
+    image_array : np.ndarray (dtype=object)
+        nD MRDImageArray as received by process_image in a reconstruction
+        server. Must contain at least one non-None cell.
+    outfolder : str
+        Directory where NIfTI files will be written.
+    extra_dims : list of str or None
+        Extra dimension field names to use as additional NIfTI axes.
+        If None (default), dimensions are auto-detected via detect_extra_dims.
+        Pass [] to force a plain 3D volume.
+    """
+
     # Flatten the object array and drop None cells
     images = [img for img in image_array.flat if img is not None]
     if not images:
@@ -265,19 +490,52 @@ def nifti_from_image_array(image_array: np.ndarray, extra_dims: list[str] | None
     serie_number = images[0].getHead().image_series_index
     type_label = IMTYPE_LABEL.get(img_type, "X")
 
+    if not os.path.exists(out_folder):
+        os.makedirs(out_folder)
+
     if sequence_desc:
         outfile = "%s_%s_%s.nii" % (serie_number, sequence_desc, type_label)
     else:
         outfile = "%s_%s.nii" % (serie_number, type_label)
 
-    out_path = os.path.join(args.out_folder, outfile)
+    out_path = os.path.join(outfolder, outfile)
     nib.save(nifti_image, out_path)
     logging.info(f"{outfile} - shape={str(data.shape)}")
 
 #### CLI ######################################################################
 
 def main(args):
-    
+    """
+    Convert all image groups in an MRD file to NIfTI files.
+ 
+    For each image sub-group found in the selected HDF5 group:
+    - Reads all images, skipping unsupported formats (RGB, multi-channel, 
+    multi-z-per-header).
+    - Separates images by image_type (magnitude, phase, real, imag, complex) 
+    so that different image types always produce separate NIfTI files, 
+    even if they share the same MRD sub-group.
+    - Auto-detects extra dimensions (contrast, phase, repetition, set, 
+    average) unless --no-auto is set.
+    - Assembles each (type, extra_dims) combination into a volume and saves 
+    it as a .nii file.
+ 
+    Output filenames follow the pattern:
+        {series_index}_{SequenceDescription}_{type_label}.nii
+    or, if no SequenceDescription is available:
+        {series_index}_{type_label}.nii
+ 
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Parsed command-line arguments. Expected attributes:
+            filename   (str)  : path to the MRD (.h5) input file
+            in_group   (str)  : HDF5 group to read (None = last group)
+            out_folder (str)  : output directory (None = filename stem)
+            no_auto    (bool) : if True, disable extra-dim auto-detection
+            verbose    (bool) : if True, set log level to DEBUG
+    """
+
+
     in_group = check_MRDfile(args.filename, args.in_group, args.out_folder)
     if not in_group :
         return
