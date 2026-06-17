@@ -9,7 +9,7 @@ import xml
 import ismrmrd
 import numpy as np
 
-# from converter.mrd2nifti import mrd2nifti
+from converter.mrd2nifti import nifti_from_image_array
 from utils.OutputSeries import OutputSeries, ProcessImageResult
 from utils.check_OR_arguments import check_OR_arguments
 from utils.img_array import get_type_magnitude, get_subarray, mrd_indexes, stack_images
@@ -70,9 +70,9 @@ def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None,
             sub_array = get_subarray(img_array, img_image_type=image_type, img_image_series_index=serie_index)
             if not sub_array.any():
                 continue
+            nifti_from_image_array(sub_array, "test/data")
             # --- stack images ------------------------------------------------
             data, head, meta = stack_images(sub_array)
-            # mrd2nifti(data, head, os.path.join(debugFolder, "input.nii.gz"))
             mem = log_memory_delta("process_image", "After stack_images", mem)
             del sub_array
             

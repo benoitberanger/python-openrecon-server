@@ -4,6 +4,7 @@ data/
 test/
 debug/
 ANTs/
+ROMEO/
 Makefile
 openrecon.json
 test*

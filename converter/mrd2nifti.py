@@ -11,6 +11,8 @@ import ismrmrd
 import numpy as np
 import nibabel as nib
 
+from utils.img_array import flatten
+
 IMTYPE_LABEL = {
     ismrmrd.IMTYPE_MAGNITUDE: "M",
     ismrmrd.IMTYPE_PHASE    : "P",
@@ -449,8 +451,7 @@ def check_MRDfile(filename: str, in_group: str, out_folder: str) -> str | None:
 
 ###############################################################################
 
-# NOT TESTED YET
-def nifti_from_image_array(image_array: np.ndarray, outfolder: str, extra_dims: list[str] | None = None):
+def nifti_from_image_array(image_array: np.ndarray, outfolder: str, extra_dims: list[str] | None = None) -> str:
     """
     Convert an MRDImageArray into a NIfTI image and save it to disk.
  
@@ -461,7 +462,7 @@ def nifti_from_image_array(image_array: np.ndarray, outfolder: str, extra_dims: 
  
     The output filename is derived from the SequenceDescription metadata
     field and the image type label (M, P, R, I, C). The file is written
-    to args.out_folder.
+    to outfolder.
  
     Parameters
     ----------
@@ -474,10 +475,15 @@ def nifti_from_image_array(image_array: np.ndarray, outfolder: str, extra_dims: 
         Extra dimension field names to use as additional NIfTI axes.
         If None (default), dimensions are auto-detected via detect_extra_dims.
         Pass [] to force a plain 3D volume.
+
+    Returns
+    -------
+    str
+        path to NIfTI image saved.
     """
 
     # Flatten the object array and drop None cells
-    images = [img for img in image_array.flat if img is not None]
+    images = flatten(image_array)
     if not images:
         raise ValueError("nifti_from_image_array: all cells are None")
     if extra_dims is None:
@@ -490,8 +496,8 @@ def nifti_from_image_array(image_array: np.ndarray, outfolder: str, extra_dims: 
     serie_number = images[0].getHead().image_series_index
     type_label = IMTYPE_LABEL.get(img_type, "X")
 
-    if not os.path.exists(out_folder):
-        os.makedirs(out_folder)
+    if not os.path.exists(outfolder):
+        os.makedirs(outfolder)
 
     if sequence_desc:
         outfile = "%s_%s_%s.nii" % (serie_number, sequence_desc, type_label)
@@ -501,6 +507,8 @@ def nifti_from_image_array(image_array: np.ndarray, outfolder: str, extra_dims: 
     out_path = os.path.join(outfolder, outfile)
     nib.save(nifti_image, out_path)
     logging.info(f"{outfile} - shape={str(data.shape)}")
+
+    return out_path
 
 #### CLI ######################################################################
 
@@ -560,7 +568,7 @@ def main(args):
         n_images = dset.number_of_images(group)
         logging.info(f"Reading images from '{in_group}' ({n_images} images)")
 
-        #  --- Read all images in a group -------------------------------------
+        # --- Read all images in a group -------------------------------------
         images = []
         for imgNum in range(n_images):
             mrdImg = dset.read_image(group, imgNum)
