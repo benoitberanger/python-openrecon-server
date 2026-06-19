@@ -9,6 +9,9 @@ import numpy as np
 import pydicom
 import base64
 
+from mrd2nifti import check_MRDfile
+
+
 # Lookup table between DICOM and MRD mrdImg types
 imtype_map = {ismrmrd.IMTYPE_MAGNITUDE : 'M',
               ismrmrd.IMTYPE_PHASE     : 'P',
@@ -27,60 +30,11 @@ venc_dir_map = {'FLOW_DIR_R_TO_L' : 'rl',
                 'FLOW_DIR_TP_OUT' : 'out'}
 
 def main(args):
-    dset = h5py.File(args.filename, 'r')
-    if not dset:
-        print("Not a valid dataset: %s" % (args.filename))
+    in_group = check_MRDfile(args.filename, args.in_group, args.out_folder)
+    if not in_group :
         return
 
-    dsetNames = dset.keys()
-    print("File %s contains %d groups:" % (args.filename, len(dset.keys())))
-    print(" ", "\n  ".join(dsetNames))
-
-    if not args.in_group:
-        if len(dset.keys()) > 1:
-            print("Input group not specified -- selecting most recent")
-        args.in_group = list(dset.keys())[-1]
-
-    if not args.out_folder:
-        args.out_folder = re.sub('.h5$', '', args.filename)
-        print("Output folder not specified -- using %s" % args.out_folder)
-
-    if args.in_group not in dset:
-        print("Could not find group %s" % (args.in_group))
-        return
-
-    if not os.path.exists(args.out_folder):
-        os.makedirs(args.out_folder)
-
-    group = dset.get(args.in_group)
-    print("Reading data from group '%s' in file '%s'" % (args.in_group, args.filename))
-
-    # mrdImg data is stored as:
-    #   /group/config              text of recon config parameters (optional)
-    #   /group/xml                 text of ISMRMRD flexible data header (optional)
-    #   /group/image_0/data        array of IsmrmrdImage data
-    #   /group/image_0/header      array of ImageHeader
-    #   /group/image_0/attributes  text of mrdImg MetaAttributes
-
-    isImage = True
-    imageNames = group.keys()
-    print("Found %d mrdImg sub-groups: %s" % (len(imageNames), ", ".join(imageNames)))
-
-    for imageName in imageNames:
-        if imageName in ("config", "config_file", "xml", "configAdditional"):
-            continue
-
-        mrdImg = group[imageName]
-        if not (('data' in mrdImg) and ('header' in mrdImg) and ('attributes' in mrdImg)):
-            isImage = False
-
-    dset.close()
-
-    if (isImage is False):
-        print("File does not contain properly formatted MRD raw or mrdImg data")
-        return
-
-    dset = ismrmrd.Dataset(args.filename, args.in_group, False)
+    dset = ismrmrd.Dataset(args.filename, in_group, False)
 
     groups = dset.list()
 
@@ -96,7 +50,7 @@ def main(args):
         if group in ("config", "config_file", "xml", "configAdditional"):
             continue
 
-        print("Reading images from '/" + args.in_group + "/" + group + "'")
+        print("Reading images from '/" + in_group + "/" + group + "'")
 
         for imgNum in range(0, dset.number_of_images(group)):
             mrdImg = dset.read_image(group, imgNum)
@@ -139,7 +93,7 @@ def main(args):
                 try:
                     if mrdHead.measurementInformation is None:
                         pass
-                        # print("  MRD header does not contain measurementInformation section")
+                        print("  MRD header does not contain measurementInformation section")
                     else:
                         # print("---------- Old -------------------------")
                         # print("SeriesInstanceUID  : %s" % dicomDset.SeriesInstanceUID   )
@@ -147,7 +101,8 @@ def main(args):
                         # print("SeriesDescription  : %s" % dicomDset.SeriesDescription   )
                         # print("FrameOfReferenceUID: %s" % dicomDset.FrameOfReferenceUID )
 
-                        if mrdHead.measurementInformation.measurementID       is not None: dicomDset.SeriesInstanceUID   = mrdHead.measurementInformation.measurementID
+                        # using measurementID as dicom SeriesInstanceUID seems to raise a ValueError Warning (sometimes silently)
+                        # if mrdHead.measurementInformation.measurementID       is not None: dicomDset.SeriesInstanceUID   = mrdHead.measurementInformation.measurementID
                         if mrdHead.measurementInformation.patientPosition     is not None: dicomDset.PatientPosition     = mrdHead.measurementInformation.patientPosition.name
                         if mrdHead.measurementInformation.protocolName        is not None: dicomDset.SeriesDescription   = mrdHead.measurementInformation.protocolName
                         if mrdHead.measurementInformation.frameOfReferenceUID is not None: dicomDset.FrameOfReferenceUID = mrdHead.measurementInformation.frameOfReferenceUID
@@ -158,6 +113,8 @@ def main(args):
                         # print("SeriesDescription  : %s" % dicomDset.SeriesDescription   )
                         # print("FrameOfReferenceUID: %s" % dicomDset.FrameOfReferenceUID )
                 except:
+                    import traceback
+                    traceback.print_exc()
                     print("Error setting header information from MRD header's measurementInformation section")
 
                 try:

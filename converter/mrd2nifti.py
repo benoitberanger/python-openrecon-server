@@ -11,7 +11,6 @@ import ismrmrd
 import numpy as np
 import nibabel as nib
 
-from utils.img_array import flatten
 
 IMTYPE_LABEL = {
     ismrmrd.IMTYPE_MAGNITUDE: "M",
@@ -20,6 +19,55 @@ IMTYPE_LABEL = {
     ismrmrd.IMTYPE_IMAG     : "I",
     ismrmrd.IMTYPE_COMPLEX  : "C"
 }
+
+
+def flatten(arr: np.ndarray[ismrmrd.Image]) -> list[ismrmrd.Image]:
+    """
+    Return a flat list of all MRD images contained in an array or subarray.
+
+    Iterates over every cell of the array in row-major order, skipping
+    None cells, and extends the output list with the images found in each
+    non-empty cell. Cell order matches NumPy's default flat iteration:
+    slice -> contrast -> average -> phase -> repetition -> set -> image_type.
+
+    Parameters
+    ----------
+    arr : np.ndarray
+        Full nD MRD image array or any subarray.
+
+    Returns
+    -------
+    list of ismrmrd.Image
+        All non-None images in the array, in row-major iteration order.
+    """
+    images = []
+
+    for cell in arr.flat:
+        if cell is None:
+            continue
+        images.extend(cell)
+
+    return images
+
+
+def rescale_phase(vol, meta: dict):
+    """
+    TO-DO
+    """
+    if meta.get("image_type") != "P":
+        return vol
+
+    slope     = meta.get("RescaleSlope")
+    intercept = meta.get("RescaleIntercept")
+
+    if slope is None and intercept is None:
+        logging.warning("No RescaleSlope/RescaleIntercept in the images meta. No conversion to radian.")
+        return vol
+
+    slope     = float(slope) if slope is not None else 1.0
+    intercept = float(intercept) if intercept is not None else 0.0
+
+    return (vol.astype(np.float32) * slope + intercept)
 
 
 def slice_pos(img: ismrmrd.Image) -> float:
@@ -289,7 +337,8 @@ def assemble_volume(images: list[ismrmrd.Image], extra_dims: list[str]) :
         attr = ismrmrd.Meta.deserialize(images[0].attribute_string)
         for key in ("EchoTime", "InversionTime", "RepetitionTime",
                     "SeriesDescription", "SequenceDescription", 
-                    "WindowCenter", "WindowWidth"):
+                    "WindowCenter", "WindowWidth", "RescaleSlope",
+                    "RescaleIntercept"):
             if attr.get(key) is not None:
                 meta[key] = attr[key]
                 logging.debug(f" DEBUG: {key} = {meta[key]}")
@@ -489,6 +538,7 @@ def nifti_from_image_array(image_array: np.ndarray, outfolder: str, extra_dims: 
     if extra_dims is None:
         extra_dims = detect_extra_dims(images)
     data, affine, meta = assemble_volume(images, extra_dims)
+    data = rescale_phase(data, meta)
     nifti_image = make_nifti(data, affine, meta)
 
     sequence_desc = str(meta.get("SequenceDescription", "")).strip()
@@ -542,7 +592,6 @@ def main(args):
             no_auto    (bool) : if True, disable extra-dim auto-detection
             verbose    (bool) : if True, set log level to DEBUG
     """
-
 
     in_group = check_MRDfile(args.filename, args.in_group, args.out_folder)
     if not in_group :
@@ -613,6 +662,7 @@ def main(args):
                 logging.error(e)
                 continue
 
+            data = rescale_phase(data, meta)
             nifti_image = make_nifti(data, affine, meta)
 
             # Build filename
