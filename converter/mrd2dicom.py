@@ -9,7 +9,7 @@ import numpy as np
 import pydicom
 import base64
 
-from mrd2nifti import check_MRDfile
+from utils import check_MRDfile
 
 
 # Lookup table between DICOM and MRD mrdImg types
@@ -101,7 +101,7 @@ def main(args):
                         # print("SeriesDescription  : %s" % dicomDset.SeriesDescription   )
                         # print("FrameOfReferenceUID: %s" % dicomDset.FrameOfReferenceUID )
 
-                        # using measurementID as dicom SeriesInstanceUID seems to raise a ValueError Warning (sometimes silently)
+                        # using measurementID as dicom.SeriesInstanceUID seems to raise a ValueError Warning (sometimes silently)
                         # if mrdHead.measurementInformation.measurementID       is not None: dicomDset.SeriesInstanceUID   = mrdHead.measurementInformation.measurementID
                         if mrdHead.measurementInformation.patientPosition     is not None: dicomDset.PatientPosition     = mrdHead.measurementInformation.patientPosition.name
                         if mrdHead.measurementInformation.protocolName        is not None: dicomDset.SeriesDescription   = mrdHead.measurementInformation.protocolName
