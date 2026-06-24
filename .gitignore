@@ -4,9 +4,9 @@ data/
 test/
 debug/
 ANTs/
-ROMEO/
 Makefile
 openrecon.json
+romeo.jl
 test*
 
 # Byte-compiled / optimized / DLL files
