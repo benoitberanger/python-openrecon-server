@@ -444,7 +444,7 @@ docker run -p 9002:9002 -t <image_name>:<image_version>
 
 ## Converter
 
-The `converter/` directory provides tools to convert between DICOM and
+The `converter/` directory provides tools to convert between DICOM, NIfTI and
 MRD (`.h5`) format, which is required for local testing.
 
 ### DICOM to MRD
@@ -453,25 +453,32 @@ Convert a DICOM series (classic or enhanced) to an MRD `.h5` file for use as inp
 
 ```bash
 # classic DICOM
-python converter/dicom2mrd.py --outFile <output.h5> <input_folder>
+python -m converter.dicom2mrd.py --outFile <output.h5> <input_folder>
 
 # enhanced DICOM
-python converter/enhanceddicom2mrd.py --outFile <output.h5> <input_folder>
+python -m converter.enhanceddicom2mrd.py --outFile <output.h5> <input_folder>
 ```
 
-Sources :
-> [kspaceKelvin/python-ismrmrd-server/dicom2mrd.py](https://github.com/kspaceKelvin/python-ismrmrd-server/blob/master/dicom2mrd.py) 
+DICOM to MRD converter is a refactorisation of the converter from [python-ismrmrd-server](https://github.com/kspaceKelvin/python-ismrmrd-server/blob/master/dicom2mrd.py) with small improvements (handle multi-echo images for example).
+In the same way, enhanced DICOM conversion scripts come from : [enhanceddicom2mrd.py](https://github.com/stebo85/python-ismrmrd-server/blob/e52ad7b0417156db138e30a21e437e802aec7a9f/enhanceddicom2mrd.py)
 
-> [stebo85/python-ismrmrd-server/enhanceddicom2mrd.py](https://github.com/stebo85/python-ismrmrd-server/blob/e52ad7b0417156db138e30a21e437e802aec7a9f/enhanceddicom2mrd.py)
 
 ### MRD to DICOM
 
 Convert a processed MRD `.h5` file back to classic DICOM:
 
 ```bash
-python converter/dicom2mrd.py --out-folder <output_folder> <input.h5>
+python -m converter.mrd2dicom.py --out-folder <output_folder> <input.h5>
 ```
 > Source : [kspaceKelvin/python-ismrmrd-server/mrd2dicom.py](https://github.com/kspaceKelvin/python-ismrmrd-server/blob/master/mrd2dicom.py)
+
+### MRD to NIfTI
+
+Convert a MRD `.h5` file to NIfTI format:
+
+```bash
+python -m converter.mrd2nifti.py --out-folder <output_folder> <input.h5>
+```
 
 
 ## Project structure

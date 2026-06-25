@@ -497,7 +497,7 @@ def main(args):
                 
                 tmpMrdImg.slice = iSlice
                 tmpMrdImg.phase = iPhase
-                tmpMrdImg.contrast = sliceImg.dset.PerFrameFunctionalGroupsSequence[0].MREchoSequence[0].EchoNumbers - 1
+                tmpMrdImg.contrast = sliceImg.dset.PerFrameFunctionalGroupsSequence[i].MREchoSequence[0].EchoNumbers - 1
                 # tmpMrdImg.average = sliceImg.dset.PerFrameFunctionalGroupsSequence[i].MRAveragesSequence[0].NumberOfAverages
 
 

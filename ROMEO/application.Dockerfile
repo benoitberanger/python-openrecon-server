@@ -1,7 +1,7 @@
 # import python-openrecon-server as starting point
 FROM python-openrecon-server AS base
 
-ARG JULIA_VERSION=1.10.9
+ARG JULIA_VERSION=1.10.11
 
 RUN apt-get update && apt-get install -y curl procps
 

@@ -9,7 +9,8 @@ import ismrmrd
 import numpy as np
 import nibabel as nib
 
-from utils import check_MRDfile
+from converter.utils import check_MRDfile
+from utils.img_array import flatten
 
 
 IMTYPE_LABEL = {
@@ -19,35 +20,6 @@ IMTYPE_LABEL = {
     ismrmrd.IMTYPE_IMAG     : "I",
     ismrmrd.IMTYPE_COMPLEX  : "C"
 }
-
-
-def flatten(arr: np.ndarray[ismrmrd.Image]) -> list[ismrmrd.Image]:
-    """
-    Return a flat list of all MRD images contained in an array or subarray.
-
-    Iterates over every cell of the array in row-major order, skipping
-    None cells, and extends the output list with the images found in each
-    non-empty cell. Cell order matches NumPy's default flat iteration:
-    slice -> contrast -> average -> phase -> repetition -> set -> image_type.
-
-    Parameters
-    ----------
-    arr : np.ndarray
-        Full nD MRD image array or any subarray.
-
-    Returns
-    -------
-    list of ismrmrd.Image
-        All non-None images in the array, in row-major iteration order.
-    """
-    images = []
-
-    for cell in arr.flat:
-        if cell is None:
-            continue
-        images.extend(cell)
-
-    return images
 
 
 def rescale_phase(vol, meta: dict):

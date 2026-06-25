@@ -9,7 +9,7 @@ import numpy as np
 import pydicom
 import base64
 
-from utils import check_MRDfile
+from converter.utils import check_MRDfile
 
 
 # Lookup table between DICOM and MRD mrdImg types

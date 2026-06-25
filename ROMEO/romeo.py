@@ -31,7 +31,7 @@ def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None,
     Parameters
     ----------
     img_array : np.ndarray
-        7D MRD image array [slice, contrast, average, phase,
+        nD MRD image array [slice, contrast, average, phase,
         repetition, set, image_type] as returned by build_image_array().
     configJSON : dict or None
         JSON configuration from the client.
@@ -50,6 +50,11 @@ def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None,
     if not os.path.exists(debugFolder):
         os.makedirs(debugFolder)
         logging.debug("Created folder " + debugFolder + " for debug output files")
+    
+    # Create nifti folder, if necessary
+    if not os.path.exists(niftiFolder):
+        os.makedirs(niftiFolder)
+        logging.debug("Created folder " + niftiFolder + " for ROMEO nifti output files")
 
     logging.info(f'------------------------------------------------')
     logging.info(f'     ROMEO called')
@@ -77,7 +82,7 @@ def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None,
         # get Magnitude image
         mag_array = get_subarray(img_array, img_image_type=ismrmrd.IMTYPE_MAGNITUDE, img_image_series_index=serie_index)
         if mag_array.any():
-            nifti_M = nifti_from_image_array(mag_array, "test/data", ["contrast"])
+            nifti_M = nifti_from_image_array(mag_array, "/tmp/share/romeo", ["contrast"])
             # --- stack images ------------------------------------------------
             data, head, meta = stack_images(mag_array)
             tmp_echo = [float(m.get("EchoTime")) for m in meta]
@@ -88,7 +93,7 @@ def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None,
         # get Phase image
         phase_array = get_subarray(img_array, img_image_type=ismrmrd.IMTYPE_PHASE, img_image_series_index=serie_index)
         if phase_array.any():
-            nifti_P = nifti_from_image_array(phase_array, "test/data", ["contrast"])
+            nifti_P = nifti_from_image_array(phase_array, "/tmp/share/romeo", ["contrast"])
             # --- stack images ------------------------------------------------
             data, head, meta = stack_images(phase_array)
             tmp_echo = [float(m.get("EchoTime")) for m in meta]
@@ -131,10 +136,6 @@ def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None,
 
 
 def run_ROMEO(nifti_path_P: str, nifti_path_M: str = None, echo_times: list = None):
-
-    if not os.path.exists(niftiFolder):
-        os.makedirs(os.path.dirname(niftiFolder))
-        logging.debug("Created folder " + niftiFolder + " for ROMEO nifti output files")
 
     cmd = ["julia", "/opt/romeo/romeo.jl", "-o", niftiFolder, "-p", nifti_path_P]
     if nifti_path_M is not None:
