@@ -216,7 +216,7 @@ def main(args):
                     dicomDset.SeriesDescription = dicomDset.SeriesDescription + meta['SeriesDescriptionAdditional']
 
                 if meta.get('ImageComment') is not None:
-                    dicomDset.ImageComment = "_".join(meta['ImageComment'])
+                    dicomDset.ImageComments = "_".join(meta['ImageComment'])
 
                 if meta.get('ImageType') is not None:
                     dicomDset.ImageType = meta['ImageType']

@@ -49,6 +49,69 @@
       "type": "boolean",
       "information": { "en": "This option will enabled debug mode, which return only the original images while display infos about them in the logs" },
       "default": false
+    },
+    {
+      "id": "ImageType",
+      "type": "choice",
+      "label": { "en": "Image Type" },
+      "values": [
+        {
+          "id": "All",
+          "name": { "en": "All" }
+        },
+        {
+          "id": "Magnitude",
+          "name": { "en": "Magnitude only" }
+        },
+        {
+          "id": "Phase",
+          "name": { "en": "Phase only" }
+        }
+      ],
+      "default": "All",
+      "information": { "en": "Select image type on which apply the process" }
+    },
+    {
+      "id": "SelectEcho",
+      "type": "choice",
+      "label": { "en": "Select Echo" },
+      "values": [
+        {
+          "id": "All",
+          "name": { "en": "All" }
+        },
+        {
+          "id": "FirstEcho",
+          "name": { "en": "First Echo" }
+        },
+        {
+          "id": "LastEcho",
+          "name": { "en": "Last Echo" }
+        }
+      ],
+      "default": "All",
+      "information": { "en": "Select echo on which apply the process" }
+    },
+    {
+      "id": "SelectVolume",
+      "type": "choice",
+      "label": { "en": "Select Volume" },
+      "values": [
+        {
+          "id": "All",
+          "name": { "en": "All" }
+        },
+        {
+          "id": "FirstVolume",
+          "name": { "en": "First Volume" }
+        },
+        {
+          "id": "LastVolume",
+          "name": { "en": "Last Volume" }
+        }
+      ],
+      "default": "All",
+      "information": { "en": "Select volume on which apply the process" }
     }
   ]
 }

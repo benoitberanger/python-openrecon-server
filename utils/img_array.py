@@ -96,7 +96,7 @@ def build_image_array(img_list: list[ismrmrd.Image]) -> np.ndarray[ismrmrd.Image
     return img_array
 
 
-def validate_index(value, dim_size: int, dim_name: str) -> None:
+def validate_index(value, dim_size: int, dim_name: str) -> bool:
     """
     Validate that an index (int or slice) is within bounds for a given dimension.
     The purpose of this function is mainly to make clear error message in case of
@@ -110,27 +110,34 @@ def validate_index(value, dim_size: int, dim_name: str) -> None:
         Size of the dimension in the array.
     dim_name : str
         Human-readable dimension name used in error messages.
+    
+    Returns
+    -------
+    bool
+        True if the index is valide, False otherwise.
     """
     if value is None:
-        return
+        return True
 
     if isinstance(value, int):
         if not (-dim_size <= value and value < dim_size):
-            logging.error(
+            logging.warning(
                 "Index out of range for dimension '%s': requested index %d, but dimension size is %d (valid range: [%d, %d]).",
                 dim_name, value, dim_size, -dim_size, dim_size - 1
             )
-            return
+            return False
 
     elif isinstance(value, slice):
         start, stop, step = value.indices(dim_size)
         indices = range(start, stop, step)
         if len(indices) == 0:
-            logging.error(
+            logging.warning(
                 "Slice out of range for dimension '%s': slice(%s, %s, %s) selects 0 elements from a dimension of size %d.",
                 dim_name, value.start, value.stop, value.step, dim_size
             )
-            return
+            return False
+    
+    return True
 
 
 def get_subarray(img_array: np.ndarray[ismrmrd.Image], 
@@ -206,7 +213,9 @@ def get_subarray(img_array: np.ndarray[ismrmrd.Image],
 
     # Validate every requested index against the actual array shape
     for dim in dimension_names:
-            validate_index(args[dim], img_array.shape[dim], dim.name)
+        test = validate_index(args[dim], img_array.shape[dim], dim.name)
+        if test == False :
+            return np.array([])
     
     def to_index(x):
         return slice(None) if x is None else x

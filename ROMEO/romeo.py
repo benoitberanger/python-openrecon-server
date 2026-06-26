@@ -105,6 +105,7 @@ def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None,
         logging.error("Phase images not found. Stoping process.")
         return []
     
+    logging.info(f"TE = {echo_times}")
     run_ROMEO(nifti_P, nifti_M, echo_times)
     # TO-DO: Convert back the result into (data, head, meta) to send back
 
@@ -140,9 +141,10 @@ def run_ROMEO(nifti_path_P: str, nifti_path_M: str = None, echo_times: list = No
     cmd = ["julia", "/opt/romeo/romeo.jl", "-o", niftiFolder, "-p", nifti_path_P]
     if nifti_path_M is not None:
         cmd += ["-m", str(nifti_path_M)]
-    if echo_times is not None:
+    if echo_times and (len(echo_times) > 1):
         cmd += ["-t", str(echo_times)]
 
+    logging.info(f"running ROMEO unwrapping algorithm : {cmd}")
     subprocess.run(cmd, check=True, capture_output=True, text=True)
     # output default is "unwrapped.nii"
     
