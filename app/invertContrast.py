@@ -27,8 +27,7 @@ def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None,
     Parameters
     ----------
     img_array : np.ndarray
-        7D MRD image array [slice, contrast, average, phase,
-        repetition, set, image_type] as returned by build_image_array().
+        nD MRD image array as returned by build_image_array().
     configJSON : dict or None
         JSON configuration from the client.
     metadata : ismrmrd.xsd.ismrmrdHeader or str
@@ -66,7 +65,7 @@ def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None,
     
     for serie_index in range(0, img_array.shape[mrd_indexes.image_series_index]):
 
-        for image_type in range(1, n_image_type):
+        for image_type in range(0, n_image_type):
             sub_array = get_subarray(img_array, img_image_type=image_type, img_image_series_index=serie_index)
             if not sub_array.any():
                 continue
@@ -76,7 +75,8 @@ def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None,
             mem = log_memory_delta("process_image", "After stack_images", mem)
             del sub_array
             
-            logging.info("  --- Invert contrast on %d %s images ---", len(head), image_type_name[image_type])
+            actual_image_type = head[0].image_type
+            logging.info("  --- Invert contrast on %d %s images ---", len(head), image_type_name[actual_image_type])
 
             # display diagnostic info in the log
             if series is None:

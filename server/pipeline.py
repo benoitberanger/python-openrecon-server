@@ -10,7 +10,7 @@ import numpy as np
 from time import perf_counter
 from server.connection import Connection
 from utils.check_OR_arguments import check_OR_arguments
-from utils.img_array import build_image_array
+from utils.img_array import build_image_array, get_subarray, mrd_indexes
 from utils.memory import log_memory, log_memory_delta
 from utils.utils import send_original_images
 
@@ -74,6 +74,41 @@ class Pipeline:
             logging.error("Failed to load config '%s' with error:\n  %s", self.app_config, e)
 
 
+    def images_selector(self, img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None) -> np.ndarray[ismrmrd.Image]:
+        """
+        TO-DO
+        """
+        select_type     = check_OR_arguments(configJSON, arg_name='ImageType', arg_type=str, arg_default='All')
+        select_echo     = check_OR_arguments(configJSON, arg_name='SelectEcho', arg_type=str, arg_default='All')
+        select_volume   = check_OR_arguments(configJSON, arg_name='SelectVolume', arg_type=str, arg_default='All')
+
+        if select_type == 'Magnitude':
+            type = ismrmrd.IMTYPE_MAGNITUDE
+        elif select_type == 'Phase':
+            type = ismrmrd.IMTYPE_PHASE
+        else :
+            type = None
+        
+        if select_echo == 'FirstEcho':
+            echo = 0
+        elif select_echo == 'LastEcho':
+            echo = img_array.shape[mrd_indexes.contrast] - 1
+        else :
+            echo = None
+
+        # if select_volume == 'FirstVolume':
+        #     volume = 0
+        # elif select_volume == 'LastVolume':
+        #     volume = 1
+        # else:
+        #     volume = None
+
+        new_array = get_subarray(img_array, img_contrast = echo, img_image_type = type)
+
+        return new_array
+
+        
+
     def run(self, images: list, configJSON: dict | None, metadata) -> None:
         """
         Run the full processing pipeline on a group of MRD images.
@@ -125,6 +160,9 @@ class Pipeline:
         del images
         gc.collect()
         mem = log_memory_delta("run Pipeline", "After build_image_array", mem)
+
+        #TO-DO: Add image selector here
+        img_array = self.images_selector(img_array, configJSON)
 
         # Start timer
         tic = perf_counter()

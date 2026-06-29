@@ -213,12 +213,18 @@ def get_subarray(img_array: np.ndarray[ismrmrd.Image],
 
     # Validate every requested index against the actual array shape
     for dim in dimension_names:
-        test = validate_index(args[dim], img_array.shape[dim], dim.name)
-        if test == False :
+        valid = validate_index(args[dim], img_array.shape[dim], dim.name)
+        if valid == False :
             return np.array([])
     
     def to_index(x):
-        return slice(None) if x is None else x
+        if x is None:
+            return slice(None)
+        if isinstance(x, slice):
+            return x
+        # return slice(None) if x is the last element
+        stop = x + 1 if x != -1 else None
+        return slice(x, stop)
     
     idx = tuple(to_index(args[dim]) for dim in dimension_names)
     
