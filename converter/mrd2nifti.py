@@ -9,7 +9,7 @@ import ismrmrd
 import numpy as np
 import nibabel as nib
 
-from converter.utils import check_MRDfile
+from converter.utils import check_MRDfile, slice_pos
 from utils.img_array import flatten
 
 
@@ -42,33 +42,33 @@ def rescale_phase(vol, meta: dict):
     return (vol.astype(np.float32) * slope + intercept)
 
 
-def slice_pos(img: ismrmrd.Image) -> float:
-    """
-    Compute the scalar position of an image along the slice direction.
+# def slice_pos(img: ismrmrd.Image) -> float:
+#     """
+#     Compute the scalar position of an image along the slice direction.
  
-    Projects the image corner position (LPS) onto the slice normal vector
-    (also LPS) using a dot product. The result is a signed scalar that
-    increases monotonically from the first to the last slice of the stack,
-    regardless of patient orientation.
+#     Projects the image corner position (LPS) onto the slice normal vector
+#     (also LPS) using a dot product. The result is a signed scalar that
+#     increases monotonically from the first to the last slice of the stack,
+#     regardless of patient orientation.
  
-    Parameters
-    ----------
-    img : ismrmrd.Image
-        A single MRD image. The following ImageHeader fields are used:
-        - position  : [x, y, z] LPS coordinates of the image corner (mm)
-        - slice_dir : [x, y, z] unit vector normal to the slice plane (LPS)
+#     Parameters
+#     ----------
+#     img : ismrmrd.Image
+#         A single MRD image. The following ImageHeader fields are used:
+#         - position  : [x, y, z] LPS coordinates of the image corner (mm)
+#         - slice_dir : [x, y, z] unit vector normal to the slice plane (LPS)
  
-    Returns
-    -------
-    float
-        Signed scalar position along the slice normal (mm).
-    """
+#     Returns
+#     -------
+#     float
+#         Signed scalar position along the slice normal (mm).
+#     """
 
-    h = img.getHead()
-    position = np.array(h.position,  dtype=float)
-    slice_dir = np.array(h.slice_dir, dtype=float)
+#     h = img.getHead()
+#     position = np.array(h.position,  dtype=float)
+#     slice_dir = np.array(h.slice_dir, dtype=float)
 
-    return float(np.dot(position, slice_dir))
+#     return float(np.dot(position, slice_dir))
 
 
 def detect_stack_dir(images: list) -> float:

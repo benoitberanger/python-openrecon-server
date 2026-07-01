@@ -10,7 +10,7 @@ import numpy as np
 # from converter.mrd2nifti import mrd2nifti
 from utils.OutputSeries import OutputSeries, ProcessImageResult
 from utils.check_OR_arguments import check_OR_arguments
-from utils.img_array import get_subarray, mrd_indexes, stack_images
+from utils.img_array import flatten, get_subarray, mrd_indexes, stack_images
 from utils.memory import log_memory, log_memory_delta
 from utils.utils import display_diagnostic, normalise
 
@@ -78,15 +78,15 @@ def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None,
         # Initialise data_sum with the first echo
         # SoS: accumulate squared values, then take sqrt at the end
         # SimpleSum: accumulate raw values directly
-        first_echo_images = get_subarray(img_array, 
+        first_echo_array = get_subarray(img_array, 
                                          img_contrast=0, 
                                          img_image_type=ismrmrd.IMTYPE_MAGNITUDE,
                                          img_image_series_index=serie_index)
-        if not first_echo_images.any():
+        if not first_echo_array.any():
             continue
+        first_echo_images = flatten(first_echo_array)
         data_sum, head, meta = stack_images(first_echo_images) #[img, cha, z, y, x], head, meta
-        # mrd2nifti(data_sum, head, os.path.join(debugFolder, "input.nii.gz"))
-        del first_echo_images
+        del first_echo_array, first_echo_images
 
         # display diagnostic info in the log
         display_diagnostic(head[0], meta[0])
@@ -99,19 +99,18 @@ def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None,
         # SoS: accumulate squared values, then take sqrt at the end
         # SimpleSum: accumulate raw values directly
         for co in range(1, n_contrasts):
-            images_co = get_subarray(img_array, 
+            echo_array = get_subarray(img_array, 
                                      img_contrast=co, 
                                      img_image_type=ismrmrd.IMTYPE_MAGNITUDE,
                                      img_image_series_index=serie_index)
-            if not images_co.any():
+            if not echo_array.any():
                 continue
-            data_co, _, _ = stack_images(images_co)
-            input_name = str(co) + "_input.nii.gz"
-            # mrd2nifti(data_co, head, os.path.join(debugFolder, input_name))
+            echo_images = flatten(echo_array)
+            data_co, _, _ = stack_images(echo_images)
             if (sum_config == 'SoS'):
                 np.square(data_co, out=data_co)
             data_sum += data_co
-            del images_co, data_co
+            del echo_array, echo_images, data_co
             gc.collect()
             mem = log_memory_delta("process_image", f"After adding echo {co}", mem)
 

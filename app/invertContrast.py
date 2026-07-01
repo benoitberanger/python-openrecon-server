@@ -12,7 +12,7 @@ import numpy as np
 from converter.mrd2nifti import nifti_from_image_array
 from utils.OutputSeries import OutputSeries, ProcessImageResult
 from utils.check_OR_arguments import check_OR_arguments
-from utils.img_array import get_type_magnitude, get_subarray, mrd_indexes, stack_images
+from utils.img_array import flatten, get_type_magnitude, get_subarray, mrd_indexes, stack_images
 from utils.memory import log_memory, log_memory_delta
 from utils.utils import display_diagnostic, normalise
 
@@ -71,9 +71,10 @@ def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None,
                 continue
             nifti_from_image_array(sub_array, "test/data")
             # --- stack images ------------------------------------------------
-            data, head, meta = stack_images(sub_array)
+            images = flatten(sub_array)
+            data, head, meta = stack_images(images)
             mem = log_memory_delta("process_image", "After stack_images", mem)
-            del sub_array
+            del sub_array, images
             
             actual_image_type = head[0].image_type
             logging.info("  --- Invert contrast on %d %s images ---", len(head), image_type_name[actual_image_type])
