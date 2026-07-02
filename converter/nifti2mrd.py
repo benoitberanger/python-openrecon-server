@@ -97,7 +97,6 @@ def images_from_nifti(
         )
         new_img.setHead(new_head)
         new_img.attribute_string = new_meta.serialize()
-        h_check = new_img.getHead()
         out_images.append(new_img)
 
     return out_images

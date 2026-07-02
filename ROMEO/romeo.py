@@ -119,12 +119,14 @@ def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None,
 
         del unwrapped_images
 
+        # # --- Normalise to 12-bit range and convert to int16 --------------
+        # data = normalise(data)
         # data = data.astype(np.int16)
         # gc.collect()
         # mem = log_memory_delta("process_image", "After normalisation", mem)
 
         data_min = data.min()
-        data_shifted = (data.astype(np.int32) - data_min).astype(np.uint16)
+        data_shifted = (data - data_min).astype(np.uint16)
 
         for m in meta:
             m["RescaleSlope"]     = "1"
@@ -138,39 +140,6 @@ def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None,
         mem = log_memory_delta("process_image", "After series.add", mem)
         nifti_P = None
 
-
-    # if not nifti_P:
-    #     logging.error("Phase images not found. Stoping process.")
-    #     return []
-    
-    # logging.info(f"TE = {echo_times}")
-    # run_ROMEO(nifti_P, nifti_M, echo_times)
-
-    # unwrapped_path = os.path.join(niftiFolder, "unwrapped.nii")
-    # unwrapped_images = images_from_nifti(unwrapped_path, phase_template)
-    # data, head, meta = images_to_triplet(unwrapped_images)
-
-    # del unwrapped_images
-
-
-    # # data = data.astype(np.int16)
-    # # gc.collect()
-    # # mem = log_memory_delta("process_image", "After normalisation", mem)
-
-    # data_min = data.min()
-    # data_shifted = (data.astype(np.int32) - data_min).astype(np.uint16)
-
-    # for m in meta:
-    #     m["RescaleSlope"]     = "1"
-    #     m["RescaleIntercept"] = str(int(data_min))
-
-    # series.add(data_shifted, head, meta,
-    #            process_history=["PYTHON", "ROMEO Unwrapping"],
-    #            sequence_description="ROMEO")
-    # del data
-    # gc.collect()
-    # mem = log_memory_delta("process_image", "After series.add", mem)
-
     if series is None:
         logging.error("No images found in img_array. Returning empty result.")
         return []
@@ -180,17 +149,18 @@ def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None,
     return series.get()
 
 
-def run_ROMEO(nifti_path_P: str, nifti_path_M: str = None, echo_times: list = None):
+def run_ROMEO(nifti_path_P: str, nifti_path_M: str = None, echo_times: list = []):
 
     cmd = ["julia", "/opt/romeo/romeo.jl", "--no-phase-rescale", "-o", niftiFolder, "-p", nifti_path_P]
+    # cmd = ["julia", "/opt/romeo/romeo.jl", "-o", niftiFolder, "-p", nifti_path_P]
     if nifti_path_M is not None:
         cmd += ["-m", str(nifti_path_M)]
-    if echo_times and (len(echo_times) > 1):
+    if len(echo_times) > 1:
         cmd += ["-t", str(echo_times)]
 
     logging.info(f"running ROMEO unwrapping algorithm : {cmd}")
     subprocess.run(cmd, check=True, capture_output=True, text=True)
-    # output default is "unwrapped.nii"
+    # default output is "unwrapped.nii"
     
 
 def images_to_triplet(images: list[ismrmrd.Image]) -> tuple[np.ndarray, list, list]:
@@ -208,8 +178,8 @@ def images_to_triplet(images: list[ismrmrd.Image]) -> tuple[np.ndarray, list, li
     Parameters
     ----------
     images : list of ismrmrd.Image
-        Images to pack, e.g. as returned by images_from_nifti(). Each
-        must already have data.shape == (cha, 1, y, x).
+        Images to pack. Each must already have 
+        data.shape == (cha, 1, y, x).
 
     Returns
     -------
@@ -222,7 +192,7 @@ def images_to_triplet(images: list[ismrmrd.Image]) -> tuple[np.ndarray, list, li
         if img.data.shape[1] != 1:
             raise ValueError(
                 f"images_to_triplet: expected z=1 per image, got "
-                f"shape {img.data.shape}. Did images_from_nifti change?"
+                f"shape {img.data.shape}."
             )
 
     data = np.stack([np.ascontiguousarray(img.data) for img in images], axis=0)
