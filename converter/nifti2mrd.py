@@ -18,8 +18,7 @@ def images_from_nifti(
     MRD images that were used to create the original input NIfTI.
 
     This assumes the external tool preserved the voxel grid exactly
-    (same shape, same slice ordering, same extra-dimension ordering) -
-    i.e. no resampling, cropping, or dimension reduction took place.
+    (same shape, same slice ordering, same extra-dimension ordering).
 
     Parameters
     ----------
@@ -50,12 +49,10 @@ def images_from_nifti(
     if data.ndim != expected_ndim:
         raise ValueError(
             f"images_from_nifti: NIfTI has {data.ndim} dims, expected "
-            f"{expected_ndim} for extra_dims={extra_dims}. ROMEO may have "
-            f"collapsed/added a dimension - check unwrapped.nii's shape."
+            f"{expected_ndim} for extra_dims={extra_dims}."
         )
 
     # Undo the (z,y,x,...) -> (x,y,z,...) transpose done in assemble_volume
-    # (this permutation is its own inverse on the first 3 axes)
     perm = (2, 1, 0, *range(3, expected_ndim))
     data_zyx = np.transpose(data, perm)
     logging.debug(f"nifti_shape after perm = {data_zyx.shape}")
@@ -77,15 +74,13 @@ def images_from_nifti(
             extra_to_idx[k][int(getattr(img.getHead(), dim, 0))]
             for k, dim in enumerate(extra_dims)
         )
-        slice_data = data_zyx[(s_idx, slice(None), slice(None), *e_idx)]  # [y, x]
+        slice_data = data_zyx[(s_idx, slice(None), slice(None), *e_idx)]
 
         new_head = copy.deepcopy(img.getHead())
         new_meta = ismrmrd.Meta.deserialize(img.attribute_string)
         new_meta["SeriesDescription"] = "ROMEOUnwrapping"
         new_meta["ImageComments"]     = "ROMEO phase unwrapping"
-        # Data is now unwrapped phase in radians, not the original rescaled
-        # pixel range - drop stale rescale metadata so it isn't misapplied
-        # downstream (normalise() will recompute its own scaling).
+
         for stale_key in ("RescaleSlope", "RescaleIntercept"):
             if stale_key in new_meta:
                 del new_meta[stale_key]

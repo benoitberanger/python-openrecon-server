@@ -72,25 +72,25 @@
       "information": { "en": "Select echo on which apply the process" }
     },
     {
-      "id": "SelectVolume",
+      "id": "SelectSerie",
       "type": "choice",
-      "label": { "en": "Select Volume" },
+      "label": { "en": "Select Serie" },
       "values": [
         {
           "id": "All",
           "name": { "en": "All" }
         },
         {
-          "id": "FirstVolume",
-          "name": { "en": "First Volume" }
+          "id": "FirstSerie",
+          "name": { "en": "First Serie" }
         },
         {
-          "id": "LastVolume",
-          "name": { "en": "Last Volume" }
+          "id": "LastSerie",
+          "name": { "en": "Last Serie" }
         }
       ],
       "default": "All",
-      "information": { "en": "Select volume on which apply the process" }
+      "information": { "en": "Select serie on which apply the process" }
     },
     {
       "id": "EchoSumConfig",

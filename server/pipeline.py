@@ -80,7 +80,7 @@ class Pipeline:
         """
         select_type     = check_OR_arguments(configJSON, arg_name='ImageType', arg_type=str, arg_default='All')
         select_echo     = check_OR_arguments(configJSON, arg_name='SelectEcho', arg_type=str, arg_default='All')
-        select_volume   = check_OR_arguments(configJSON, arg_name='SelectVolume', arg_type=str, arg_default='All')
+        select_serie   = check_OR_arguments(configJSON, arg_name='SelectSerie', arg_type=str, arg_default='All')
 
         if select_type == 'Magnitude':
             type = ismrmrd.IMTYPE_MAGNITUDE
@@ -96,14 +96,14 @@ class Pipeline:
         else :
             echo = None
 
-        # if select_volume == 'FirstVolume':
-        #     volume = 0
-        # elif select_volume == 'LastVolume':
-        #     volume = 1
-        # else:
-        #     volume = None
+        if select_serie == 'FirstSerie' :
+            serie = 1
+        elif select_serie == 'LastSerie' :
+            serie = img_array.shape[mrd_indexes.image_series_index] - 1
+        else :
+            serie = None
 
-        new_array = get_subarray(img_array, img_contrast = echo, img_image_type = type)
+        new_array = get_subarray(img_array, img_contrast = echo, img_image_type = type, img_image_series_index = serie)
 
         return new_array
 
@@ -161,7 +161,7 @@ class Pipeline:
         gc.collect()
         mem = log_memory_delta("run Pipeline", "After build_image_array", mem)
 
-        #TO-DO: Add image selector here
+        # Image selector from UI
         img_array = self.images_selector(img_array, configJSON)
 
         # Start timer

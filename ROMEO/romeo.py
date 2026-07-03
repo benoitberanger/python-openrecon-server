@@ -125,7 +125,7 @@ def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None,
         # gc.collect()
         # mem = log_memory_delta("process_image", "After normalisation", mem)
 
-        data_min = data.min()
+        data_min = np.nanmin(data)
         data_shifted = (data - data_min).astype(np.uint16)
 
         for m in meta:
@@ -151,7 +151,7 @@ def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None,
 
 def run_ROMEO(nifti_path_P: str, nifti_path_M: str = None, echo_times: list = []):
 
-    cmd = ["julia", "/opt/romeo/romeo.jl", "--no-phase-rescale", "-o", niftiFolder, "-p", nifti_path_P]
+    cmd = ["julia", "/opt/romeo/romeo.jl",  "-v", "--compute-B0", "-o", niftiFolder, "-p", nifti_path_P]
     # cmd = ["julia", "/opt/romeo/romeo.jl", "-o", niftiFolder, "-p", nifti_path_P]
     if nifti_path_M is not None:
         cmd += ["-m", str(nifti_path_M)]
@@ -159,7 +159,10 @@ def run_ROMEO(nifti_path_P: str, nifti_path_M: str = None, echo_times: list = []
         cmd += ["-t", str(echo_times)]
 
     logging.info(f"running ROMEO unwrapping algorithm : {cmd}")
-    subprocess.run(cmd, check=True, capture_output=True, text=True)
+    result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+    logging.debug(f"ROMEO: {result.stdout}")
+    if result.stderr:
+        logging.debug(f"ROMEO: {result.stderr}")
     # default output is "unwrapped.nii"
     
 
