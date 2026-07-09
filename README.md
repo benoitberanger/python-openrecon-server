@@ -51,10 +51,11 @@ flowchart TB
         subgraph pipeline["Pipeline"]
             save_orig{"SaveOriginal ?"}
             nd_array["build_image_array()"]
+            images_selector["Images selector"]
             app["APP\nprocess_image()\nuser processing module"]
             send_slices["send_volume_as_slices()\n2D MRD images"]
 
-            save_orig --> nd_array --> app:::test --> send_slices
+            save_orig --> nd_array --> images_selector --> app:::test --> send_slices
         end
 
     end
@@ -227,10 +228,13 @@ save = check_OR_arguments(configJSON, "SaveOriginal", bool, False)
 The following keys are handled by the pipeline and do not need to be
 read manually in `process_image`:
 
-| Key              | Type   | Default | Description                                |
-|------------------|--------|---------|--------------------------------------------|
-| `"Debug"`        | `bool` | `False` | Enable debug mode                          |
-| `"SaveOriginal"` | `bool` | `True`  | Send original images before processed ones |
+| Key              | Type     | Default | Description                                |
+|------------------|----------|---------|--------------------------------------------|
+| `"Debug"`        | `bool`   | `False` | Enable debug mode                          |
+| `"SaveOriginal"` | `bool`   | `True`  | Send original images before processed ones |
+| `"ImageType"`    | `choice` | `All`   | Select the image type for the process      |
+| `"SaveOriginal"` | `choice` | `All`   | Select the echos for the process           |
+| `"SaveOriginal"` | `choice` | `All`   | Select the series for the process          |
 
 > _If they are not provided in the JSON configuration, they default value will be used._
 
@@ -266,7 +270,7 @@ from utils.image_array import get_type_magnitude, get_type_phase, get_subarray
 mag_array = get_type_magnitude(img_array)
 
 # Specific contrast
-co0 = get_contrast(img_array, contrast=0)
+co0 = get_contrast(img_array, img_contrast=0)
 
 # First 100 slices, magnitude only
 subarray = get_subarray(img_array, img_slice=slice(0,100), img_image_type=ismrmrd.IMTYPE_MAGNITUDE)

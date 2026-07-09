@@ -162,7 +162,7 @@ def get_subarray(img_array: np.ndarray[ismrmrd.Image],
     Parameters
     ----------
     img_array : np.ndarray
-        8D MRD images array as returned by build_image_array().
+        nD MRD images array as returned by build_image_array().
     img_slice : int or slice or None
         Index along the slice axis, or None for all slices.
     img_contrast : int or slice or None
@@ -272,7 +272,7 @@ def get_type_phase(img_array: np.ndarray[ismrmrd.Image]) -> np.ndarray[ismrmrd.I
     return get_subarray(img_array, img_image_type=ismrmrd.IMTYPE_PHASE)
 
 
-def get_contrast(img_array: np.ndarray[ismrmrd.Image], contrast: int) -> np.ndarray[ismrmrd.Image]:
+def get_contrast(img_array: np.ndarray[ismrmrd.Image], img_contrast: int) -> np.ndarray[ismrmrd.Image]:
     """
     Extract all images for a specific contrast index.
     Shorthand for get_subarray(img_array, img_contrast=contrast).
@@ -290,7 +290,7 @@ def get_contrast(img_array: np.ndarray[ismrmrd.Image], contrast: int) -> np.ndar
         nD subarray of shape [slice, average, phase, repetition, set, image_type, image_series_index]
         containing all images for the requested contrast.
     """
-    return get_subarray(img_array, contrast = contrast)
+    return get_subarray(img_array, img_contrast = img_contrast)
 
 
 def flatten(arr: np.ndarray[ismrmrd.Image]) -> list[ismrmrd.Image]:
@@ -324,7 +324,7 @@ def flatten(arr: np.ndarray[ismrmrd.Image]) -> list[ismrmrd.Image]:
 
 def stack_images(images: list[ismrmrd.Image], dtype = np.float32) -> tuple[np.ndarray, list, list]:
     """
-    Flatten a MRD image array and stack pixel data, headers and metadata.
+    Stack pixel data, headers and metadata from a list of MRD images.
 
     Parameters
     ----------

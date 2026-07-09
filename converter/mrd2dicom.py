@@ -143,6 +143,7 @@ def main(args):
                 except:
                     print("Error setting header information from MRD header's acquisitionSystemInformation section")
 
+                # print(f"[mrd2dicom] dtype={mrdImg.data.dtype}, min={np.nanmin(mrdImg.data):.3f}, max={np.nanmax(mrdImg.data):.3f}")
                 dicomDset.Rows    = mrdImg.data.shape[2]
                 dicomDset.Columns = mrdImg.data.shape[3]
 

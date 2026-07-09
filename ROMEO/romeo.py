@@ -12,6 +12,7 @@ import numpy as np
 
 from converter.mrd2nifti import nifti_from_image_array
 from converter.nifti2mrd import images_from_nifti
+from converter.utils import slice_pos
 from utils.OutputSeries import OutputSeries, ProcessImageResult
 from utils.check_OR_arguments import check_OR_arguments
 from utils.img_array import flatten, get_type_magnitude, get_subarray, mrd_indexes, stack_images
@@ -102,13 +103,38 @@ def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None,
             tmp_echo = [float(m.get("EchoTime")) for m in meta]
             echo_times = np.unique(tmp_echo).tolist()
             mem = log_memory_delta("process_image", "After stack_images", mem)
-            del phase_array
+            # del phase_array
         
         if not nifti_P :
             continue
 
         logging.info(f"TE = {echo_times}")
         run_ROMEO(nifti_P, nifti_M, echo_times)
+        
+        # --- B0 map ----------------------------------------------------------
+        B0_path = os.path.join(niftiFolder, "B0.nii")
+        if os.path.exists(B0_path):
+            b0_template = first_echo_template(phase_template)
+            b0_images = images_from_nifti(B0_path, b0_template, extra_dims=[])
+
+            B0_data, head_B0, meta_B0 = images_to_triplet(b0_images)
+            # logging.debug(f"[B0_data after images_to_triplet] dtype={B0_data.dtype}, min={np.nanmin(B0_data):.3f}, max={np.nanmax(B0_data):.3f}")
+
+            B0_data_min = np.nanmin(B0_data)
+            B0_data_shifted = (B0_data - B0_data_min).astype(np.int16)
+            for m in meta_B0:
+                m["SeriesDescription"] = "B0map"
+                m["ImageComments"]     = "ROMEO B0 map"
+                m["RescaleSlope"]     = "1"
+                m["RescaleIntercept"] = str(int(B0_data_min))
+
+            series.add(B0_data_shifted, head_B0, meta_B0,
+                    process_history=["PYTHON", "ROMEO B0"],
+                    sequence_description="B0map")
+            del b0_images, B0_data
+        else:
+            logging.warning("B0.nii not found")
+        
 
         unwrapped_path = os.path.join(niftiFolder, "unwrapped.nii")
         if len(echo_times) > 1:
@@ -116,6 +142,7 @@ def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None,
         else :
             unwrapped_images = images_from_nifti(unwrapped_path, phase_template)
         data, head, meta = images_to_triplet(unwrapped_images)
+        # logging.debug(f"[data after images_to_triplet] dtype={data.dtype}, min={np.nanmin(data):.3f}, max={np.nanmax(data):.3f}")
 
         del unwrapped_images
 
@@ -126,7 +153,7 @@ def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None,
         # mem = log_memory_delta("process_image", "After normalisation", mem)
 
         data_min = np.nanmin(data)
-        data_shifted = (data - data_min).astype(np.uint16)
+        data_shifted = (data - data_min).astype(np.int16)
 
         for m in meta:
             m["RescaleSlope"]     = "1"
@@ -151,19 +178,23 @@ def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None,
 
 def run_ROMEO(nifti_path_P: str, nifti_path_M: str = None, echo_times: list = []):
 
-    cmd = ["julia", "/opt/romeo/romeo.jl",  "-v", "--compute-B0", "-o", niftiFolder, "-p", nifti_path_P]
-    # cmd = ["julia", "/opt/romeo/romeo.jl", "-o", niftiFolder, "-p", nifti_path_P]
+    # cmd = ["julia", "/opt/romeo/romeo.jl",  "-v", "--compute-B0", "-o", niftiFolder, "-p", nifti_path_P]
+    cmd = ["/home/solenne.vincens/julia-1.10.11/bin/julia", "ROMEO/romeo.jl",  "-v", "--compute-B0", "-o", niftiFolder, "-p", nifti_path_P]
     if nifti_path_M is not None:
         cmd += ["-m", str(nifti_path_M)]
     if len(echo_times) > 1:
         cmd += ["-t", str(echo_times)]
 
-    logging.info(f"running ROMEO unwrapping algorithm : {cmd}")
-    result = subprocess.run(cmd, check=True, capture_output=True, text=True)
-    logging.debug(f"ROMEO: {result.stdout}")
-    if result.stderr:
-        logging.debug(f"ROMEO: {result.stderr}")
-    # default output is "unwrapped.nii"
+    try:
+        logging.info(f"running ROMEO unwrapping algorithm : {cmd}")
+        result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+        logging.debug(f"ROMEO: {result.stdout}")
+        if result.stderr:
+            logging.debug(f"ROMEO: {result.stderr}")
+        # default output is "unwrapped.nii"
+    except subprocess.CalledProcessError as e:
+        logging.debug(f"ROMEO Process Error: {e}")
+
     
 
 def images_to_triplet(images: list[ismrmrd.Image]) -> tuple[np.ndarray, list, list]:
@@ -203,3 +234,15 @@ def images_to_triplet(images: list[ismrmrd.Image]) -> tuple[np.ndarray, list, li
     meta = [ismrmrd.Meta.deserialize(img.attribute_string) for img in images]
 
     return data, head, meta
+
+
+def first_echo_template(template_images: list) -> list:
+    seen_slices = set()
+    result = []
+    for img in template_images:
+        pos = slice_pos(img)
+        if pos not in seen_slices:
+            seen_slices.add(pos)
+            result.append(img)
+    result.sort(key=lambda img: slice_pos(img))
+    return result

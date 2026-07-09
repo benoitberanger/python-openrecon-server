@@ -322,7 +322,7 @@ def assemble_volume(images: list[ismrmrd.Image], extra_dims: list[str]) :
 
 #### NIfTI construction #######################################################
 
-def make_nifti(data: np.ndarray, affine: np.ndarray, meta: dict) -> nib.Nifti1Image:
+def make_nifti(data: np.ndarray[ismrmrd.Image], affine: np.ndarray, meta: dict) -> nib.Nifti1Image:
     """
     Wrap a numpy volume and RAS affine into a Nifti1Image with a populated header.
  
@@ -382,7 +382,7 @@ def make_nifti(data: np.ndarray, affine: np.ndarray, meta: dict) -> nib.Nifti1Im
 
 ###############################################################################
 
-def nifti_from_image_array(image_array: np.ndarray, outfolder: str, extra_dims: list[str] | None = None) -> str:
+def nifti_from_image_array(image_array: np.ndarray[ismrmrd.Image], outfolder: str, extra_dims: list[str] | None = None) -> str:
     """
     Convert an MRDImageArray into a NIfTI image and save it to disk.
  

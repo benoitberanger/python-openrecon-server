@@ -76,7 +76,20 @@ class Pipeline:
 
     def images_selector(self, img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None) -> np.ndarray[ismrmrd.Image]:
         """
-        TO-DO
+        Select a subarray of ismrmrd.Image based on the option selected by
+        the user in the OpenRecon UI and send via JSON
+
+        Parameters
+        ----------
+        img_array : np.ndarray
+            nD MRD images array as returned by build_image_array().
+        configJSON : dict or None
+            JSON configuration from the client.
+        
+        Returns
+        -------
+        np.ndarray
+            Subarray of MRD images corresponding to the request of the.
         """
         select_type     = check_OR_arguments(configJSON, arg_name='ImageType', arg_type=str, arg_default='All')
         select_echo     = check_OR_arguments(configJSON, arg_name='SelectEcho', arg_type=str, arg_default='All')
