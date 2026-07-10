@@ -103,7 +103,7 @@ def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None,
             tmp_echo = [float(m.get("EchoTime")) for m in meta]
             echo_times = np.unique(tmp_echo).tolist()
             mem = log_memory_delta("process_image", "After stack_images", mem)
-            # del phase_array
+            del phase_array
         
         if not nifti_P :
             continue
@@ -118,10 +118,8 @@ def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None,
             b0_images = images_from_nifti(B0_path, b0_template, extra_dims=[])
 
             B0_data, head_B0, meta_B0 = images_to_triplet(b0_images)
-            # logging.debug(f"[B0_data after images_to_triplet] dtype={B0_data.dtype}, min={np.nanmin(B0_data):.3f}, max={np.nanmax(B0_data):.3f}")
-
             B0_data_min = np.nanmin(B0_data)
-            B0_data_shifted = (B0_data - B0_data_min).astype(np.int16)
+            B0_data_shifted = (B0_data - B0_data_min)
             for m in meta_B0:
                 m["SeriesDescription"] = "B0map"
                 m["ImageComments"]     = "ROMEO B0 map"
@@ -131,7 +129,7 @@ def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None,
             series.add(B0_data_shifted, head_B0, meta_B0,
                     process_history=["PYTHON", "ROMEO B0"],
                     sequence_description="B0map")
-            del b0_images, B0_data
+            del b0_images, B0_data, B0_data_shifted
         else:
             logging.warning("B0.nii not found")
         
@@ -142,18 +140,11 @@ def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None,
         else :
             unwrapped_images = images_from_nifti(unwrapped_path, phase_template)
         data, head, meta = images_to_triplet(unwrapped_images)
-        # logging.debug(f"[data after images_to_triplet] dtype={data.dtype}, min={np.nanmin(data):.3f}, max={np.nanmax(data):.3f}")
 
         del unwrapped_images
 
-        # # --- Normalise to 12-bit range and convert to int16 --------------
-        # data = normalise(data)
-        # data = data.astype(np.int16)
-        # gc.collect()
-        # mem = log_memory_delta("process_image", "After normalisation", mem)
-
         data_min = np.nanmin(data)
-        data_shifted = (data - data_min).astype(np.int16)
+        data_shifted = (data - data_min)
 
         for m in meta:
             m["RescaleSlope"]     = "1"
@@ -178,8 +169,7 @@ def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None,
 
 def run_ROMEO(nifti_path_P: str, nifti_path_M: str = None, echo_times: list = []):
 
-    # cmd = ["julia", "/opt/romeo/romeo.jl",  "-v", "--compute-B0", "-o", niftiFolder, "-p", nifti_path_P]
-    cmd = ["/home/solenne.vincens/julia-1.10.11/bin/julia", "ROMEO/romeo.jl",  "-v", "--compute-B0", "-o", niftiFolder, "-p", nifti_path_P]
+    cmd = ["julia", "/opt/romeo/romeo.jl",  "-v", "--compute-B0", "-o", niftiFolder, "-p", nifti_path_P]
     if nifti_path_M is not None:
         cmd += ["-m", str(nifti_path_M)]
     if len(echo_times) > 1:

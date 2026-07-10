@@ -42,7 +42,6 @@ def images_from_nifti(
     """
     nii  = nib.load(nifti_path)
     data = np.asarray(nii.dataobj)  # [x, y, z, *extra]
-    # logging.debug(f"[NIfTI load] dtype={data.dtype}, min={np.nanmin(data):.3f}, max={np.nanmax(data):.3f}")
 
     logging.debug(f"nifti_shape = {data.shape}")
 
@@ -58,7 +57,6 @@ def images_from_nifti(
     perm = (2, 1, 0, *range(3, expected_ndim))
     data_zyx = np.transpose(data, perm)
     logging.debug(f"nifti_shape after perm = {data_zyx.shape}")
-    # logging.debug(f"[after transpose] dtype={data_zyx.dtype}, min={np.nanmin(data_zyx):.3f}, max={np.nanmax(data_zyx):.3f}")
 
     # Recompute the same indexation used when the volume was assembled
     slice_positions = sorted({slice_pos(img) for img in template_images})
@@ -89,14 +87,12 @@ def images_from_nifti(
                 del new_meta[stale_key]
 
         new_data = slice_data.reshape(1, 1, *slice_data.shape)
-        # logging.debug(f"[new_data before from_array] dtype={new_data.dtype}, min={np.nanmin(new_data):.3f}, max={np.nanmax(new_data):.3f}")
         new_img = ismrmrd.Image.from_array(
             new_data.astype(np.float32),
             transpose=False
         )
         new_head.data_type = ismrmrd.DATATYPE_FLOAT
         new_img.setHead(new_head)
-        # logging.debug(f"[new_img.data after from_array+setHead] dtype={new_img.data.dtype}, min={np.nanmin(new_img.data):.3f}, max={np.nanmax(new_img.data):.3f}")
         new_img.attribute_string = new_meta.serialize()
         out_images.append(new_img)
 
