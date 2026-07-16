@@ -72,7 +72,9 @@ class Pipeline:
             logging.info(f"Starting config {self.app_config} in {self.app_directory} directory")
         except ImportError as e:
             logging.error("Failed to load config '%s' with error:\n  %s", self.app_config, e)
-
+            #TO-DO: How to handle failed loading module ? Stop the server, just raise an error
+            # or send back original images if asked with just an error message in the logs
+            # Maybe trying to load the app before the server received anything to check tha argument
 
     def images_selector(self, img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None) -> np.ndarray[ismrmrd.Image]:
         """
@@ -105,14 +107,14 @@ class Pipeline:
         if select_echo == 'FirstEcho':
             echo = 0
         elif select_echo == 'LastEcho':
-            echo = img_array.shape[mrd_indexes.contrast] - 1
+            echo = - 1
         else :
             echo = None
 
         if select_serie == 'FirstSerie' :
             serie = 1
         elif select_serie == 'LastSerie' :
-            serie = img_array.shape[mrd_indexes.image_series_index] - 1
+            serie = - 1
         else :
             serie = None
 

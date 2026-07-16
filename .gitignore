@@ -7,7 +7,7 @@ ANTs/
 Makefile
 openrecon.json
 romeo.jl
-test*
+localtest*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
