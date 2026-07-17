@@ -63,6 +63,16 @@ def test_add_mismatched_head_length_vs_data_shape_raises(base_head_meta):
     with pytest.raises(ValueError):
         series.add(data, head, meta)
 
+def test_no_series_added_after_failed_add(base_head_meta):
+    head, meta = base_head_meta
+    # data.shape[0] == 3 but head/meta only have 2 elements
+    data = np.zeros((3, 1, 1, 4, 4), dtype=np.float32)
+    series = OutputSeries()
+
+    with pytest.raises(ValueError):
+        series.add(data, head, meta)
+    assert len(series) == 0
+
 def test_add_sets_image_series_index_per_series(base_head_meta):
     head, meta = base_head_meta
     data = np.zeros((2, 1, 1, 4, 4), dtype=np.float32)
@@ -108,3 +118,17 @@ def test_add_deep_copies_head_so_series_are_independent(base_head_meta):
 # ---------------------------------------------------------------------------
 # Tests for OutputSeries.get()
 # ---------------------------------------------------------------------------
+
+def test_get_returns_series_in_insertion_order(base_head_meta):
+    data = np.zeros((2, 1, 1, 4, 4), dtype=np.float32)
+    head, meta = base_head_meta
+    series = OutputSeries()
+    series.add(data, head, meta, sequence_description="First")
+    series.add(data, head, meta, sequence_description="Second")
+
+    result = series.get()
+    assert len(result) == 2
+    _, _, meta0 = result[0]
+    _, _, meta1 = result[1]
+    assert meta0[0]["SequenceDescriptionAdditional"] == "First"
+    assert meta1[0]["SequenceDescriptionAdditional"] == "Second"

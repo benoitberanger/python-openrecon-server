@@ -5,12 +5,12 @@ import pytest
 
 # ---------------------------------------------------------------------------
 # FAKE IMAGE
-# Minimal class to reproduce a complex ismrd.Image object
+# Minimal class to reproduce a complex ismrmrd.Image object
 # ---------------------------------------------------------------------------
 class FakeImage:
     def __init__(self, slice=0, contrast=0, average=0, phase=0,
-                 repetition=0, set=0, image_type=1, image_series_index=0,
-                 data=None):
+                 repetition=0, set=0, image_type=ismrmrd.IMTYPE_MAGNITUDE, 
+                 image_series_index=0, data=None):
         self.slice = slice
         self.contrast = contrast
         self.average = average
@@ -25,8 +25,45 @@ class FakeImage:
     def getHead(self):
         return {"slice": self.slice, "contrast": self.contrast}
 
+# ---------------------------------------------------------------------------
+# Fixture
+# ---------------------------------------------------------------------------
+# Create a simple ismrmrd.Image object
+@pytest.fixture
+def make_image():
+ 
+    def _make(
+        slice=0,
+        contrast=0,
+        average=0,
+        phase=0,
+        repetition=0,
+        set=0,
+        image_type=ismrmrd.IMTYPE_MAGNITUDE,
+        image_series_index=0,
+        shape=(1, 1, 4, 4),
+        value=1.0,
+        dtype=np.float32
+    ):
+        data = np.full(shape, value, dtype=dtype)
+        img = ismrmrd.Image.from_array(data, transpose=False)
+ 
+        img.slice = slice
+        img.contrast = contrast
+        img.average = average
+        img.phase = phase
+        img.repetition = repetition
+        img.set = set
+        img.image_type = image_type
+        img.image_series_index = image_series_index
+ 
+        meta = ismrmrd.Meta()
+        img.attribute_string = meta.serialize()
+ 
+        return img
+ 
+    return _make
 
-# ------------------------------------------------------
 
 class FakeConnection:
  
@@ -51,61 +88,3 @@ class FakeConnection:
 @pytest.fixture
 def fake_connection():
     return FakeConnection()
- 
- 
-@pytest.fixture
-def make_image():
- 
-    def _make(
-        slice=0,
-        contrast=0,
-        average=0,
-        phase=0,
-        repetition=0,
-        set=0,
-        image_type=ismrmrd.IMTYPE_MAGNITUDE,
-        image_series_index=0,
-        shape=(1, 1, 4, 4),
-        value=1.0,
-        dtype=np.float32,
-    ):
-        data = np.full(shape, value, dtype=dtype)
-        img = ismrmrd.Image.from_array(data, transpose=False)
- 
-        img.slice = slice
-        img.contrast = contrast
-        img.average = average
-        img.phase = phase
-        img.repetition = repetition
-        img.set = set
-        img.image_type = image_type
-        img.image_series_index = image_series_index
- 
-        meta = ismrmrd.Meta()
-        img.attribute_string = meta.serialize()
- 
-        return img
- 
-    return _make
- 
- 
-@pytest.fixture
-def dummy_app(tmp_path, monkeypatch):
-    import sys
-    import types
- 
-    module = types.ModuleType("app.dummy_app")
- 
-    def process_image(img_array, configJSON, metadata):
-        from utils.img_array import flatten, stack_images
- 
-        images = flatten(img_array)
-        data, head, meta = stack_images(images, dtype=np.float32)
-        return [(data, head, meta)]
- 
-    module.process_image = process_image
-    sys.modules["app.dummy_app"] = module
- 
-    yield "dummy_app"
- 
-    del sys.modules["app.dummy_app"]
