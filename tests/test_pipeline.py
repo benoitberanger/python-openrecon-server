@@ -121,6 +121,58 @@ class TestRun:
 
         assert images[0] not in fake_connection.sent_images
 
+    def test_run_sends_one_slice_per_input_image(self, fake_connection, make_image, dummy_app):
+        pipeline = Pipeline(fake_connection, app_config=dummy_app, app_directory="app")
+        images = [
+            make_image(slice=0, image_series_index=0),
+            make_image(slice=1, image_series_index=0),
+            make_image(slice=2, image_series_index=0)
+        ]
+
+        pipeline.run(images, configJSON={"parameters":{"SaveOriginal": False}}, metadata=None)
+
+        assert len(fake_connection.sent_images) == 3
     
+    def test_run_increments_image_series_index_for_processed_slice(self, fake_connection, make_image, dummy_app):
+        pipeline = Pipeline(fake_connection, app_config=dummy_app, app_directory="app")
+        images = [make_image(slice=0, image_series_index=5)]
+
+        pipeline.run(images, configJSON={"parameters":{"SaveOriginal": False}}, metadata=None)
+
+        sent = fake_connection.sent_images[0]
+        assert sent.image_series_index == 11
+
+    def test_run_tracks_max_image_series_index_across_multiple_series(self, fake_connection, make_image, dummy_app):
+        pipeline = Pipeline(fake_connection, app_config=dummy_app, app_directory="app")
+        images = [
+            make_image(slice=0, image_series_index=2),
+            make_image(slice=1, image_series_index=7),
+        ]
+
+        pipeline.run(images, configJSON={"parameters":{"SaveOriginal": False}}, metadata=None)
+
+        assert pipeline.max_image_series_index == 7
+        offset = pipeline.max_image_series_index + 1  # 8
+        sent_indexes = sorted(img.image_series_index for img in fake_connection.sent_images)
+        assert sent_indexes == sorted([2 + offset, 7 + offset])
 
 
+# ---------------------------------------------------------------------------
+# test of pipeline.send_volume_as_2Dslices()
+# ---------------------------------------------------------------------------
+class TestSendVolumeAs2DSlices:
+
+    def test_send_volume_as_2D_slices_sets_keep_image_geometry(self, fake_connection, make_image, dummy_app):
+        pipeline = Pipeline(fake_connection, app_config=dummy_app, app_directory="app")
+        images = make_image(slice=0, image_series_index=0, shape=(2, 1, 4, 4))
+
+        data = images.data.astype(np.float32)
+        head = [images.getHead()] * 2
+        meta = [ismrmrd.Meta.deserialize(images.attribute_string)] * 2
+
+        pipeline.send_volume_as_2Dslices(data, head, meta)
+
+        assert len(fake_connection.sent_images) == 2
+        for sent in fake_connection.sent_images:
+            sent_meta = ismrmrd.Meta.deserialize(sent.attribute_string)
+            assert sent_meta["Keep_image_geometry"] == "1"
