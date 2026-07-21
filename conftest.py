@@ -88,3 +88,55 @@ class FakeConnection:
 @pytest.fixture
 def fake_connection():
     return FakeConnection()
+
+
+
+
+# ---------------------------------------------------------------------------
+# FakeSocket : remplace un vrai socket.socket TCP -- LA frontière du système
+# à ne jamais toucher pour de vrai dans un test unitaire.
+#
+# - "incoming" est pré-rempli avec les octets qu'un client enverrait ;
+#   .recv() les consomme au fur et à mesure (comme un vrai socket).
+# - .send() accumule dans "sent" ce que le code a réellement écrit, pour
+#   inspection après coup.
+# - socket.MSG_PEEK est géré explicitement : Connection.peek() l'utilise
+#   pour lire sans consommer.
+# ---------------------------------------------------------------------------
+import socket as _socket
+ 
+ 
+class FakeSocket:
+    def __init__(self, incoming: bytes = b""):
+        self._incoming = incoming
+        self._pos = 0
+        self.sent = bytearray()
+        self.shutdown_called_with = None
+        self.closed = False
+ 
+    def recv(self, nbytes, flags=0):
+        chunk = self._incoming[self._pos: self._pos + nbytes]
+        if not (flags & _socket.MSG_PEEK):
+            self._pos += len(chunk)
+        return chunk
+ 
+    def send(self, data):
+        # Un vrai socket.send() accepte tout objet supportant le protocole
+        # buffer (bytes, bytearray, mais aussi une ctypes.Structure comme
+        # ImageHeader). image.serialize_into() envoie justement le header
+        # sous cette forme brute, pas déjà convertie en bytes.
+        data = bytes(data)
+        self.sent.extend(data)
+        return len(data)
+ 
+    def shutdown(self, how):
+        self.shutdown_called_with = how
+ 
+    def close(self):
+        self.closed = True
+ 
+ 
+class RaisingSocket(FakeSocket):
+    """Variante qui simule une coupure réseau brutale (ConnectionResetError)."""
+    def recv(self, nbytes, flags=0):
+        raise ConnectionResetError("connection reset by peer")

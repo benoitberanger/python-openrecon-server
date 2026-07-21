@@ -29,16 +29,21 @@ def dummy_app():
  
     del sys.modules["app.dummy_app"]
 
+@pytest.fixture
+def pipeline_obj(fake_connection, dummy_app):
+    return Pipeline(fake_connection, app_config=dummy_app, app_directory="app")
+
+
 
 # ---------------------------------------------------------------------------
 # test of pipeline.load_module()
 # ---------------------------------------------------------------------------
 class TestLoadModule:
-    def test_load_module_import_error_leaves_module_none(self, fake_connection):
+    def test_import_error_leaves_module_none(self, fake_connection):
         pipeline = Pipeline(fake_connection, app_config="does_not_exist", app_directory="app")
         assert pipeline.module is None
 
-    def test_load_module_success_sets_module(self, fake_connection, dummy_app):
+    def test_success_sets_module(self, fake_connection, dummy_app):
         pipeline = Pipeline(fake_connection, app_config=dummy_app, app_directory="app")
         assert pipeline.module is sys.modules["app.dummy_app"]
         assert hasattr(pipeline.module, "process_image")
@@ -49,130 +54,180 @@ class TestLoadModule:
 
 
 # ---------------------------------------------------------------------------
-# test of pipeline.images_selector()
+# test of pipeline.imag# # ---------------------------------------------------------------------------
+# # FakeAppModule : remplace le module de traitement chargé dynamiquement.
+# # C'est une vraie frontière du système (un plugin externe potentiellement
+# # fourni par l'utilisateur), donc le faker est légitime -- comme pour
+# # Connection. Contrairement à un Mock, on peut inspecter simplement
+# # .calls après coup, sans API de mocking à apprendre.
+# # ---------------------------------------------------------------------------es_selector()
 # ---------------------------------------------------------------------------
-class TestImageSelector:
 
-    def test_images_selector_filter_magnitude_only(self, fake_connection, make_image, dummy_app):
-        pipeline = Pipeline(fake_connection, app_config=dummy_app, app_directory="app")
+class TestImageSelector:
+    def test_defaults_to_all_when_no_config(self, pipeline_obj, make_image):
+            images = [make_image(contrast=c) for c in range(3)]
+            arr = build_image_array(images)
+
+            result = pipeline_obj.images_selector(arr, configJSON=None)
+
+            images_list = flatten(result)
+            assert len(images_list) == len(images)
+            for i in range(len(images)):
+                assert images_list[i] == images[i]
+
+    def test_filter_magnitude_only(self, pipeline_obj, make_image):
         mag = make_image(image_type=ismrmrd.IMTYPE_MAGNITUDE)
         phase = make_image(image_type=ismrmrd.IMTYPE_PHASE)
         arr = build_image_array([mag, phase])
 
-        result = pipeline.images_selector(arr, configJSON={"parameters":{"ImageType": "Magnitude"}})
+        result = pipeline_obj.images_selector(arr, configJSON={"parameters":{"ImageType": "Magnitude"}})
 
         assert flatten(result) == [mag]
 
-    def test_images_selector_first_echo(self, fake_connection, make_image, dummy_app):
-        pipeline = Pipeline(fake_connection, app_config=dummy_app, app_directory="app")
+    def test_first_echo(self, pipeline_obj, make_image):
         images = [make_image(contrast=c) for c in range(3)]
         arr = build_image_array(images)
 
-        result = pipeline.images_selector(arr, configJSON={"parameters":{"SelectEcho": "FirstEcho"}})
+        result = pipeline_obj.images_selector(arr, configJSON={"parameters":{"SelectEcho": "FirstEcho"}})
 
         assert flatten(result) == [images[0]]
 
-    def test_images_selector_last_echo(self, fake_connection, make_image, dummy_app):
-        pipeline = Pipeline(fake_connection, app_config=dummy_app, app_directory="app")
+    def test_last_echo(self, pipeline_obj, make_image):
         images = [make_image(contrast=c) for c in range(3)]
         arr = build_image_array(images)
 
-        result = pipeline.images_selector(arr, configJSON={"parameters":{"SelectEcho": "LastEcho"}})
+        result = pipeline_obj.images_selector(arr, configJSON={"parameters":{"SelectEcho": "LastEcho"}})
 
         assert flatten(result) == [images[-1]]
-    
-    def test_images_selector_defaults_to_all_when_no_config(self, fake_connection, make_image, dummy_app):
-        pipeline = Pipeline(fake_connection, app_config=dummy_app, app_directory="app")
+
+    def test_defaults_to_all_when_no_config(self, pipeline_obj, make_image):
         images = [make_image(contrast=c) for c in range(3)]
         arr = build_image_array(images)
 
-        result = pipeline.images_selector(arr, configJSON=None)
+        result = pipeline_obj.images_selector(arr, configJSON=None)
 
         images_list = flatten(result)
         assert len(images_list) == len(images)
         for i in range(len(images)):
             assert images_list[i] == images[i]
+    
+    def test_unknown_value_falls_back_to_all(self, pipeline_obj, make_image):
+        images = [make_image(contrast=c) for c in range(3)]
+        arr = build_image_array(images)
+
+        result = pipeline_obj.images_selector(arr, configJSON={"parameters":{"UnknownParameters"}})
+
+        images_list = flatten(result)
+        assert len(images_list) == len(images)
+        for i in range(len(images)):
+            assert images[i] == images_list[i]
+
+
+# ---------------------------------------------------------------------------
+# test of pipeline.send_volume_as_2Dslices()
+# ---------------------------------------------------------------------------
+def make_real_header(image_series_index=0):
+    tmp_img = ismrmrd.Image.from_array(np.zeros((1, 2, 2), dtype=np.int16), transpose=False)
+    head = tmp_img.getHead()
+    head.image_series_index = image_series_index
+    return head
+
+class TestSendVolumeAs2DSlices:
+
+    def test_sends_one_image_per_slice(self, pipeline_obj):
+        data = np.zeros((3, 1, 2, 2), dtype=np.float32)
+        head = [make_real_header() for _ in range(3)]
+        meta = [ismrmrd.Meta() for _ in range(3)]
+
+        pipeline_obj.send_volume_as_2Dslices(data, head, meta)
+
+        assert len(pipeline_obj.connection.sent_images) == 3
+
+    def test_image_series_index_offset_is_applied(self, pipeline_obj):
+        pipeline_obj.max_image_series_index = 5
+        data = np.zeros((1, 1, 2, 2), dtype=np.float32)
+        head = [make_real_header(image_series_index=0)]
+        meta = [ismrmrd.Meta()]
+
+        pipeline_obj.send_volume_as_2Dslices(data, head, meta)
+
+        sent_img = pipeline_obj.connection.sent_images[0]
+        assert sent_img.getHead().image_series_index == 6
+
+    def test_keep_image_geometry_flag_is_set_in_meta(self, pipeline_obj):
+        data = np.zeros((2, 1, 2, 2), dtype=np.float32)
+        head = [make_real_header() for _i in range(2)]
+        meta = [ismrmrd.Meta() for _ in range(2)]
+
+        pipeline_obj.send_volume_as_2Dslices(data, head, meta)
+
+        assert len(pipeline_obj.connection.sent_images) == 2
+        for sent in pipeline_obj.connection.sent_images:
+            sent_meta = ismrmrd.Meta.deserialize(sent.attribute_string)
+            assert sent_meta["Keep_image_geometry"] == "1"
 
 
 # ---------------------------------------------------------------------------
 # test of pipeline.run()
 # ---------------------------------------------------------------------------
 class TestRun:
-    def test_run_with_empty_images_list_send_nothing(self, fake_connection, dummy_app):
-        pipeline = Pipeline(fake_connection, app_config=dummy_app, app_directory="app")
-        result = pipeline.run([], configJSON=None, metadata=None)
+    def test_empty_images_list_send_nothing(self, pipeline_obj):
+        result = pipeline_obj.run([], configJSON=None, metadata=None)
 
         assert result == []
-        assert fake_connection.sent_images == []
+        assert pipeline_obj.connection.sent_images == []
+
+    def test_no_module_sends_original_images_and_stop(self, pipeline_obj, make_image):
+        pipeline_obj.module = None
+        images = [make_image(slice=0, image_series_index=0)]
+
+        result = pipeline_obj.run(images, configJSON=None, metadata=None)
+
+        assert pipeline_obj.connection.sent_images == images
+        assert result == []
     
-    def test_save_original_first_by_default(self, fake_connection, make_image, dummy_app):
-        pipeline = Pipeline(fake_connection, app_config=dummy_app, app_directory="app")
+    def test_save_original_first_by_default(self, pipeline_obj, make_image):
         images = [make_image(slice=0, image_series_index=0)]
 
-        pipeline.run(images, configJSON=None, metadata=None)
+        pipeline_obj.run(images, configJSON=None, metadata=None)
 
-        assert fake_connection.sent_images[0] is images[0]
+        assert pipeline_obj.connection.sent_images[0] == images[0]
 
-    def test_run_does_not_send_original_when_save_original_false(self, fake_connection, make_image, dummy_app):
-        pipeline = Pipeline(fake_connection, app_config=dummy_app, app_directory="app")
+    def test_save_original_false_does_not_send_original(self, pipeline_obj, make_image):
         images = [make_image(slice=0, image_series_index=0)]
 
-        pipeline.run(images, configJSON={"parameters":{"SaveOriginal": False}}, metadata=None)
+        pipeline_obj.run(images, configJSON={"parameters":{"SaveOriginal": False}}, metadata=None)
 
-        assert images[0] not in fake_connection.sent_images
+        assert images[0] not in pipeline_obj.connection.sent_images
 
-    def test_run_sends_one_slice_per_input_image(self, fake_connection, make_image, dummy_app):
-        pipeline = Pipeline(fake_connection, app_config=dummy_app, app_directory="app")
+    def test_sends_one_slice_per_input_image(self, pipeline_obj, make_image):
         images = [
             make_image(slice=0, image_series_index=0),
             make_image(slice=1, image_series_index=0),
-            make_image(slice=2, image_series_index=0)
+            make_image(slice=0, image_series_index=1)
         ]
 
-        pipeline.run(images, configJSON={"parameters":{"SaveOriginal": False}}, metadata=None)
+        pipeline_obj.run(images, configJSON={"parameters":{"SaveOriginal": False}}, metadata=None)
 
-        assert len(fake_connection.sent_images) == 3
+        assert len(pipeline_obj.connection.sent_images) == 3
     
-    def test_run_increments_image_series_index_for_processed_slice(self, fake_connection, make_image, dummy_app):
-        pipeline = Pipeline(fake_connection, app_config=dummy_app, app_directory="app")
+    def test_run_increments_image_series_index_for_processed_slice(self, pipeline_obj, make_image):
         images = [make_image(slice=0, image_series_index=5)]
 
-        pipeline.run(images, configJSON={"parameters":{"SaveOriginal": False}}, metadata=None)
+        pipeline_obj.run(images, configJSON={"parameters":{"SaveOriginal": False}}, metadata=None)
 
-        sent = fake_connection.sent_images[0]
+        sent = pipeline_obj.connection.sent_images[0]
         assert sent.image_series_index == 11
 
-    def test_run_tracks_max_image_series_index_across_multiple_series(self, fake_connection, make_image, dummy_app):
-        pipeline = Pipeline(fake_connection, app_config=dummy_app, app_directory="app")
+    def test_max_image_series_index_tracks_the_highest_input_value(self, pipeline_obj, make_image):
         images = [
-            make_image(slice=0, image_series_index=2),
             make_image(slice=1, image_series_index=7),
+            make_image(slice=0, image_series_index=2),
         ]
 
-        pipeline.run(images, configJSON={"parameters":{"SaveOriginal": False}}, metadata=None)
+        pipeline_obj.run(images, configJSON={"parameters":{"SaveOriginal": False}}, metadata=None)
 
-        assert pipeline.max_image_series_index == 7
-        offset = pipeline.max_image_series_index + 1  # 8
-        sent_indexes = sorted(img.image_series_index for img in fake_connection.sent_images)
+        assert pipeline_obj.max_image_series_index == 7
+        offset = pipeline_obj.max_image_series_index + 1
+        sent_indexes = sorted(img.image_series_index for img in pipeline_obj.connection.sent_images)
         assert sent_indexes == sorted([2 + offset, 7 + offset])
-
-
-# ---------------------------------------------------------------------------
-# test of pipeline.send_volume_as_2Dslices()
-# ---------------------------------------------------------------------------
-class TestSendVolumeAs2DSlices:
-
-    def test_send_volume_as_2D_slices_sets_keep_image_geometry(self, fake_connection, make_image, dummy_app):
-        pipeline = Pipeline(fake_connection, app_config=dummy_app, app_directory="app")
-        images = make_image(slice=0, image_series_index=0, shape=(2, 1, 4, 4))
-
-        data = images.data.astype(np.float32)
-        head = [images.getHead()] * 2
-        meta = [ismrmrd.Meta.deserialize(images.attribute_string)] * 2
-
-        pipeline.send_volume_as_2Dslices(data, head, meta)
-
-        assert len(fake_connection.sent_images) == 2
-        for sent in fake_connection.sent_images:
-            sent_meta = ismrmrd.Meta.deserialize(sent.attribute_string)
-            assert sent_meta["Keep_image_geometry"] == "1"
