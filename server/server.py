@@ -158,8 +158,8 @@ class Server:
             try:
                 configAdditional = json.loads(configAdditionalText)
             except Exception as e:
-                logging.error("Failed to parse as JSON")
-                logging.debug(f"JSON loads error: {e}")
+                logging.error(f"Failed to parse as JSON: {e}")
+                return None
         else:
             return None
         
@@ -242,7 +242,7 @@ class Server:
                         send_back_debug(item, connection)
                     else:
                         imgGroup.append(item)
-                        # Log tous les 50 images pour ne pas spammer
+                        # Log every 50 images to avoid spaming
                         if len(imgGroup) % 50 == 0:
                             log_memory_delta("handle_image_stream", f"{len(imgGroup)} images accumulated", mem_start)
 

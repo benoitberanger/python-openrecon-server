@@ -2,6 +2,7 @@ import ismrmrd
 import numpy as np
 import pytest
 
+import server.server as server_app_module
 from server import constants
 from server.server import Server
 
@@ -11,7 +12,7 @@ def server_obj():
     s = Server.__new__(Server)
     s.debug = False
     s.app_config = "does_not_exist"
-    s.app_config = "app"
+    s.app_directory = "app"
     return s
 
 
@@ -60,11 +61,13 @@ class FakePeekableConnection:
     def __init__(self, peek_id, next_value=None):
         self.peek_id = peek_id
         self.next_value = next_value
+        self.next_was_called = False
     
     def peek_mrd_message_identifier(self):
         return self.peek_id
     
     def __next__(self):
+        self.next_was_called = True
         return self.next_value
 
 
@@ -76,11 +79,80 @@ class TestHandleJSON:
         result = server_obj.handleJSON(connection)
         assert result == {"TestParameters":"test"}
 
+    def test_no_text_message_return_none(self, server_obj):
+        connection = FakePeekableConnection(constants.MRD_MESSAGE_CLOSE)
+        result = server_obj.handleJSON(connection)
+
+        assert result is None
+        assert connection.next_was_called is False
+
+    def test_malformed_json_return_none(self, server_obj):
+        connection = FakePeekableConnection(constants.MRD_MESSAGE_TEXT, next_value="malformed json {{")
+        result = server_obj.handleJSON(connection)
+
+        assert result is None
 
 
 # ---------------------------------------------------------------------------
 # handle_image_stream()
 # ---------------------------------------------------------------------------
+class FakePipeline:
+    def __init__(self, connection, app_config, app_directory):
+        self.connection = connection
+        self.app_config = app_config
+        self.app_directory = app_directory
+
+    def run(self, images, configJSON, metadata):
+        return []
+    
+class FakeConnection:
+    def __init__(self, items):
+        self.items = items
+        self.open = True
+        self.sent_images = []
+        self.logs = []
+        self.close_sent = False
+        self.shutdown_called = False
+
+    def __iter__(self):
+        yield from self.items
+    
+    def send_image(self, img):
+        self.sent_images.append(img)
+
+    def send_close(self):
+        self.close_sent = True
+    
+    def shutdown_close(self):
+        self.shutdown_called = True
+
+    def senf_logging(self, level, msg):
+        self.logs.append((level, msg))
+
+
+
 class TestHandleImageStream:
     """tests for handle Image Stream"""
 
+    def test_debug_mode_send_back_original_images(self, server_obj, make_image, monkeypatch):
+        monkeypatch.setattr(server_app_module, "Pipeline", FakePipeline)
+        images = [make_image(), make_image()]
+        connection = FakeConnection(images + [None])
+        server_obj.debug = True
+
+        server_obj.handle_image_stream(connection, configJSON=None, metadata="METADATA")
+
+        assert connection.sent_images == images
+
+    def test_debug_mode_activated_via_json(self, server_obj, make_image, monkeypatch):
+        monkeypatch.setattr(server_app_module, "Pipeline", FakePipeline)
+        images = [make_image(), make_image()]
+        connection = FakeConnection(images + [None])
+        
+        server_obj.handle_image_stream(connection, configJSON={"parameters":{"Debug": True}}, metadata="METADATA")
+
+        assert connection.sent_images == images
+
+    def test_(self, server_obj, monkeypatch):
+        monkeypatch.setattr(server_app_module, "Pipeline", FakePipeline)
+        
