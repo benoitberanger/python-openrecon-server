@@ -1,6 +1,7 @@
 import ismrmrd
 import numpy as np
 import pytest
+import socket as _socket
 
 
 # ---------------------------------------------------------------------------
@@ -90,22 +91,9 @@ def fake_connection():
     return FakeConnection()
 
 
-
-
 # ---------------------------------------------------------------------------
-# FakeSocket : remplace un vrai socket.socket TCP -- LA frontière du système
-# à ne jamais toucher pour de vrai dans un test unitaire.
-#
-# - "incoming" est pré-rempli avec les octets qu'un client enverrait ;
-#   .recv() les consomme au fur et à mesure (comme un vrai socket).
-# - .send() accumule dans "sent" ce que le code a réellement écrit, pour
-#   inspection après coup.
-# - socket.MSG_PEEK est géré explicitement : Connection.peek() l'utilise
-#   pour lire sans consommer.
+# FakeSocket
 # ---------------------------------------------------------------------------
-import socket as _socket
- 
- 
 class FakeSocket:
     def __init__(self, incoming: bytes = b""):
         self._incoming = incoming
@@ -121,10 +109,6 @@ class FakeSocket:
         return chunk
  
     def send(self, data):
-        # Un vrai socket.send() accepte tout objet supportant le protocole
-        # buffer (bytes, bytearray, mais aussi une ctypes.Structure comme
-        # ImageHeader). image.serialize_into() envoie justement le header
-        # sous cette forme brute, pas déjà convertie en bytes.
         data = bytes(data)
         self.sent.extend(data)
         return len(data)
@@ -137,6 +121,6 @@ class FakeSocket:
  
  
 class RaisingSocket(FakeSocket):
-    """Variante qui simule une coupure réseau brutale (ConnectionResetError)."""
+    """FakeSocket who emulate connection error (ConnectionResetError)."""
     def recv(self, nbytes, flags=0):
         raise ConnectionResetError("connection reset by peer")
