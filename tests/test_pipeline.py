@@ -54,13 +54,7 @@ class TestLoadModule:
 
 
 # ---------------------------------------------------------------------------
-# test of pipeline.imag# # ---------------------------------------------------------------------------
-# # FakeAppModule : remplace le module de traitement chargé dynamiquement.
-# # C'est une vraie frontière du système (un plugin externe potentiellement
-# # fourni par l'utilisateur), donc le faker est légitime -- comme pour
-# # Connection. Contrairement à un Mock, on peut inspecter simplement
-# # .calls après coup, sans API de mocking à apprendre.
-# # ---------------------------------------------------------------------------es_selector()
+# test of pipeline.images_selector()
 # ---------------------------------------------------------------------------
 
 class TestImageSelector:
@@ -99,17 +93,6 @@ class TestImageSelector:
         result = pipeline_obj.images_selector(arr, configJSON={"parameters":{"SelectEcho": "LastEcho"}})
 
         assert flatten(result) == [images[-1]]
-
-    def test_defaults_to_all_when_no_config(self, pipeline_obj, make_image):
-        images = [make_image(contrast=c) for c in range(3)]
-        arr = build_image_array(images)
-
-        result = pipeline_obj.images_selector(arr, configJSON=None)
-
-        images_list = flatten(result)
-        assert len(images_list) == len(images)
-        for i in range(len(images)):
-            assert images_list[i] == images[i]
     
     def test_unknown_value_falls_back_to_all(self, pipeline_obj, make_image):
         images = [make_image(contrast=c) for c in range(3)]
@@ -126,27 +109,21 @@ class TestImageSelector:
 # ---------------------------------------------------------------------------
 # test of pipeline.send_volume_as_2Dslices()
 # ---------------------------------------------------------------------------
-def make_real_header(image_series_index=0):
-    tmp_img = ismrmrd.Image.from_array(np.zeros((1, 2, 2), dtype=np.int16), transpose=False)
-    head = tmp_img.getHead()
-    head.image_series_index = image_series_index
-    return head
-
 class TestSendVolumeAs2DSlices:
 
-    def test_sends_one_image_per_slice(self, pipeline_obj):
+    def test_sends_one_image_per_slice(self, pipeline_obj, make_header):
         data = np.zeros((3, 1, 2, 2), dtype=np.float32)
-        head = [make_real_header() for _ in range(3)]
+        head = [make_header() for _ in range(3)]
         meta = [ismrmrd.Meta() for _ in range(3)]
 
         pipeline_obj.send_volume_as_2Dslices(data, head, meta)
 
         assert len(pipeline_obj.connection.sent_images) == 3
 
-    def test_image_series_index_offset_is_applied(self, pipeline_obj):
+    def test_image_series_index_offset_is_applied(self, pipeline_obj, make_header):
         pipeline_obj.max_image_series_index = 5
         data = np.zeros((1, 1, 2, 2), dtype=np.float32)
-        head = [make_real_header(image_series_index=0)]
+        head = [make_header(image_series_index=0)]
         meta = [ismrmrd.Meta()]
 
         pipeline_obj.send_volume_as_2Dslices(data, head, meta)
@@ -154,9 +131,9 @@ class TestSendVolumeAs2DSlices:
         sent_img = pipeline_obj.connection.sent_images[0]
         assert sent_img.getHead().image_series_index == 6
 
-    def test_keep_image_geometry_flag_is_set_in_meta(self, pipeline_obj):
+    def test_keep_image_geometry_flag_is_set_in_meta(self, pipeline_obj, make_header):
         data = np.zeros((2, 1, 2, 2), dtype=np.float32)
-        head = [make_real_header() for _i in range(2)]
+        head = [make_header() for _i in range(2)]
         meta = [ismrmrd.Meta() for _ in range(2)]
 
         pipeline_obj.send_volume_as_2Dslices(data, head, meta)

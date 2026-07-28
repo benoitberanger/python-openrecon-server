@@ -104,8 +104,9 @@ class FakePipeline:
 
     def run(self, images, configJSON, metadata):
         return []
-    
-class FakeConnection:
+
+
+class FakeStreamConnection:
     def __init__(self, items):
         self.items = items
         self.open = True
@@ -126,18 +127,30 @@ class FakeConnection:
     def shutdown_close(self):
         self.shutdown_called = True
 
-    def senf_logging(self, level, msg):
+    def send_logging(self, level, msg):
         self.logs.append((level, msg))
 
 
+class RaisingStreamConnection(FakeStreamConnection):
+    """Same as FakeStreamConnection, but raises partway through iteration
+    to exercise the exception / shutdown_close path of handle_image_stream."""
+    def __init__(self, items, fail_at):
+        super().__init__(items)
+        self.fail_at = fail_at
+ 
+    def __iter__(self):
+        for i, item in enumerate(self.items):
+            if i == self.fail_at:
+                raise RuntimeError("simulated failure mid-stream")
+            yield item
+
 
 class TestHandleImageStream:
-    """tests for handle Image Stream"""
 
     def test_debug_mode_send_back_original_images(self, server_obj, make_image, monkeypatch):
         monkeypatch.setattr(server_app_module, "Pipeline", FakePipeline)
         images = [make_image(), make_image()]
-        connection = FakeConnection(images + [None])
+        connection = FakeStreamConnection(images + [None])
         server_obj.debug = True
 
         server_obj.handle_image_stream(connection, configJSON=None, metadata="METADATA")
@@ -147,12 +160,36 @@ class TestHandleImageStream:
     def test_debug_mode_activated_via_json(self, server_obj, make_image, monkeypatch):
         monkeypatch.setattr(server_app_module, "Pipeline", FakePipeline)
         images = [make_image(), make_image()]
-        connection = FakeConnection(images + [None])
+        connection = FakeStreamConnection(images + [None])
         
         server_obj.handle_image_stream(connection, configJSON={"parameters":{"Debug": True}}, metadata="METADATA")
 
         assert connection.sent_images == images
 
-    def test_(self, server_obj, monkeypatch):
+    def test_debug_mode_send_image_back_without_pipeline(self, server_obj, make_image, monkeypatch):
+        monkeypatch.setattr(server_app_module, "Pipeline", None)
+        images = [make_image(), make_image()]
+        connection = FakeStreamConnection(images + [None])
+        server_obj.handle_image_stream(connection, configJSON={"parameters":{"Debug": True}}, metadata="METADATA")
+
+        assert connection.sent_images == images
+
+    def test_exception_mid_stream_triggers_shutdown_not_normal_close(self, server_obj, make_image, monkeypatch):
         monkeypatch.setattr(server_app_module, "Pipeline", FakePipeline)
-        
+        images = [make_image(), make_image(), make_image()]
+        connection = RaisingStreamConnection(images, fail_at=1)
+ 
+        server_obj.handle_image_stream(connection, configJSON=None, metadata="METADATA")
+ 
+        assert connection.shutdown_called is True
+        assert any(level == "ERROR" for level, _ in connection.logs)
+        assert connection.close_sent is True
+
+    def test_unsupported_message_type_is_logged_as_error(self, server_obj, monkeypatch):
+        monkeypatch.setattr(server_app_module, "Pipeline", FakePipeline)
+        connection = FakeStreamConnection([object(), None])
+ 
+        server_obj.handle_image_stream(connection, configJSON=None, metadata="METADATA")
+ 
+        assert any(level == "ERROR" for level, _ in connection.logs)
+        assert connection.close_sent is True

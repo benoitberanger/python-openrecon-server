@@ -63,7 +63,7 @@ class TestMRDMessageIdentifier :
 # ---------------------------------------------------------------------------
 class TestReadMRDMessage:
     def test_read_config_file_strips_null_padding(self):
-        incoming = constants.MrdMessageConfigurationFile.pack(b"config_test.xml")
+        incoming = constants.MrdMessageConfigurationFile.pack(b"config_test.xml\0")
         conn = Connection(FakeSocket(incoming=incoming), savedata=False)
         assert conn.read_config_file() == "config_test.xml"
 

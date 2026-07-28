@@ -1,5 +1,3 @@
-# utils/output_series.py
-
 import copy
 import logging
 

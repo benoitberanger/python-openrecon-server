@@ -85,29 +85,31 @@ class TestCheckORArguments:
         with pytest.raises(TypeError):
             check_OR_arguments(config, arg_name='Arg', arg_type=list, arg_default=None)
 
+
 # ---------------------------------------------------------------------------
 # send_original_images()
 # ---------------------------------------------------------------------------
 class TestSendOriginalImages:
-    """ tests for send_original_images"""
+
+    def test_forwards_all_images_to_connection_in_order(self, fake_connection, make_image):
+        images = [make_image(slice=0), make_image(slice=1), make_image(slice=2)]
+ 
+        send_original_images(images, fake_connection)
+ 
+        assert fake_connection.sent_images == images
+ 
+    def test_empty_list_sends_nothing(self, fake_connection):
+        send_original_images([], fake_connection)
+ 
+        assert fake_connection.sent_images == []
 
 
 # ---------------------------------------------------------------------------
 # display_diagnostic()
 # ---------------------------------------------------------------------------
-def make_header(matrix=(64, 64, 1), fov=(240.0, 240.0, 5.0), read_dir=(1.0, 0.0, -1.0), phase_dir=(-1.0, 1.0, 0.0), slice_dir=(0.0, -1.0, 1.0)):
-    tmp_img = ismrmrd.Image.from_array(np.zeros((1, 2, 2), dtype=np.int16), transpose=False)
-    head = tmp_img.getHead()
-    head.matrix_size[:] = matrix
-    head.field_of_view[:] = fov
-    head.read_dir = read_dir
-    head.phase_dir = phase_dir
-    head.slice_dir = slice_dir
-    return head
-
 class TestDisplayDiagnostic:
 
-    def test_returns_expected_keys(self):
+    def test_returns_expected_keys(self, make_header):
         head = make_header()
         meta = ismrmrd.Meta()
 
@@ -115,7 +117,7 @@ class TestDisplayDiagnostic:
 
         assert set(result.keys()) == {"matrix", "fov", "voxelsize", "read_dir", "phase_dir", "slice_dir"}
 
-    def test_matrix_and_fov_match_header(self):
+    def test_matrix_and_fov_match_header(self, make_header):
         head = make_header(matrix=(128, 64, 32), fov=(256.0, 128.0, 64.0))
         meta = ismrmrd.Meta()
 
@@ -124,7 +126,7 @@ class TestDisplayDiagnostic:
         assert list(result["matrix"]) == [128, 64, 32]
         assert list(result["fov"]) == [256.0, 128.0, 64.0]
 
-    def test_does_not_crash_with_ice_mini_head_present(self):
+    def test_does_not_crash_with_ice_mini_head_present(self, make_header):
         head = make_header()
         meta = ismrmrd.Meta()
         meta['IceMiniHead'] = "aGVsbG8="  # base64
