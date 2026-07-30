@@ -185,6 +185,15 @@ class TestHandleImageStream:
         assert any(level == "ERROR" for level, _ in connection.logs)
         assert connection.close_sent is True
 
+    def test_raw_kspace_data_triggers_error_handling(self, server_obj, monkeypatch):
+        monkeypatch.setattr(server_app_module, "Pipeline", FakePipeline)
+        connection = FakeStreamConnection([ismrmrd.Acquisition()] + [None])
+
+        server_obj.handle_image_stream(connection, configJSON=None, metadata="METADATA")
+
+        assert connection.shutdown_called is True
+        assert any(level == "ERROR" for level, _ in connection.logs)
+
     def test_unsupported_message_type_is_logged_as_error(self, server_obj, monkeypatch):
         monkeypatch.setattr(server_app_module, "Pipeline", FakePipeline)
         connection = FakeStreamConnection([object(), None])

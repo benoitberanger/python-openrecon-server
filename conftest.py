@@ -1,4 +1,5 @@
-import socket as _socket
+import os
+import socket
 
 import ismrmrd
 import numpy as np
@@ -141,7 +142,7 @@ class FakeSocket:
 
     def recv(self, nbytes, flags=0):
         chunk = self._incoming[self._pos: self._pos + nbytes]
-        if not (flags & _socket.MSG_PEEK):
+        if not (flags & socket.MSG_PEEK):
             self._pos += len(chunk)
         return chunk
 
@@ -169,35 +170,73 @@ class RaisingSocket(FakeSocket):
 # suite depends on it. Tests that use this fixture must be marked
 # @pytest.mark.integration.
 # ---------------------------------------------------------------------------
-import os
 
-MRD_SAMPLE_DIR = os.path.join(os.path.dirname(__file__), "data")
+MRD_SAMPLE_DIR = os.path.join(os.path.dirname(__file__), "data/MRD_in")
 
-
-@pytest.fixture
-def mrd_sample_path():
-    """
-    Path to a small real MRD (.h5) file captured from an actual OpenRecon
-    client, used by integration tests. Skips the test if no sample is
-    available locally (samples are not required for the unit test suite).
-    """
-    candidates = []
-    if os.path.isdir(MRD_SAMPLE_DIR):
-        candidates = [
-            os.path.join(MRD_SAMPLE_DIR, f)
-            for f in os.listdir(MRD_SAMPLE_DIR)
-            if f.endswith(".h5")
-        ]
-
-    if not candidates:
-        pytest.skip(
-            f"No sample MRD file found in {MRD_SAMPLE_DIR}. "
-            "Add a small .h5 capture to run this integration test."
+def _discover_mrd_samples():
+    if not os.path.isdir(MRD_SAMPLE_DIR):
+        return []
+    return sorted(
+        os.path.join(MRD_SAMPLE_DIR, f)
+        for f in os.listdir(MRD_SAMPLE_DIR)
+        if f.endswith(".h5")
+    )
+ 
+ 
+def pytest_generate_tests(metafunc):
+    if "mrd_sample_path" in metafunc.fixturenames:
+        samples = _discover_mrd_samples()
+        metafunc.parametrize(
+            "mrd_sample_path",
+            samples,
+            ids=[os.path.basename(p) for p in samples],
         )
-
-    return candidates[0]
-
-
+ 
+ 
+@pytest.fixture
+def mrd_sample_path(request):
+    """
+    Path to one real MRD (.h5) sample file.
+    """
+    return request.param
+ 
+ 
+@pytest.fixture
+def mrd_sample_dataset(mrd_sample_path):
+    """
+    Opens one real captured MRD file (mrd_sample_path is parametrized
+    across every sample, see above) and yields (xml_header, images):
+ 
+    - xml_header : str, the raw MRD XML header as stored in the file.
+    - images     : list of ismrmrd.Image, every image found across every
+                   'image_<series_index>' group in the file, in group then
+                   index order (i.e. as connection.py originally wrote them
+                   via dset.append_image("image_%d" % series_index, image)).
+    """
+    dset = ismrmrd.Dataset(mrd_sample_path, "dataset", create_if_needed=False)
+    try:
+        xml_header = dset.read_xml_header()
+        if isinstance(xml_header, bytes):
+            xml_header = xml_header.decode("utf-8")
+ 
+        image_groups = sorted(g for g in dset.list() if g.startswith("image_"))
+        if not image_groups:
+            pytest.skip(f"{mrd_sample_path} contains no 'image_*' group to read images from.")
+ 
+        images = []
+        for group in image_groups:
+            n = dset.number_of_images(group)
+            for i in range(n):
+                images.append(dset.read_image(group, i))
+ 
+        if not images:
+            pytest.skip(f"{mrd_sample_path} has image groups but no images inside them.")
+ 
+        yield xml_header, images
+    finally:
+        dset.close()
+ 
+ 
 @pytest.fixture
 def socketpair():
     """
@@ -206,7 +245,7 @@ def socketpair():
     tests that exercise Connection/Server against real socket semantics
     (MSG_PEEK, MSG_WAITALL, partial reads) instead of FakeSocket.
     """
-    client_sock, server_sock = _socket.socketpair(_socket.AF_UNIX, _socket.SOCK_STREAM)
+    client_sock, server_sock = socket.socketpair(socket.AF_UNIX, socket.SOCK_STREAM)
     yield client_sock, server_sock
     for s in (client_sock, server_sock):
         try:
