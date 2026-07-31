@@ -109,7 +109,7 @@ def check_MRDfile(filename: str, in_group: str, out_folder: str) -> str | None:
 
     isImage = True
     imageNames = group.keys()
-    logging.info(f"Found {len(imageNames)} mrdImg sub-groups: {", ".join(imageNames)}")
+    logging.info(f"Found {len(imageNames)} mrdImg sub-groups: {', '.join(imageNames)}")
 
     for imageName in imageNames:
         if imageName in ("config", "config_file", "xml", "configAdditional"):

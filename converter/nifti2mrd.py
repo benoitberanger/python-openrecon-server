@@ -6,7 +6,6 @@ import nibabel as nib
 import numpy as np
 
 from converter.utils import slice_pos
-from utils.img_array import mrd_indexes
 
 def images_from_nifti(
     nifti_path: str,

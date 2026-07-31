@@ -42,35 +42,6 @@ def rescale_phase(vol, meta: dict):
     return (vol.astype(np.float32) * slope + intercept)
 
 
-# def slice_pos(img: ismrmrd.Image) -> float:
-#     """
-#     Compute the scalar position of an image along the slice direction.
- 
-#     Projects the image corner position (LPS) onto the slice normal vector
-#     (also LPS) using a dot product. The result is a signed scalar that
-#     increases monotonically from the first to the last slice of the stack,
-#     regardless of patient orientation.
- 
-#     Parameters
-#     ----------
-#     img : ismrmrd.Image
-#         A single MRD image. The following ImageHeader fields are used:
-#         - position  : [x, y, z] LPS coordinates of the image corner (mm)
-#         - slice_dir : [x, y, z] unit vector normal to the slice plane (LPS)
- 
-#     Returns
-#     -------
-#     float
-#         Signed scalar position along the slice normal (mm).
-#     """
-
-#     h = img.getHead()
-#     position = np.array(h.position,  dtype=float)
-#     slice_dir = np.array(h.slice_dir, dtype=float)
-
-#     return float(np.dot(position, slice_dir))
-
-
 def detect_stack_dir(images: list) -> float:
     """
     Determine whether the scanner slice_dir agrees with the array stacking order.
@@ -84,8 +55,8 @@ def detect_stack_dir(images: list) -> float:
     vector between the first and last slice (in LPS space) and projecting it
     onto slice_dir:
     - If the dot product is positive, slice_dir already points toward
-      increasing slice index → stack_dir = +1
-    - If negative, the slice column of the affine must be negated → stack_dir = -1
+      increasing slice index -> stack_dir = +1
+    - If negative, the slice column of the affine must be negated -> stack_dir = -1
  
     Parameters
     ----------
@@ -354,10 +325,10 @@ def make_nifti(data: np.ndarray[ismrmrd.Image], affine: np.ndarray, meta: dict) 
     """
 
     img = nib.Nifti1Image(data, affine)
-    hdr = img.header
+    header = img.header
 
     if data.ndim > 3:
-        base_zooms  = list(hdr.get_zooms()[:3])
+        base_zooms  = list(header.get_zooms()[:3])
         extra_zooms = []
         for dim in meta.get("extra_dims", []):
             if dim == "repetition":
@@ -366,16 +337,16 @@ def make_nifti(data: np.ndarray[ismrmrd.Image], affine: np.ndarray, meta: dict) 
                 extra_zooms.append(float(meta.get("EchoTime", 1.0)))
             else:
                 extra_zooms.append(1.0)
-        hdr.set_zooms(base_zooms + extra_zooms)
+        header.set_zooms(base_zooms + extra_zooms)
 
-    hdr.set_xyzt_units("mm", "sec")
+    header.set_xyzt_units("mm", "sec")
 
     desc_parts = []
     if meta.get("SequenceDescription"):
         desc_parts.append(str(meta["SequenceDescription"]))
     if meta.get("extra_dims"):
         desc_parts.append("+".join(meta["extra_dims"]))
-    hdr["descrip"] = ", ".join(desc_parts)[:80].encode()
+    header["descrip"] = ", ".join(desc_parts)[:80].encode()
 
     return img
 
