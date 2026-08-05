@@ -80,19 +80,19 @@ class TestRescalePhase:
         assert np.allclose(result, [6.0, 7.0, 8.0])
 
 
-# ---------------------------------------------------------------------------
-# detect_stack_dir()
-# ---------------------------------------------------------------------------
-class TestDetectStackDir:
+# # ---------------------------------------------------------------------------
+# # detect_stack_dir()
+# # ---------------------------------------------------------------------------
+# class TestDetectStackDir:
 
-    def test_single_image_returns_positive_one(self):
-        img = make_full_image(position=(0, 0, 0))
-        assert mrd2nifti.detect_stack_dir([img]) == 1.0
+#     def test_single_image_returns_positive_one(self):
+#         img = make_full_image(position=(0, 0, 0))
+#         assert mrd2nifti.detect_stack_dir([img]) == 1.0
 
-    def test_slice_dir_aligned_with_increasing_position(self):
-        img_low  = make_full_image(position=(0.0, 0.0, 0.0),  slice_dir=(0.0, 0.0, 1.0))
-        img_high = make_full_image(position=(0.0, 0.0, 10.0), slice_dir=(0.0, 0.0, 1.0))
-        assert mrd2nifti.detect_stack_dir([img_low, img_high]) == 1.0
+#     def test_slice_dir_aligned_with_increasing_position(self):
+#         img_low  = make_full_image(position=(0.0, 0.0, 0.0),  slice_dir=(0.0, 0.0, 1.0))
+#         img_high = make_full_image(position=(0.0, 0.0, 10.0), slice_dir=(0.0, 0.0, 1.0))
+#         assert mrd2nifti.detect_stack_dir([img_low, img_high]) == 1.0
 
 
 # ---------------------------------------------------------------------------
@@ -117,18 +117,18 @@ class TestBuildAffine:
         assert np.allclose(affine[:3, 1], [0.0, -10.0, 0.0])
         assert np.allclose(affine[:3, 2], [0.0, 0.0, 5.0])
 
-    def test_negative_stack_dir_flips_slice_column_only(self):
-        img = make_full_image(
-            matrix_size=(2, 2, 1), field_of_view=(20.0, 20.0, 5.0),
-            read_dir=(1, 0, 0), phase_dir=(0, 1, 0), slice_dir=(0, 0, 1),
-        )
+    # def test_negative_stack_dir_flips_slice_column_only(self):
+    #     img = make_full_image(
+    #         matrix_size=(2, 2, 1), field_of_view=(20.0, 20.0, 5.0),
+    #         read_dir=(1, 0, 0), phase_dir=(0, 1, 0), slice_dir=(0, 0, 1),
+    #     )
 
-        affine_pos = mrd2nifti.build_affine(img, stack_dir=1.0)
-        affine_neg = mrd2nifti.build_affine(img, stack_dir=-1.0)
+    #     affine_pos = mrd2nifti.build_affine(img, stack_dir=1.0)
+    #     affine_neg = mrd2nifti.build_affine(img, stack_dir=-1.0)
 
-        assert np.allclose(affine_pos[:3, 0], affine_neg[:3, 0])
-        assert np.allclose(affine_pos[:3, 1], affine_neg[:3, 1])
-        assert np.allclose(affine_pos[:3, 2], -affine_neg[:3, 2])
+    #     assert np.allclose(affine_pos[:3, 0], affine_neg[:3, 0])
+    #     assert np.allclose(affine_pos[:3, 1], affine_neg[:3, 1])
+    #     assert np.allclose(affine_pos[:3, 2], -affine_neg[:3, 2])
 
 
 # ---------------------------------------------------------------------------

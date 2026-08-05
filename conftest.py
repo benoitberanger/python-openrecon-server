@@ -171,6 +171,7 @@ class RaisingSocket(FakeSocket):
 # @pytest.mark.integration.
 # ---------------------------------------------------------------------------
 
+#TO-DO: Change folder name
 MRD_SAMPLE_DIR = os.path.join(os.path.dirname(__file__), "data/MRD_in")
 
 def _discover_mrd_samples():
