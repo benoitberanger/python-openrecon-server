@@ -42,52 +42,52 @@ def rescale_phase(vol, meta: dict):
     return (vol.astype(np.float32) * slope + intercept)
 
 
-def detect_stack_dir(images: list) -> float:
-    """
-    Determine whether the scanner slice_dir agrees with the array stacking order.
+# def detect_stack_dir(images: list) -> float:
+#     """
+#     Determine whether the scanner slice_dir agrees with the array stacking order.
  
-    MRD images are sorted by increasing slice_pos before being assembled into
-    a volume. The NIfTI affine slice column must point in the same direction
-    as that increasing order. However, the scanner's slice_dir may point either
-    way depending on the acquisition.
+#     MRD images are sorted by increasing slice_pos before being assembled into
+#     a volume. The NIfTI affine slice column must point in the same direction
+#     as that increasing order. However, the scanner's slice_dir may point either
+#     way depending on the acquisition.
  
-    This function detects the sign mismatch by computing the displacement
-    vector between the first and last slice (in LPS space) and projecting it
-    onto slice_dir:
-    - If the dot product is positive, slice_dir already points toward
-      increasing slice index -> stack_dir = +1
-    - If negative, the slice column of the affine must be negated -> stack_dir = -1
+#     This function detects the sign mismatch by computing the displacement
+#     vector between the first and last slice (in LPS space) and projecting it
+#     onto slice_dir:
+#     - If the dot product is positive, slice_dir already points toward
+#       increasing slice index -> stack_dir = +1
+#     - If negative, the slice column of the affine must be negated -> stack_dir = -1
  
-    Parameters
-    ----------
-    images : list of ismrmrd.image.Image
-        All images belonging to one series and image_type. Must contain at
-        least one image; single-image stacks always return +1.
+#     Parameters
+#     ----------
+#     images : list of ismrmrd.image.Image
+#         All images belonging to one series and image_type. Must contain at
+#         least one image; single-image stacks always return +1.
  
-    Returns
-    -------
-    float
-        +1.0 if slice_dir agrees with stacking order, -1.0 otherwise.
-    """
+#     Returns
+#     -------
+#     float
+#         +1.0 if slice_dir agrees with stacking order, -1.0 otherwise.
+#     """
 
-    first = min(images, key=slice_pos)
-    last  = max(images, key=slice_pos)
-    h0    = first.getHead()
+#     first = min(images, key=slice_pos)
+#     last  = max(images, key=slice_pos)
+#     h0    = first.getHead()
 
-    # single slice case
-    if first is last:
-        return 1.0
+#     # single slice case
+#     if first is last:
+#         return 1.0
 
-    disp      = np.array(last.getHead().position, dtype=float) - np.array(h0.position, dtype=float)
-    slice_dir = np.array(h0.slice_dir, dtype=float)
+#     disp      = np.array(last.getHead().position, dtype=float) - np.array(h0.position, dtype=float)
+#     slice_dir = np.array(h0.slice_dir, dtype=float)
     
-    if np.dot(disp, slice_dir) >= 0:
-        return 1.0
-    else:
-        return -1.0
+#     if np.dot(disp, slice_dir) >= 0:
+#         return 1.0
+#     else:
+#         return -1.0
 
 
-def build_affine(first_img: ismrmrd.Image, stack_dir: float) -> np.ndarray:
+def build_affine(first_img: ismrmrd.Image) -> np.ndarray:
     """
     Build a 4x4 RAS affine matrix from MRD ImageHeader geometry fields.
  
@@ -124,6 +124,8 @@ def build_affine(first_img: ismrmrd.Image, stack_dir: float) -> np.ndarray:
     slice_dir = lps_to_ras(img_header.slice_dir)
     position  = lps_to_ras(img_header.position)
 
+    # logging.debug(f"STACK_DIR = {stack_dir}")
+
     # Construct rotation-scaling matrix
     # The stack_dir factor on the slice column ensures that the affine step
     # matches the actual direction of increasing voxel index in the assembled
@@ -132,11 +134,11 @@ def build_affine(first_img: ismrmrd.Image, stack_dir: float) -> np.ndarray:
     rotation_scaling_matrix = np.column_stack([
         voxel_size[0] * np.array(read_dir),
         voxel_size[1] * np.array(phase_dir),
-        voxel_size[2] * np.array(slice_dir) * stack_dir
+        voxel_size[2] * np.array(slice_dir)
     ])
 
     affine         = np.eye(4)
-    affine[:3, :3]  = rotation_scaling_matrix
+    affine[:3, :3] = rotation_scaling_matrix
     affine[:3, 3]  = position
     
     return affine
@@ -248,9 +250,9 @@ def assemble_volume(images: list[ismrmrd.Image], extra_dims: list[str]) :
     vol = np.zeros((n_slices, ny, nx, *extra_sizes), dtype=dtype)
 
     # Determine stack direction before building the affine
-    stack_dir  = detect_stack_dir(images)
+    # stack_dir  = detect_stack_dir(images)
     first_img  = min(images, key=slice_pos)
-    affine     = build_affine(first_img, stack_dir)
+    affine     = build_affine(first_img)
 
     # Populate volume
     for img in images:
@@ -274,7 +276,7 @@ def assemble_volume(images: list[ismrmrd.Image], extra_dims: list[str]) :
         "series_index": int(h.image_series_index),
         "extra_dims"  : extra_dims,
         "extra_values": extra_value_sets,
-        "stack_dir"   : stack_dir,
+        # "stack_dir"   : stack_dir,
     }
     try:
         attr = ismrmrd.Meta.deserialize(images[0].attribute_string)

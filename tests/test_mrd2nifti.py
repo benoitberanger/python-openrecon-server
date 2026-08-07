@@ -110,7 +110,7 @@ class TestBuildAffine:
             field_of_view=(20.0, 40.0, 5.0),  # voxel_size = (10, 10, 5)
         )
 
-        affine = mrd2nifti.build_affine(img, stack_dir=1.0)
+        affine = mrd2nifti.build_affine(img)
 
         assert np.allclose(affine[:3, 3], [-10.0, -20.0, 30.0])
         assert np.allclose(affine[:3, 0], [-10.0, 0.0, 0.0])

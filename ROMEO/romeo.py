@@ -169,7 +169,7 @@ def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None,
 
 def run_ROMEO(nifti_path_P: str, nifti_path_M: str = None, echo_times: list = []):
 
-    cmd = ["julia", "/opt/romeo/romeo.jl", "-v", "--compute-B0", "-o", niftiFolder, "-p", nifti_path_P]
+    cmd = ["julia", "/opt/romeo/romeo.jl", "-v", "--compute-B0", "-o", niftiFolder, "-p", nifti_path_P, "-t", echo_times]
     if nifti_path_M is not None:
         cmd += ["-m", str(nifti_path_M)]
 
