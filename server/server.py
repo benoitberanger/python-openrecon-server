@@ -1,5 +1,3 @@
-#!/usr/bin/python3
-
 import gc
 import json
 import logging
@@ -38,7 +36,6 @@ class Server:
     debug : bool
         If True, images are sent back unmodified with diagnostic info
         logged for each image. No processing is performed.
-
     """
 
     def __init__(self, port: int, address: str, app_config: str, app_directory: str, savedata: bool, savedataFolder: str, debug: bool) -> None:
@@ -57,6 +54,8 @@ class Server:
             Python package containing the application module.
         savedata : bool
             If True, save incoming MRD data to disk.
+        saveFolder : str
+            Path to save the incoming MRD data to disk.
         debug : bool
             If True, enable debug mode at startup.
         """
@@ -253,16 +252,12 @@ class Server:
                 else:
                     raise Exception("Unsupported data type %s", type(item).__name__)
 
-            # Process images data.
+            # Process images data
             if imgGroup:
                 log_memory_delta("handle_image_stream", f"All item received — {len(imgGroup)} images", mem_start)
                 logging.info("---------- PROCESSING IMAGES ----------")
-                images = pipeline.run(imgGroup, configJSON, metadata)
+                pipeline.run(imgGroup, configJSON, metadata)
                 del imgGroup
-                gc.collect()
-
-                # connection.send_image(images)
-                del images
                 gc.collect()
                 log_memory_delta("handle_image_stream", "After send", mem_start)
             
@@ -308,7 +303,7 @@ class Server:
             connection = Connection(sock, savedata=self.savedata, savedataFolder=self.saveFolder)
 
             # First message is the config (file or text)
-            # With OpenRecon it supposed to be "openrecon"
+            # With OpenRecon it should be "openrecon"
             config = next(connection)
 
             if ((config is None) & (connection.open is False)):
@@ -327,7 +322,6 @@ class Server:
             # If the config is openrecon load the app config
             # Else do nothing with the data
             if (config == "openrecon"):
-                # pipeline = pipeline_factory(connection, self.app_config, self.app_directory)
                 self.handle_image_stream(connection, configJSON, metadata)
             else :
                 logging.info(f"No openrecon config requested : {config}")

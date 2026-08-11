@@ -1,5 +1,3 @@
-#!/bin/python3
-
 import gc
 import importlib
 import logging
@@ -10,7 +8,7 @@ import numpy as np
 from time import perf_counter
 from server.connection import Connection
 from utils.check_OR_arguments import check_OR_arguments
-from utils.img_array import build_image_array, get_subarray, mrd_indexes
+from utils.img_array import build_image_array, get_subarray
 from utils.memory import log_memory, log_memory_delta
 from utils.utils import send_original_images
 
@@ -76,6 +74,7 @@ class Pipeline:
             # or send back original images if asked with just an error message in the logs
             # Maybe trying to load the app before the server received anything to check tha argument
 
+
     def images_selector(self, img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None) -> np.ndarray[ismrmrd.Image]:
         """
         Select a subarray of ismrmrd.Image based on the option selected by
@@ -123,7 +122,6 @@ class Pipeline:
         return new_array
 
         
-
     def run(self, images: list, configJSON: dict | None, metadata) -> None:
         """
         Run the full processing pipeline on a group of MRD images.

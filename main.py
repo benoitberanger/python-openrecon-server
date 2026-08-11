@@ -1,5 +1,3 @@
-#!/usr/bin/python3
-
 import argparse
 import logging
 import os
@@ -9,10 +7,10 @@ import sys
 from server.server import Server
 
 defaults = {
-    'host':           '0.0.0.0',
-    'port':           9002,
-    'config':         'invertContrast',
-    'dirname':        'app',
+    'host':     '0.0.0.0',
+    'port':     9002,
+    'config':   'invertContrast',
+    'dirname':  'app',
 }
 
 def main(args: argparse.Namespace):
