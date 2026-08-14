@@ -1,16 +1,15 @@
-import pydicom
 import argparse
-import ismrmrd
-import numpy as np
-import os
-import ctypes
-import re
 import base64
+import ctypes
+import logging
+import os
+import re
 
 import dateutil.parser
-from datetime import datetime
+import ismrmrd
+import numpy as np
+import pydicom
 
-import logging
 
 # Defaults for input arguments
 defaults = {

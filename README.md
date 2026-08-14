@@ -214,7 +214,7 @@ sent by the client. Use `check_OR_arguments()` to read them safely with
 a default fallback:
 
 ```python
-from utils.check_OR_arguments import check_OR_arguments
+from utils.utils import check_OR_arguments
 
 # Read a string parameter, default to 'SimpleSum'
 mode = check_OR_arguments(configJSON, "EchoSumConfig", str, "SimpleSum")

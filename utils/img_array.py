@@ -1,10 +1,9 @@
-#!/bin/python3
-
 import logging
 from enum import IntEnum
 
 import ismrmrd
 import numpy as np
+
 
 class mrd_indexes(IntEnum):
     """

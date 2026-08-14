@@ -1,12 +1,12 @@
-import pydicom
 import argparse
-import ismrmrd
-import ismrmrd.xsd
-import numpy as np
 import os
 import ctypes
 import re
-import base64
+
+import ismrmrd
+import ismrmrd.xsd
+import numpy as np
+import pydicom
 
 # Defaults for input arguments
 defaults = {

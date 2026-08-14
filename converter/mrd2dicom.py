@@ -1,13 +1,9 @@
-#!/usr/bin/python3
-
 import os
-import re
 import argparse
-import h5py
+
 import ismrmrd
 import numpy as np
 import pydicom
-import base64
 
 from converter.utils import check_MRDfile
 

@@ -1,5 +1,3 @@
-#!/usr/bin/python3
-
 import ctypes
 import datetime
 import logging

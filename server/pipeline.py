@@ -7,7 +7,7 @@ import numpy as np
 
 from time import perf_counter
 from server.connection import Connection
-from utils.check_OR_arguments import check_OR_arguments
+from utils.utils import check_OR_arguments
 from utils.img_array import build_image_array, get_subarray
 from utils.memory import log_memory, log_memory_delta
 from utils.utils import send_original_images
@@ -72,13 +72,13 @@ class Pipeline:
             logging.error("Failed to load config '%s' with error:\n  %s", self.app_config, e)
             #TO-DO: How to handle failed loading module ? Stop the server, just raise an error
             # or send back original images if asked with just an error message in the logs
-            # Maybe trying to load the app before the server received anything to check tha argument
+            # Maybe trying to load the app before the server received anything to check the argument
 
 
     def images_selector(self, img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None) -> np.ndarray[ismrmrd.Image]:
         """
         Select a subarray of ismrmrd.Image based on the option selected by
-        the user in the OpenRecon UI and send via JSON
+        the user in the OpenRecon UI and send via JSON.
 
         Parameters
         ----------
@@ -177,6 +177,7 @@ class Pipeline:
         # Image selector from UI
         img_array = self.images_selector(img_array, configJSON)
 
+        # TO-DO: Replace by a decorator
         # Start timer
         tic = perf_counter()
         

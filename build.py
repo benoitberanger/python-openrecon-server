@@ -1,9 +1,3 @@
-#!/usr/bin/python3
-
-# external modules
-import jsonschema
-
-# builtin modules
 import argparse
 import logging
 import os
@@ -15,7 +9,9 @@ import subprocess
 import re
 import json
 import base64
-import urllib
+# import urllib
+
+import jsonschema
 
 
 def print_section(name: str) -> None:

@@ -1,20 +1,15 @@
-#!/bin/python3
-
-import base64
 import gc
 import logging
 import os
-import xml
 
 import ismrmrd
 import numpy as np
 
 from converter.mrd2nifti import nifti_from_image_array
 from utils.OutputSeries import OutputSeries, ProcessImageResult
-from utils.check_OR_arguments import check_OR_arguments
-from utils.img_array import flatten, get_type_magnitude, get_subarray, mrd_indexes, stack_images
+from utils.img_array import flatten, get_subarray, mrd_indexes, stack_images
 from utils.memory import log_memory, log_memory_delta
-from utils.utils import display_diagnostic, normalise
+from utils.utils import check_OR_arguments, display_diagnostic, normalise
 
 
 # Folder for debug output files

@@ -7,6 +7,7 @@ import numpy as np
 # Return Type of process_image
 ProcessImageResult = list[tuple[np.ndarray, list[ismrmrd.ImageHeader], list[ismrmrd.Meta]]]
 
+
 class OutputSeries:
     """
     Manages a collection of output image series to send back to the client.

@@ -2,8 +2,7 @@ import ismrmrd
 import numpy as np
 import pytest
 
-from utils.check_OR_arguments import check_OR_arguments
-from utils.utils import MRD5Dto3D, display_diagnostic, normalise, send_original_images
+from utils.utils import check_OR_arguments, MRD5Dto3D, display_diagnostic, normalise, send_original_images
 
 
 # ---------------------------------------------------------------------------

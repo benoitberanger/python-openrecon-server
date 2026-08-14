@@ -1,5 +1,3 @@
-#!/bin/python3
-
 import argparse
 from collections import defaultdict
 import logging
@@ -99,9 +97,6 @@ def build_affine(first_img: ismrmrd.Image) -> np.ndarray:
     first_img : ismrmrd.Image
         The image with the lowest slice_pos in the stack (index 0 in the
         assembled array). Its header provides all geometry fields.
-    stack_dir : float
-        Sign correction for the slice column, as returned by detect_stack_dir.
-        Must be +1.0 or -1.0.
  
     Returns
     -------

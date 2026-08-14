@@ -1,5 +1,3 @@
-#!/usr/bin/python3
-
 from dataclasses import dataclass
 import argparse
 import datetime

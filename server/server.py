@@ -8,7 +8,7 @@ import traceback
 
 import ismrmrd
 
-from utils.check_OR_arguments import check_OR_arguments
+from utils.utils import check_OR_arguments
 from utils.memory import log_memory, log_memory_delta
 from server.debug import send_back_debug
 from server.pipeline import Pipeline
