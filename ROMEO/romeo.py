@@ -13,7 +13,7 @@ from converter.nifti2mrd import images_from_nifti
 from converter.utils import slice_pos
 from utils.OutputSeries import OutputSeries, ProcessImageResult
 from utils.img_array import flatten, get_type_magnitude, get_subarray, mrd_indexes, stack_images
-from utils.memory import log_memory, log_memory_delta
+from utils.memory import log_memory, log_memory_delta, timeit
 from utils.utils import check_OR_arguments, display_diagnostic, normalise
 
 
@@ -23,6 +23,7 @@ debugFolder = "/tmp/share/debug"
 # Folder for NIfTI files from ROMEO results 
 niftiFolder = "/tmp/share/romeo"
 
+@timeit
 def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None, metadata) -> ProcessImageResult:
     """
     Invert contrast process image.

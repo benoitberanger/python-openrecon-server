@@ -135,8 +135,6 @@ class Pipeline:
         unmodified. If SaveOriginal is not set on False in configJSON, 
         a copy of the original images is sent before processing.
 
-        Processing time is measured and logged in milliseconds.
-
         Parameters
         ----------
         images : list of ismrmrd.Image
@@ -176,18 +174,9 @@ class Pipeline:
 
         # Image selector from UI
         img_array = self.images_selector(img_array, configJSON)
-
-        # TO-DO: Replace by a decorator
-        # Start timer
-        tic = perf_counter()
         
         result = self.module.process_image(img_array, configJSON, metadata)
         del img_array
-
-        # Measure processing time
-        toc = perf_counter()
-        strProcessTime = "Processing time: %.2f ms" % ((toc-tic)*1000.0)
-        logging.info(strProcessTime)
         
         log_memory_delta("run Pipeline", "After process_image", mem)
 

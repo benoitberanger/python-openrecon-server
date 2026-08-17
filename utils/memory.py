@@ -1,5 +1,7 @@
+from functools import wraps
 import logging
 import os
+import time
 
 import psutil
 
@@ -121,3 +123,18 @@ def log_memory_delta(level: str, label: str, mem_before: float) -> float:
     pct   = 100 * mem / total if total > 0 else 0
     logging.info("RAM [%s] [%s] : %.1f Mo / %.0f Mo (%.1f%%)  (%+.1f Mo)", level, label, mem, total, pct, delta)
     return mem
+
+
+def timeit(func):
+    """
+    TO-DO
+    """
+    @wraps(func)
+    def timeit_wrapper(*args, **kwargs):
+        start_time = time.perf_counter()
+        result = func(*args, **kwargs)
+        end_time = time.perf_counter()
+        total_time = end_time - start_time
+        logging.info(f'Processing time of {func.__name__} : {total_time*1000.0:.2f} ms')
+        return result
+    return timeit_wrapper
