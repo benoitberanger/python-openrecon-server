@@ -12,9 +12,11 @@ The repository of [kspaceKelvin/python-ismrmrd-server](https://github.com/kspace
 
 - [Overview](#overview)
 - [Requirements](#requirements)
+- [Installation](#installation)
 - [Building and packaging](#building-and-packaging)
 - [Writing a processing module](#writing-a-processing-module)
 - [Testing locally](#testing-locally)
+- [Running the test suite](#running-the-test-suite)
 - [Debug mode](#debug-mode)
 - [Converter](#converter)
 - [Project structure](#project-structure)
@@ -23,7 +25,7 @@ The repository of [kspaceKelvin/python-ismrmrd-server](https://github.com/kspace
 
 ## Overview
 
-The server receives MRD images, organises them into a structured 7D array,
+The server receives MRD images, organises them into a structured nD array,
 calls your `process_image()` function, and sends the results back slice by
 slice.
 
@@ -127,16 +129,27 @@ A Python environment manager is **strongly** recomanded.
 pip install jsonschema=4.26.0
 ```
 
-### For local development and testing:
-
+## Installation
+ 
+All Python dependencies are declared in [`pyproject.toml`](pyproject.toml). Versions are pinned
+to match the base Docker image (see [`MRD.Dockerfile`](MRD.Dockerfile)) so local runs and the
+packaged OpenRecon container behave the same way.
+ 
 ```bash
-# setup Conda environment
-conda create --name openrecon-template
+# setup an environment (conda example)
+conda create --name openrecon-template python=3.12
 conda activate openrecon-template
-conda install python=3.12
-conda install ipython
-pip install ismrmrd=1.14.2 pydicom=3.0.2
+ 
+# runtime dependencies only
+pip install .
+
+# development dependencies for local development
+pip install -e ".[dev]"
+ 
+# runtime + test dependencies (recommended for local development)
+pip install -e ".[dev,test]"
 ```
+
 
 ## Building and packaging
  
@@ -232,9 +245,9 @@ read manually in `process_image`:
 |------------------|----------|---------|--------------------------------------------|
 | `"Debug"`        | `bool`   | `False` | Enable debug mode                          |
 | `"SaveOriginal"` | `bool`   | `True`  | Send original images before processed ones |
-| `"ImageType"`    | `choice` | `All`   | Select the image type for the process      |
-| `"SaveOriginal"` | `choice` | `All`   | Select the echos for the process           |
-| `"SaveOriginal"` | `choice` | `All`   | Select the series for the process          |
+| `"ImageType"`    | `choice` | `All`   | Select the image type on which to apply process      |
+| `"SelectEcho"` | `choice` | `All`   | Select the echos on which to apply process           |
+| `"SelectSerie"` | `choice` | `All`   | Select the series on which to apply process          |
 
 > _If they are not provided in the JSON configuration, they default value will be used._
 
@@ -260,11 +273,11 @@ Each cell contains an `ismrmrd.Image` object or `None`. `image_type` uses MRD co
 ### Accessing images
 
 To get the specific images that you need, you can use the following functions:
-`get_subarray`, `get_type_magnitude`, `get_type_phase`, `get_contrast` from `utils.image_array`.
+`get_subarray`, `get_type_magnitude`, `get_type_phase`, `get_contrast` from `utils.img_array`.
 
 examples :
 ```python
-from utils.image_array import get_type_magnitude, get_type_phase, get_subarray
+from utils.img_array import get_type_magnitude, get_type_phase, get_subarray
 
 # All magnitude images
 mag_array = get_type_magnitude(img_array)
@@ -284,19 +297,19 @@ metadata in one call. Since MRD stores data as `[cha, z, y, x]`, the
 stacked array has shape **`[img, cha, z, y, x]`**.
 
 ```python
-from utils.image_array import stack_images
+from utils.img_array import stack_images
 
 data, head, meta = stack_images(img_array, dtype=float32)
 ```
 
 ### Managing output series
 
-Use `OutputSeries` from `utils.output_series` to manage the images to
+Use `OutputSeries` from `utils.OutputSeries` to manage the images to
 send back to the client. It handles metadata updates, deep copies of
 headers, and series index offsets automatically.
 
 ```python
-from utils.output_series import OutputSeries
+from utils.OutputSeries import OutputSeries
 
 # Initialise
 series = OutputSeries()
@@ -381,9 +394,9 @@ _This mode is made to be use on the magnet, since the metadata informations from
 
 - Enable at startup:
 ```bash
-python main.py --debug --config your_module --dirname app
+python main.py --debug --config <your_module> --dirname <app>
 ```
-_**Warning** : `--debug` at startup overrun any JSON configuration. The processing module will never be called._
+_**Warning** : `--debug` at startup overrun any JSON configuration. The processing module will **never** be called._
 
 - Enable at runtime in the UI / via JSON:
 ```json
@@ -411,14 +424,14 @@ Available arguments:
 | `--debug`   | —                | Enable debug mode (passthrough, no processing) |
 | `-l`        | —                | Log file path                                  |
 
-2. Convert DICOMs or enhanced DICOMs images to MRD images .h5 file:
+2. _(Optional) If you dont have MRD file, convert DICOMs or enhanced DICOMs images to MRD images .h5 file:_
 
 ```bash
 # DICOMs converter
-python converter/dicom2mrd.py <folder of DICOMs> -o <outfile>
+python  -m converter.dicom2mrd <folder of DICOMs> -o <outfile>
 
 # Enhanced DICOMs converter
-python converter/enhanceddicom2mrd.py <folder of DICOMs> -o <outfile>
+python -m converter.enhanceddicom2mrd <folder of DICOMs> -o <outfile>
 ```
 
 3. Run the client.py, on another terminal, to send the MRD images :
@@ -428,7 +441,7 @@ python client.py -o <output.h5> <input.h5>
 
 4. The output `.h5` file can be converted back to DICOM for visualisation :
 ```bash
-python converter/mrd2dicom.py -o <outdir> <mrdfile>.h5
+python -m converter.mrd2dicom -o <outdir> <mrdfile>.h5
 ```
 
 ### Testing with Docker
@@ -446,6 +459,47 @@ python build.py --nopackage -d <app>
 docker run -p 9002:9002 -t <image_name>:<image_version>
 ```
 
+## Running the test suite
+ 
+The project uses [`pytest`](https://docs.pytest.org/). Install the `dev` extra first (see
+[Installation](#installation)):
+ 
+```bash
+pip install -e ".[dev]"
+```
+ 
+Fast unit suite, excludes slow / real-data integration tests (recommended for local dev and pre-merge CI):
+ 
+```bash
+pytest -m "not integration"
+```
+ 
+Full suite, including integration tests (`-rs` also prints the reason for skipped tests):
+ 
+```bash
+pytest -rs
+```
+ 
+Markers are declared in [`pytest.ini`](pytest.ini):
+ 
+| Marker        | Meaning                                                                 |
+|---------------|--------------------------------------------------------------------------|
+| `integration` | End-to-end tests exercising real sockets and/or real MRD sample files. |
+ 
+Tests using the `mrd_sample_dataset` / `mrd_sample_path` fixtures (see [`conftest.py`](conftest.py))
+expect real MRD `.h5` sample files under `data/` at the repository root. If that folder is
+absent or empty, those tests are automatically skipped by pytest rather than failing.
+ 
+Useful fixtures provided by `conftest.py`:
+ 
+| Fixture                                 | Purpose                                                                 |
+|------------------------------------------|--------------------------------------------------------------------------|
+| `make_image` / `make_header`            | Build real `ismrmrd.Image` / `ismrmrd.ImageHeader` objects for tests.  |
+| `fake_connection`                        | Minimal `Connection` double exposing only `send_image`/`send_logging`/`send_close`, for `Pipeline` tests. |
+| `socketpair`                             | A real connected pair of `AF_UNIX` sockets, standing in for the TCP client/server socket, for `Connection`/`Server` integration tests. |
+| `mrd_sample_dataset` / `mrd_sample_path` | Real captured MRD `.h5` samples, parametrized automatically across every file found in `data/MRD_in/`. |
+
+
 ## Converter
 
 The `converter/` directory provides tools to convert between DICOM, NIfTI and
@@ -457,10 +511,10 @@ Convert a DICOM series (classic or enhanced) to an MRD `.h5` file for use as inp
 
 ```bash
 # classic DICOM
-python -m converter.dicom2mrd.py --outFile <output.h5> <input_folder>
+python -m converter.dicom2mrd --outFile <output.h5> <input_folder>
 
 # enhanced DICOM
-python -m converter.enhanceddicom2mrd.py --outFile <output.h5> <input_folder>
+python -m converter.enhanceddicom2mrd --outFile <output.h5> <input_folder>
 ```
 
 DICOM to MRD converter is a refactorisation of the converter from [python-ismrmrd-server](https://github.com/kspaceKelvin/python-ismrmrd-server/blob/master/dicom2mrd.py) with small improvements (handle multi-echo images for example).
@@ -472,7 +526,7 @@ In the same way, enhanced DICOM conversion scripts come from : [enhanceddicom2mr
 Convert a processed MRD `.h5` file back to classic DICOM:
 
 ```bash
-python -m converter.mrd2dicom.py --out-folder <output_folder> <input.h5>
+python -m converter.mrd2dicom --out-folder <output_folder> <input.h5>
 ```
 > Source : [kspaceKelvin/python-ismrmrd-server/mrd2dicom.py](https://github.com/kspaceKelvin/python-ismrmrd-server/blob/master/mrd2dicom.py)
 
@@ -481,7 +535,7 @@ python -m converter.mrd2dicom.py --out-folder <output_folder> <input.h5>
 Convert a MRD `.h5` file to NIfTI format:
 
 ```bash
-python -m converter.mrd2nifti.py --out-folder <output_folder> <input.h5>
+python -m converter.mrd2nifti --out-folder <output_folder> <input.h5>
 ```
 
 
@@ -490,8 +544,7 @@ python -m converter.mrd2nifti.py --out-folder <output_folder> <input.h5>
 - [**build.py**](build.py) : Build and packaging script: validates, builds, and exports the OpenRecon Docker image as a `.zip` file ready for upload to the scanner.
 - [**main.py**](main.py) : Parses command-line arguments and starts the `Server` on the specified host and port.
 - [**client.py**](client.py) : Local test client who reads images from an MRD `.h5` file, sends them to the server, and writes the processed results to a new `.h5` file. Used in place of a physical scanner for local development.
-- [**MRD.Dockerfile**](MRD.Dockerfile) : Base Docker image containing all ISMRMRD Python
-  dependencies.
+- [**MRD.Dockerfile**](MRD.Dockerfile) : Base Docker image containing all ISMRMRD Python dependencies.
 - [**Makefile**](Makefile) : Shortcuts for common development tasks (build, run, clean).
 
 - **Server/** :
@@ -503,9 +556,9 @@ python -m converter.mrd2nifti.py --out-folder <output_folder> <input.h5>
 
 - **Utils/** :
     - [**img_array.py**](utils/img_array.py) : Core utilities for organising and accessing the MRD images received.
+    - [**OutputSeries.py**](utils/OutputSeries.py) : `OutputSeries` helper class (and `ProcessImageResult` type alias) used by processing modules to accumulate and return one or more output series.
     - [**memory.py**](utils/memory.py) : RAM monitoring utilities.
-    - [check_OR_arguments.py](utils/check_OR_arguments.py) :
-    - [utils.py](utils/utils.py)
+    - [**utils.py**](utils/utils.py) : `check_OR_arguments()`, `send_original_images()`, `display_diagnostic()`, `normalise()`, `MRD5Dto3D()`.
 
 - **App/** :
 Default application directory for your application code. Contains the invert contrast example.
@@ -522,9 +575,13 @@ Default application directory for your application code. Contains the invert con
 
 - **Converter/** :
 Tools to convert between DICOM and MRD format, required for local testing with `client.py`.
+    - [**utils.py**](converter/utils.py) : functions shared by the converter scripts below.
     - [**dicom2mrd.py**](converter/dicom2mrd.py) : Converts a folder of classic DICOM files to an MRD `.h5` file.
     - [**enhanceddicom2mrd.py**](converter/enhanceddicom2mrd.py) : Converts enhanced DICOM files to an MRD `.h5` file.
-    - [**mrd2dicom.py**](converter/mrd2dicom.py): Converts a processed MRD `.h5` file back to classic DICOM. 
+    - [**mrd2dicom.py**](converter/mrd2dicom.py): Converts a processed MRD `.h5` file back to classic DICOM.
+    - [**mrd2nifti.py**](converter/mrd2nifti.py) : Converts an MRD `.h5` file (or an in-memory MRD image array) to NIfTI, auto-detecting extra dimensions (contrast, phase, repetition, set, average).
+    - [**nifti2mrd.py**](converter/nifti2mrd.py) : Rebuilds `ismrmrd.Image` objects from a NIfTI volume produced by an external tool, reusing geometry/metadata from the original MRD images.
+
 
 ## Examples
 
