@@ -8,7 +8,6 @@ version = "0.1.0"
 description = "Python template to build MRD image processing pipelines for Siemens OpenRecon."
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
-# TODO: pick and confirm the license that applies to this repository.
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [
@@ -21,7 +20,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
- pinned to match the base image built by MRD.Dockerfile
+# pinned to match the base image built by MRD.Dockerfile
 # so that local development, tests, and the packaged OpenRecon container
 # behave the same way.
 dev = [
@@ -39,7 +38,7 @@ dev = [
 # module uses it (e.g. for colormaps), keep/drop as needed.
 test = [
     "pytest==9.1.1",
-    "matplotlib==3.8.2",
+    "matplotlib==3.11.1",
 ]
 
 [tool.setuptools.packages.find]

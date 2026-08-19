@@ -176,6 +176,9 @@ def normalise(data: np.array) -> np.array:
     BitsStored = 12
     maxVal = 2**BitsStored - 1
 
+    if data.max() == 0:
+        raise ZeroDivisionError
+
     data *= maxVal/data.max()
     np.around(data, out=data)
 

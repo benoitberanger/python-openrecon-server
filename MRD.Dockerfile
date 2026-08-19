@@ -65,7 +65,7 @@ RUN pip3 install h5py==3.16.0 ismrmrd==1.14.2
 
 # matplotlib is used by rgb.py and provides various visualization tools including colormaps
 # pydicom is used by dicom2mrd.py to parse DICOM data
-RUN pip3 install --no-cache-dir matplotlib==3.8.2 pydicom==3.0.2 psutil==7.2.2 nibabel==5.4.2
+RUN pip3 install --no-cache-dir matplotlib==3.11.1 pydicom==3.0.2 psutil==7.2.2 nibabel==5.4.2
 
 # Cleanup files not required after installation
 RUN apt-get clean && \

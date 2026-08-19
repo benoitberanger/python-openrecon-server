@@ -1,3 +1,5 @@
+import logging
+
 import ismrmrd
 import numpy as np
 import pytest
@@ -102,6 +104,26 @@ class TestSendOriginalImages:
  
         assert fake_connection.sent_images == []
 
+    def test_sets_keep_image_geometry_flag_in_meta(self, fake_connection, make_image):
+        image = make_image()
+
+        send_original_images([image], fake_connection)
+
+        sent_meta = ismrmrd.Meta.deserialize(fake_connection.sent_images[0].attribute_string)
+        assert sent_meta["Keep_image_geometry"] == "1"
+
+    def test_preserves_existing_meta_fields(self, fake_connection, make_image):
+        image = make_image()
+        existing_meta = ismrmrd.Meta.deserialize(image.attribute_string)
+        existing_meta["SequenceDescription"] = "Test"
+        image.attribute_string = existing_meta.serialize()
+
+        send_original_images([image], fake_connection)
+
+        sent_meta = ismrmrd.Meta.deserialize(fake_connection.sent_images[0].attribute_string)
+        assert sent_meta["SequenceDescription"] == "Test"
+        assert sent_meta["Keep_image_geometry"] == "1"
+
 
 # ---------------------------------------------------------------------------
 # display_diagnostic()
@@ -128,11 +150,31 @@ class TestDisplayDiagnostic:
     def test_does_not_crash_with_ice_mini_head_present(self, make_header):
         head = make_header()
         meta = ismrmrd.Meta()
-        meta['IceMiniHead'] = "aGVsbG8="  # base64
+        meta['IceMiniHead'] = "dGVzdA=="  # "test" in base64
 
         result = display_diagnostic(head, meta)
 
         assert result["matrix"] is not None
+
+    def test_ice_mini_head_decoded_and_logged_when_flag_true(self, make_header, caplog):
+        head = make_header()
+        meta = ismrmrd.Meta()
+        meta['IceMiniHead'] = "aGVsbG8="  # "hello" in base64
+
+        with caplog.at_level(logging.INFO):
+            display_diagnostic(head, meta, ICEminihead_decode=True)
+
+        assert any("hello" in record.message for record in caplog.records)
+
+    def test_ice_mini_head_not_decoded_when_flag_false(self, make_header, caplog):
+        head = make_header()
+        meta = ismrmrd.Meta()
+        meta['IceMiniHead'] = "aGVsbG8="  # base64 for "hello"
+
+        with caplog.at_level(logging.INFO):
+            display_diagnostic(head, meta, ICEminihead_decode=False)
+
+        assert not any("hello" in record.message for record in caplog.records)
 
 
 # ---------------------------------------------------------------------------
@@ -145,6 +187,26 @@ class TestNormalise:
         result = normalise(data)
         assert result.max() == 4095
 
+    def test_max_value_maps_exactly_to_4095_and_zero_stays_zero(self):
+        data = np.array([0.0, 10.0, 20.0, 55.0], dtype=np.float32)
+        result = normalise(data)
+        assert result[0] == 0
+        assert result[-1] == 4095
+
+    def test_relative_order_is_preserved(self):
+        data = np.array([1.0, 2.0, 3.0, 4.0], dtype=np.float32)
+        result = normalise(data)
+        assert result[0] < result[1] < result[2] < result[3]
+
+    def test_all_zero_input_raises_zero_division_error(self):
+        data = np.zeros(3, dtype=np.float32)
+        with pytest.raises(ZeroDivisionError):
+            normalise(data)
+
+    def test_integer_dtype_input_raises_type_error(self):
+        data = np.array([0, 50, 100], dtype=np.int16)
+        with pytest.raises(TypeError):
+            normalise(data)
 
 # ---------------------------------------------------------------------------
 # MRD5Dto3D()
@@ -169,3 +231,9 @@ class TestMRD5Dto3D:
 
         for i in range(n_img):
             assert np.all(result[:, :, i] == i + 1)
+
+    def test_wrong_ndim_raises_value_error(self):
+        data = np.zeros((3, 4, 5), dtype=np.float32)  # missing the [img, cha] axes
+        with pytest.raises(ValueError):
+            MRD5Dto3D(data)
+
