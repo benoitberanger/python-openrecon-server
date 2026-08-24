@@ -205,12 +205,14 @@ All output files will be placed in a `build` dir. The finale file, ready for the
 Create a Python file in the `app/` directory. It must expose a function with this prototype:
 
 ```python
+@timeit
 def process_image(
     img_array:  np.ndarray[ismrmrd.Image],
     configJSON: dict | None,
     metadata,
 ) -> ProcessImageResult :
 ```
+> _The decorator `@timeit` from `utils.memory` is optional and used to log the processing time of the function._
 
 ### Parameters
 
@@ -468,16 +470,16 @@ The project uses [`pytest`](https://docs.pytest.org/). Install the `dev` extra f
 pip install -e ".[dev]"
 ```
  
-Fast unit suite, excludes slow / real-data integration tests (recommended for local dev and pre-merge CI):
+Fast unit suite, excludes slow / real-data integration tests (recommended for local dev and pre-merge CI)(`-rs` also prints the reason for skipped tests):
  
 ```bash
-pytest -m "not integration"
+pytest -v -rs -m "not integration"
 ```
  
-Full suite, including integration tests (`-rs` also prints the reason for skipped tests):
+Full suite, including integration tests :
  
 ```bash
-pytest -rs
+pytest -v
 ```
  
 Markers are declared in [`pytest.ini`](pytest.ini):
