@@ -1,9 +1,7 @@
-import base64
 import gc
 import logging
 import os
 import subprocess
-import xml
 
 import ismrmrd
 import numpy as np
@@ -61,44 +59,38 @@ def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None,
     logging.info(f'------------------------------------------------')
     
     mem = log_memory("process_image", "Begining")
-    
-    BitsStored = 12
-    maxVal = 2**BitsStored - 1
 
-    # --- Dimensions ------------------------------------------------------
-    # Get the number of image_type (img_array axis 6)
-    n_image_type = img_array.shape[mrd_indexes.image_type]
-    image_type_name = ('', 'MAGNITUDE', 'PHASE', 'REAL', 'IMAG', 'COMPLEX', 'RGB')
-
-    # --- Treat all types of images ---------------------------------------
+    # --- Treat all types of images -------------------------------------------
     series = OutputSeries()
     nifti_M = None
-    nifti_P = None
-    echo_times = []
     
     for serie_index in range(0, img_array.shape[mrd_indexes.image_series_index]):
-
         logging.debug(f"Series index : {serie_index}")
-        # get Magnitude image
+
+        nifti_P = None
+        phase_template = None
+        echo_times = []
+
+        # --- get Magnitude image ---------------------------------------------
         mag_array = get_subarray(img_array, img_image_type=ismrmrd.IMTYPE_MAGNITUDE, img_image_series_index=serie_index)
         if mag_array.any():
-            nifti_M = nifti_from_image_array(mag_array, "/tmp/share/romeo", ["contrast"])
+            nifti_M = nifti_from_image_array(mag_array, niftiFolder, ["contrast"])
             # --- stack images ------------------------------------------------
             mag_images = flatten(mag_array)
-            _, _, meta = stack_images(mag_images)
-            tmp_echo = [float(m.get("EchoTime")) for m in meta]
+            _, _, mag_meta = stack_images(mag_images)
+            tmp_echo = [float(m.get("EchoTime")) for m in mag_meta]
             echo_times = np.unique(tmp_echo).tolist()
             mem = log_memory_delta("process_image", "After stack_images", mem)
             del mag_array, mag_images
 
-        # get Phase image
+        # --- get Phase image -------------------------------------------------
         phase_array = get_subarray(img_array, img_image_type=ismrmrd.IMTYPE_PHASE, img_image_series_index=serie_index)
         if phase_array.any():
             phase_template = flatten(phase_array)
-            nifti_P = nifti_from_image_array(phase_array, "/tmp/share/romeo", ["contrast"])
+            nifti_P = nifti_from_image_array(phase_array, niftiFolder, ["contrast"])
             # --- stack images ------------------------------------------------
-            _, _, meta = stack_images(phase_template)
-            tmp_echo = [float(m.get("EchoTime")) for m in meta]
+            _, _, phase_meta = stack_images(phase_template)
+            tmp_echo = [float(m.get("EchoTime")) for m in phase_meta]
             echo_times = np.unique(tmp_echo).tolist()
             mem = log_memory_delta("process_image", "After stack_images", mem)
             del phase_array
@@ -108,53 +100,31 @@ def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None,
 
         logging.info(f"TE = {echo_times}")
         run_ROMEO(nifti_P, nifti_M, echo_times)
+        nifti_M = None
         
         # --- B0 map ----------------------------------------------------------
         B0_path = os.path.join(niftiFolder, "B0.nii")
         if os.path.exists(B0_path):
             b0_template = first_echo_template(phase_template)
-            b0_images = images_from_nifti(B0_path, b0_template, extra_dims=[])
+            B0_data, B0_head, B0_meta = extract_ROMEO_results(B0_path, [], b0_template, True)
 
-            B0_data, head_B0, meta_B0 = images_to_triplet(b0_images)
-            B0_data_min = np.nanmin(B0_data)
-            B0_data_shifted = (B0_data - B0_data_min)
-            for m in meta_B0:
-                m["SeriesDescription"] = "B0map"
-                m["ImageComments"]     = "ROMEO B0 map"
-                m["RescaleSlope"]     = "1"
-                m["RescaleIntercept"] = str(int(B0_data_min))
-
-            series.add(B0_data_shifted, head_B0, meta_B0,
+            series.add(B0_data, B0_head, B0_meta,
                     process_history=["PYTHON", "ROMEO B0"],
                     sequence_description="B0map")
-            del b0_images, B0_data, B0_data_shifted
+            del B0_data
         else:
             logging.warning("B0.nii not found")
         
-
+        # --- Unwrapped phase -------------------------------------------------
         unwrapped_path = os.path.join(niftiFolder, "unwrapped.nii")
-        if len(echo_times) > 1:
-            unwrapped_images = images_from_nifti(unwrapped_path, phase_template, ["contrast"])
-        else :
-            unwrapped_images = images_from_nifti(unwrapped_path, phase_template)
-        data, head, meta = images_to_triplet(unwrapped_images)
+        data, head, meta = extract_ROMEO_results(unwrapped_path, echo_times, phase_template, False)
 
-        del unwrapped_images
-
-        data_min = np.nanmin(data)
-        data_shifted = (data - data_min)
-
-        for m in meta:
-            m["RescaleSlope"]     = "1"
-            m["RescaleIntercept"] = str(int(data_min))
-
-        series.add(data_shifted, head, meta,
+        series.add(data, head, meta,
                 process_history=["PYTHON", "ROMEO Unwrapping"],
                 sequence_description="ROMEO")
-        del data, data_shifted
+        del data
         gc.collect()
         mem = log_memory_delta("process_image", "After series.add", mem)
-        nifti_P = None
 
     if series is None:
         logging.error("No images found in img_array. Returning empty result.")
@@ -165,9 +135,32 @@ def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None,
     return series.get()
 
 
+def extract_ROMEO_results(result_path: str, echo_times: list, template: list[ismrmrd.Image], b0: bool) -> tuple:
+    if not b0 and len(echo_times) > 1:
+        result_images = images_from_nifti(result_path, template, ["contrast"])
+    else :
+        result_images = images_from_nifti(result_path, template)
+    data, head, meta = images_to_triplet(result_images)
+    
+    del result_images
+
+    data_min = np.nanmin(data)
+    data_shifted = (data - data_min)
+    
+    for m in meta:
+        m["RescaleSlope"]     = "1"
+        m["RescaleIntercept"] = str(int(data_min))
+        if b0:
+            m["SeriesDescription"] = "B0map"
+            m["ImageComments"]     = "ROMEO B0 map"
+
+    return data_shifted, head, meta
+
+
 def run_ROMEO(nifti_path_P: str, nifti_path_M: str = None, echo_times: list = []):
 
     cmd = ["julia", "/opt/romeo/romeo.jl", "-v", "--compute-B0", "-o", niftiFolder, "-p", nifti_path_P, "-t", str(echo_times)]
+    
     if nifti_path_M is not None:
         cmd += ["-m", str(nifti_path_M)]
 

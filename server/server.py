@@ -54,7 +54,7 @@ class Server:
             Python package containing the application module.
         savedata : bool
             If True, save incoming MRD data to disk.
-        saveFolder : str
+        savedataFolder : str
             Path to save the incoming MRD data to disk.
         debug : bool
             If True, enable debug mode at startup.

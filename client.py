@@ -348,7 +348,7 @@ def connection_receive_loop(sock: int, outfile: str, outgroup: str, verbose: boo
         If True, log at DEBUG level.
     logfile : str
         Path to a log file. If empty, logs to stdout only.
-    recv_images : multiprocessing.Value
+    recvImages : multiprocessing.Value
         Shared integer counter updated with the number of received images
         when the loop exits.
     """

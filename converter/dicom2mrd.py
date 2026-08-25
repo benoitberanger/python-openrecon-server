@@ -33,6 +33,20 @@ venc_dir_map = {'rl'  : 'FLOW_DIR_R_TO_L',
                 'out' : 'FLOW_DIR_TP_OUT'}
 
 def CalcFieldOfView(dset):
+    """
+    Compute the field of view (x, y, z) in mm for a DICOM dataset.
+ 
+    Parameters
+    ----------
+    dset : pydicom.Dataset
+        DICOM dataset to read. Must expose ``SOPClassUID`` and the fields
+        relevant to that SOP class.
+ 
+    Returns
+    -------
+    tuple of float
+        Field of view in millimetres, as ``(fov_x, fov_y, fov_z)``.
+    """
     if dset.SOPClassUID.name == 'Enhanced MR Image Storage':
         try:
             PixelMeasuresSequence = dset.SharedFunctionalGroupsSequence[0].PixelMeasuresSequence[0]
@@ -61,6 +75,18 @@ def CalcFieldOfView(dset):
 
 
 def set_study_information(dset, mrdHead):
+    """
+    Populate ``mrdHead.studyInformation`` from a DICOM dataset.
+ 
+    Parameters
+    ----------
+    dset : pydicom.Dataset
+        Source DICOM dataset.
+    mrdHead : ismrmrd.xsd.ismrmrdHeader
+        MRD header to update. Modified in place; ``studyInformation`` is
+        (re)created on it.
+    """
+
     mrdHead.studyInformation = ismrmrd.xsd.studyInformationType()
     try:
         studyDateTime = dateutil.parser.parse(getattr(dset, 'StudyDate', '1970-01-01') + ' ' + getattr(dset, 'StudyTime', ''))
@@ -78,6 +104,18 @@ def set_study_information(dset, mrdHead):
 
 
 def set_measurment_information(dset, mrdHead):
+    """
+    Populate ``mrdHead.measurementInformation`` from a DICOM dataset.
+ 
+    Parameters
+    ----------
+    dset : pydicom.Dataset
+        Source DICOM dataset.
+    mrdHead : ismrmrd.xsd.ismrmrdHeader
+        MRD header to update. Modified in place; ``measurementInformation``
+        is (re)created on it.
+    """
+
     mrdHead.measurementInformation                             = ismrmrd.xsd.measurementInformationType()
     mrdHead.measurementInformation.measurementID               = getattr(dset, 'SeriesInstanceUID',   None)
     mrdHead.measurementInformation.patientPosition             = getattr(dset, 'PatientPosition',     None)
@@ -86,6 +124,18 @@ def set_measurment_information(dset, mrdHead):
 
 
 def set_acquisition_system_information(dset, mrdHead):
+    """
+    Populate ``mrdHead.acquisitionSystemInformation`` from a DICOM dataset.
+ 
+    Parameters
+    ----------
+    dset : pydicom.Dataset
+        Source DICOM dataset.
+    mrdHead : ismrmrd.xsd.ismrmrdHeader
+        MRD header to update. Modified in place;
+        ``acquisitionSystemInformation`` is (re)created on it.
+    """
+
     mrdHead.acquisitionSystemInformation                       = ismrmrd.xsd.acquisitionSystemInformationType()
     mrdHead.acquisitionSystemInformation.systemVendor          = getattr(dset, 'Manufacturer',          None)
     mrdHead.acquisitionSystemInformation.systemModel           = getattr(dset, 'ManufacturerModelName', None)
@@ -95,6 +145,17 @@ def set_acquisition_system_information(dset, mrdHead):
 
 
 def set_experimental_conditions(dset, mrdHead):
+    """
+    Populate ``mrdHead.experimentalConditions`` from a DICOM dataset.
+ 
+    Parameters
+    ----------
+    dset : pydicom.Dataset
+        Source DICOM dataset.
+    mrdHead : ismrmrd.xsd.ismrmrdHeader
+        MRD header to update. Modified in place; ``experimentalConditions``
+        is (re)created on it.
+    """
     mrdHead.experimentalConditions                             = ismrmrd.xsd.experimentalConditionsType()
     if hasattr(dset, 'TransmitterFrequency'):
         mrdHead.experimentalConditions.H1resonanceFrequency_Hz = int(getattr(dset, 'TransmitterFrequency')*1e6)
@@ -105,6 +166,17 @@ def set_experimental_conditions(dset, mrdHead):
 
 
 def set_encoding_type(dset, mrdHead):
+    """
+    Build and append a Cartesian ``encodingType`` entry to ``mrdHead.encoding``.
+ 
+    Parameters
+    ----------
+    dset : pydicom.Dataset
+        Source DICOM dataset.
+    mrdHead : ismrmrd.xsd.ismrmrdHeader
+        MRD header to update. A new encodingType is appended to
+        ``mrdHead.encoding``.
+    """
     enc = ismrmrd.xsd.encodingType()
     enc.trajectory          = ismrmrd.xsd.trajectoryType('cartesian')
 
@@ -136,6 +208,17 @@ def set_encoding_type(dset, mrdHead):
 
 
 def set_sequence_parameters(dset, mrdHead):
+    """
+    Populate ``mrdHead.sequenceParameters`` (TR, flip angle, TE) from a DICOM dataset.
+ 
+    Parameters
+    ----------
+    dset : pydicom.Dataset
+        Source DICOM dataset.
+    mrdHead : ismrmrd.xsd.ismrmrdHeader
+        MRD header to update. Modified in place; ``sequenceParameters``
+        is (re)created on it.
+    """
     mrdHead.sequenceParameters               = ismrmrd.xsd.sequenceParametersType()
     if hasattr(dset, 'SharedFunctionalGroupsSequence'):
         mrdHead.sequenceParameters.TR            = float(dset.SharedFunctionalGroupsSequence[0].MRTimingAndRelatedParametersSequence[0].RepetitionTime)
@@ -148,6 +231,17 @@ def set_sequence_parameters(dset, mrdHead):
 
 
 def water_suppresion(dset, userParameters):
+    """
+    Detect a Siemens water-saturation flag and record it as a user parameter.
+ 
+    Parameters
+    ----------
+    dset : pydicom.Dataset
+        Source DICOM dataset.
+    userParameters : ismrmrd.xsd.userParametersType
+        MRD user parameters container. Modified in place by appending a
+        userParameterString entry when water saturation is detected.
+    """
     try:
         if hasattr(dset, 'SharedFunctionalGroupsSequence'):
             MeasurementOptions = dset.SharedFunctionalGroupsSequence[0][0x002110FE][0][0x0021105C].value
@@ -167,6 +261,17 @@ def water_suppresion(dset, userParameters):
 
 
 def set_spectroscopy_readout_points(dset, userParameters):
+    """
+    Record the spectroscopy acquisition vector size as a user parameter.
+ 
+    Parameters
+    ----------
+    dset : pydicom.Dataset
+        Source DICOM dataset.
+    userParameters : ismrmrd.xsd.userParametersType
+        MRD user parameters container. Modified in place by appending a
+        userParameterLong entry when SpecVectorSize is found.
+    """
     try:
         SpecVectorSize = dset.SharedFunctionalGroupsSequence[0].MRSpectroscopyFOVGeometrySequence[0].SpectroscopyAcquisitionDataColumns
         userParameterLong = ismrmrd.xsd.userParameterLongType('SpecVectorSize', SpecVectorSize)
@@ -176,6 +281,17 @@ def set_spectroscopy_readout_points(dset, userParameters):
 
 
 def set_readout_oversampling(dset, userParameters):
+    """
+    Record spectroscopy readout oversampling parameters as user parameters.
+ 
+    Parameters
+    ----------
+    dset : pydicom.Dataset
+        Source DICOM dataset.
+    userParameters : ismrmrd.xsd.userParametersType
+        MRD user parameters container. Modified in place by appending
+        userParameterDouble entries for whichever values were found.
+    """   
     ReadoutOS = None
     SpectralWidth = None
 
@@ -208,6 +324,17 @@ def set_readout_oversampling(dset, userParameters):
 
 
 def set_spectroscopy_VOI(dset, userParameters):
+    """
+    Record spectroscopy volume-of-interest (VOI) dimensions as user parameters.
+ 
+    Parameters
+    ----------
+    dset : pydicom.Dataset
+        Source DICOM dataset.
+    userParameters : ismrmrd.xsd.userParametersType
+        MRD user parameters container. Modified in place by appending
+        up to 3 userParameterDouble entries.
+    """
     # Spectroscopy volume of interest dimensions
     try:
         for dim in dset.VolumeLocalizationSequence:
@@ -229,8 +356,21 @@ def set_spectroscopy_VOI(dset, userParameters):
 
 
 def CreateMrdHeader(dset):
-    """Create MRD XML header from a DICOM file"""
-
+    """
+    Assemble a complete MRD XML header from a single reference DICOM dataset.
+ 
+    Parameters
+    ----------
+    dset : pydicom.Dataset
+        Reference DICOM dataset (typically the first file of the first
+        series) used to derive all header fields.
+ 
+    Returns
+    -------
+    ismrmrd.xsd.ismrmrdHeader
+        Fully populated MRD XML header, ready to be serialised with
+        ``.toXML()`` and written via ``ismrmrd.Dataset.write_xml_header()``.
+    """
     mrdHead = ismrmrd.xsd.ismrmrdHeader()
 
     set_study_information(dset, mrdHead)
@@ -245,7 +385,7 @@ def CreateMrdHeader(dset):
     water_suppresion(dset, userParameters)
     set_spectroscopy_readout_points(dset, userParameters)
     set_readout_oversampling(dset, userParameters)
-    set_spectroscopy_readout_points(dset, userParameters)
+    set_spectroscopy_VOI(dset, userParameters)
 
     mrdHead.userParameters = userParameters
     return mrdHead
