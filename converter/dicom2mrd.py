@@ -32,7 +32,7 @@ venc_dir_map = {'rl'  : 'FLOW_DIR_R_TO_L',
                 'in'  : 'FLOW_DIR_TP_IN',
                 'out' : 'FLOW_DIR_TP_OUT'}
 
-def CalcFieldOfView(dset):
+def CalcFieldOfView(dset: pydicom.Dataset) -> tuple[float]:
     """
     Compute the field of view (x, y, z) in mm for a DICOM dataset.
  
@@ -74,7 +74,7 @@ def CalcFieldOfView(dset):
                 dset.VolumeLocalizationSequence[2].SlabThickness)
 
 
-def set_study_information(dset, mrdHead):
+def set_study_information(dset: pydicom.Dataset, mrdHead: ismrmrd.xsd.ismrmrdHeader):
     """
     Populate ``mrdHead.studyInformation`` from a DICOM dataset.
  
@@ -103,7 +103,7 @@ def set_study_information(dset, mrdHead):
     mrdHead.studyInformation.bodyPartExamined       = getattr(dset, 'BodyPartExamined',       None)
 
 
-def set_measurment_information(dset, mrdHead):
+def set_measurment_information(dset: pydicom.Dataset, mrdHead: ismrmrd.xsd.ismrmrdHeader):
     """
     Populate ``mrdHead.measurementInformation`` from a DICOM dataset.
  
@@ -123,7 +123,7 @@ def set_measurment_information(dset, mrdHead):
     mrdHead.measurementInformation.frameOfReferenceUID         = getattr(dset, 'FrameOfReferenceUID', None)
 
 
-def set_acquisition_system_information(dset, mrdHead):
+def set_acquisition_system_information(dset: pydicom.Dataset, mrdHead: ismrmrd.xsd.ismrmrdHeader):
     """
     Populate ``mrdHead.acquisitionSystemInformation`` from a DICOM dataset.
  
@@ -144,7 +144,7 @@ def set_acquisition_system_information(dset, mrdHead):
     mrdHead.acquisitionSystemInformation.stationName           = getattr(dset, 'StationName',           None)
 
 
-def set_experimental_conditions(dset, mrdHead):
+def set_experimental_conditions(dset: pydicom.Dataset, mrdHead: ismrmrd.xsd.ismrmrdHeader):
     """
     Populate ``mrdHead.experimentalConditions`` from a DICOM dataset.
  
@@ -165,7 +165,7 @@ def set_experimental_conditions(dset, mrdHead):
         mrdHead.experimentalConditions.H1resonanceFrequency_Hz = int(getattr(dset, 'MagneticFieldStrength')*4258e4)
 
 
-def set_encoding_type(dset, mrdHead):
+def set_encoding_type(dset: pydicom.Dataset, mrdHead: ismrmrd.xsd.ismrmrdHeader):
     """
     Build and append a Cartesian ``encodingType`` entry to ``mrdHead.encoding``.
  
@@ -207,7 +207,7 @@ def set_encoding_type(dset, mrdHead):
     mrdHead.encoding.append(enc)
 
 
-def set_sequence_parameters(dset, mrdHead):
+def set_sequence_parameters(dset: pydicom.Dataset, mrdHead: ismrmrd.xsd.ismrmrdHeader):
     """
     Populate ``mrdHead.sequenceParameters`` (TR, flip angle, TE) from a DICOM dataset.
  
@@ -230,7 +230,7 @@ def set_sequence_parameters(dset, mrdHead):
         mrdHead.sequenceParameters.TE            = float(dset.EchoTime)
 
 
-def water_suppresion(dset, userParameters):
+def water_suppresion(dset: pydicom.Dataset, userParameters: ismrmrd.xsd.userParametersType):
     """
     Detect a Siemens water-saturation flag and record it as a user parameter.
  
@@ -260,7 +260,7 @@ def water_suppresion(dset, userParameters):
         logging.debug(f"No water-suppression flag found: {e}")
 
 
-def set_spectroscopy_readout_points(dset, userParameters):
+def set_spectroscopy_readout_points(dset: pydicom.Dataset, userParameters: ismrmrd.xsd.userParametersType):
     """
     Record the spectroscopy acquisition vector size as a user parameter.
  
@@ -280,7 +280,7 @@ def set_spectroscopy_readout_points(dset, userParameters):
         logging.debug(f"No SpecVectorSize found: {e}")
 
 
-def set_readout_oversampling(dset, userParameters):
+def set_readout_oversampling(dset: pydicom.Dataset, userParameters: ismrmrd.xsd.userParametersType):
     """
     Record spectroscopy readout oversampling parameters as user parameters.
  
@@ -323,7 +323,7 @@ def set_readout_oversampling(dset, userParameters):
         logging.debug(f"Could not compute DwellTime_0 (missing SpectralWidth/ReadoutOS): {e}")
 
 
-def set_spectroscopy_VOI(dset, userParameters):
+def set_spectroscopy_VOI(dset: pydicom.Dataset, userParameters: ismrmrd.xsd.userParametersType):
     """
     Record spectroscopy volume-of-interest (VOI) dimensions as user parameters.
  
@@ -355,7 +355,7 @@ def set_spectroscopy_VOI(dset, userParameters):
         logging.debug(f"No VolumeLocalizationSequence found: {e}")
 
 
-def CreateMrdHeader(dset):
+def CreateMrdHeader(dset: pydicom.Dataset) -> ismrmrd.xsd.ismrmrdHeader:
     """
     Assemble a complete MRD XML header from a single reference DICOM dataset.
  
@@ -392,8 +392,20 @@ def CreateMrdHeader(dset):
 
 ###############################################################################
 
-def GetDicomFiles(directory):
-    """Get path to all DICOMs in a directory and its sub-directories"""
+def GetDicomFiles(directory: str):
+    """
+    Recursively yield paths to all DICOM files under a directory.
+ 
+    Parameters
+    ----------
+    directory : str
+        Root directory to scan.
+ 
+    Yields
+    ------
+    str
+        Path to each DICOM file found.
+    """
     for entry in os.scandir(directory):
         if entry.is_file() and (entry.path.lower().endswith(".dcm") or entry.path.lower().endswith(".ima")):
             yield entry.path
@@ -401,7 +413,21 @@ def GetDicomFiles(directory):
             yield from GetDicomFiles(entry.path)
 
 
-def renumber_split_series(dsetsAll):
+def renumber_split_series(dsetsAll: list[pydicom.Dataset]) -> list[pydicom.Dataset]:
+    """
+    Re-group DICOM series that were split during multi-frame to single-frame conversion.
+ 
+    Parameters
+    ----------
+    dsetsAll : list of pydicom.Dataset
+        All loaded DICOM datasets, potentially spanning multiple series.
+ 
+    Returns
+    -------
+    list of pydicom.Dataset
+        The same list, with ``SeriesNumber`` renumbered in place when a
+        split was detected.
+    """
     # Group by series number
     uSeriesNum = np.unique([dset.SeriesNumber for dset in dsetsAll])
 
@@ -413,7 +439,22 @@ def renumber_split_series(dsetsAll):
     return dsetsAll
 
 
-def load_dicom_series(folder: str):
+def load_dicom_series(folder: str) -> tuple[list[pydicom.Dataset], np.ndarray]:
+    """
+    Load every DICOM file found under a folder and identify the distinct series.
+ 
+    Parameters
+    ----------
+    folder : str
+        Root directory to scan for DICOM files.
+ 
+    Returns
+    -------
+    dsetsAll : list of pydicom.Dataset
+        All loaded datasets.
+    uSeriesNum : np.ndarray
+        Sorted array of unique series numbers found across ``dsetsAll``.
+    """
     dsetsAll = []
     for entryPath in GetDicomFiles(folder):
         dsetsAll.append(pydicom.dcmread(entryPath))
@@ -425,7 +466,24 @@ def load_dicom_series(folder: str):
     return dsetsAll, uSeriesNum
 
 
-def build_meta(dset):
+def build_meta(dset: pydicom.Dataset) -> ismrmrd.Meta:
+    """
+    Build an ismrmrd.Meta object carrying non-MRD DICOM metadata for one image.
+ 
+    Parameters
+    ----------
+    dset : pydicom.Dataset
+        Source DICOM dataset for one image/frame. Mutated in place:
+        ``PixelData`` and ``SpectroscopyData`` are deleted from it if
+        present.
+ 
+    Returns
+    -------
+    ismrmrd.Meta
+        Populated Meta object, ready to be serialised into
+        ``ismrmrd.Image.attribute_string``.
+    """
+
     meta = ismrmrd.Meta()
 
     try:
@@ -463,9 +521,28 @@ def build_meta(dset):
     return meta
 
 
-def build_mrd_image(dset, serieIndex, uSliceLoc, uTrigTime):
+def build_mrd_image(dset: pydicom.Dataset, serieIndex: int, uSliceLoc: np.ndarray, uTrigTime: np.ndarray) -> ismrmrd.Image | None:
     """
-    TO-DO
+    Convert a single DICOM instance into an ismrmrd.Image.
+ 
+    Parameters
+    ----------
+    dset : pydicom.Dataset
+        Source DICOM dataset.
+    serieIndex : int
+        MRD ``image_series_index`` to assign to the resulting image.
+    uSliceLoc : np.ndarray
+        Sorted array of unique SliceLocation values for the series this
+        image belongs to, used to compute the ``slice`` index.
+    uTrigTime : np.ndarray
+        Sorted array of unique TriggerTime values for the series this
+        image belongs to, used to compute the ``phase`` index.
+ 
+    Returns
+    -------
+    ismrmrd.Image or None
+        The populated MRD image, or None if ``dset`` exposes neither
+        pixel nor spectroscopy data.
     """
     if hasattr(dset, 'pixel_array'):
         # pixel_array data has shape [row col], i.e. [y x].
@@ -540,7 +617,24 @@ def build_mrd_image(dset, serieIndex, uSliceLoc, uTrigTime):
     return mrdImage
 
 
-def build_series_images(dsets, seriesIndex):
+def build_series_images(dsets: pydicom.Dataset, seriesIndex: int) -> list[ismrmrd.Image]:
+    """
+    Convert every DICOM instance of one series into a list of ismrmrd.Image.
+ 
+    Parameters
+    ----------
+    dsets : list of pydicom.Dataset
+        All DICOM datasets belonging to a single series (same
+        SeriesNumber).
+    seriesIndex : int
+        MRD ``image_series_index`` to assign to every resulting image.
+ 
+    Returns
+    -------
+    list of ismrmrd.Image
+        One image per convertible input dataset, in InstanceNumber
+        order.
+    """
     dsets = sorted(dsets, key=lambda d: d.InstanceNumber)
 
     # Build a list of unique SliceLocation and TriggerTimes, as the MRD
@@ -575,7 +669,23 @@ def build_series_images(dsets, seriesIndex):
 
 ### MRD Writting ##############################################################
 
-def write_mrd_dataset(outFile, outGroup, mrdHead, imgAll):
+def write_mrd_dataset(outFile: str, outGroup: str, mrdHead: ismrmrd.xsd.ismrmrdHeader, imgAll: list):
+    """
+    Write an MRD header and a list of image series to a new HDF5 file.
+ 
+    Parameters
+    ----------
+    outFile : str
+        Path to the output MRD (.h5) file. Removed and recreated if it
+        already exists.
+    outGroup : str
+        Top-level HDF5 group name to create the dataset under.
+    mrdHead : ismrmrd.xsd.ismrmrdHeader
+        MRD header to write via ``write_xml_header()``.
+    imgAll : list of list of ismrmrd.Image or None
+        Images grouped by series. None entries are skipped.
+    """
+
     # Create an MRD file
     logging.info("Creating MRD file %s with group %s" % (outFile, outGroup))
     if os.path.exists(outFile):

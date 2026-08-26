@@ -20,9 +20,31 @@ IMTYPE_LABEL = {
 }
 
 
-def rescale_phase(vol, meta: dict):
+def rescale_phase(vol: np.ndarray, meta: dict) -> np.ndarray:
     """
-    TO-DO
+    Rescale a phase-image volume from stored integer units to radians.
+ 
+    When applicable, applies the affine transform ``vol * slope + intercept`` 
+    using ``RescaleSlope``/``RescaleIntercept`` from the image Meta attributes, 
+    casting the result to float32.
+ 
+    Parameters
+    ----------
+    vol : np.ndarray
+        Volume to rescale.
+    meta : dict
+        Metadata dict as returned by assemble_volume(). Relevant keys:
+            image_type       (str)          : rescaling only applies for "P".
+            RescaleSlope     (str or float, optional)
+            RescaleIntercept (str or float, optional)
+ 
+    Returns
+    -------
+    np.ndarray
+        The rescaled float32 volume if ``image_type == "P"`` and at
+        least one of RescaleSlope/RescaleIntercept was found; otherwise
+        the original ``vol`` unchanged.
+
     """
     if meta.get("image_type") != "P":
         return vol

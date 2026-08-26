@@ -127,7 +127,20 @@ def log_memory_delta(level: str, label: str, mem_before: float) -> float:
 
 def timeit(func):
     """
-    TO-DO
+    Decorator that logs the wall-clock execution time of a function
+    (measured with ``time.perf_counter()``).
+ 
+    Parameters
+    ----------
+    func : callable
+        Function to time. Can take any positional/keyword arguments.
+ 
+    Returns
+    -------
+    callable
+        Wrapped version of ``func`` with the same signature and return
+        value, plus the timing side effect.
+
     """
     @wraps(func)
     def timeit_wrapper(*args, **kwargs):
