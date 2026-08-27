@@ -7,7 +7,7 @@ import ismrmrd
 import numpy as np
 
 from converter.mrd2nifti import nifti_from_image_array
-from converter.nifti2mrd import images_from_nifti
+from converter.nifti2mrdImages import images_from_nifti
 from converter.utils import slice_pos
 from utils.OutputSeries import OutputSeries, ProcessImageResult
 from utils.img_array import flatten, get_type_magnitude, get_subarray, mrd_indexes, stack_images

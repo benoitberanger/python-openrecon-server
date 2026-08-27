@@ -29,13 +29,13 @@ def images_from_nifti(
         nifti_from_image_array to create the *input* NIfTI (before ROMEO).
         Their headers and Meta are reused to rebuild the output images.
     extra_dims : list of str
-        Extra dimension field names, in the same order used to build the
+        Extra dimension field names, in the same order used to build the 
         input NIfTI (e.g. ["contrast"]). Must match exactly.
 
     Returns
     -------
     list of ismrmrd.Image
-        One image per (slice, *extra_dims combination), with the same
+        One image per (slice, \*extra_dims combination), with the same
         headers/positions as template_images, but with data replaced by
         the corresponding slice of the NIfTI volume.
     """

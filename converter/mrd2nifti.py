@@ -156,10 +156,11 @@ def assemble_volume(images: list[ismrmrd.Image], extra_dims: list[str]) :
  
     Each MRD image carries one 2D slice with shape [cha, z, y, x] where
     cha=1 and z=1 for standard reconstructed images. This function:
+
       1. Sorts slices by their position along the slice normal (slice_pos).
       2. For each active extra dimension, discovers all unique index values
          and maps them to contiguous array indices.
-      3. Allocates a volume of shape [n_slices, ny, nx, *extra_sizes].
+      3. Allocates a volume of shape [n_slices, ny, nx, (extra_sizes)].
       4. Fills each slot using the slice position and extra-dimension indices
          read from the ImageHeader.
       5. Transposes the volume from [z, y, x, ...] to [x, y, z, ...] to
@@ -267,12 +268,12 @@ def assemble_volume(images: list[ismrmrd.Image], extra_dims: list[str]) :
 def make_nifti(data: np.ndarray[ismrmrd.Image], affine: np.ndarray, meta: dict) -> nib.Nifti1Image:
     """
     Wrap a numpy volume and RAS affine into a Nifti1Image with a populated header.
- 
+
     Sets voxel dimensions (zooms), spatial and temporal units, and the 80 character
     description field. For 4D or higher volumes, extra-dimension zooms are filled
     from metadata when available (TR for repetition, TE for contrast/echo),
     defaulting to 1.0 otherwise.
- 
+
     Parameters
     ----------
     data : np.ndarray
@@ -282,13 +283,13 @@ def make_nifti(data: np.ndarray[ismrmrd.Image], affine: np.ndarray, meta: dict) 
     affine : np.ndarray
         4x4 RAS affine matrix.
     meta : dict
-        Metadata dict as returned by assemble_volume. The following keys are
+        Metadata dict as returned by assemble_volume. The following keys are 
         used when present:
-            extra_dims        (list of str) : names of extra axes beyond z
-            RepetitionTime    (float)       : TR in ms, used for "repetition" zoom
-            EchoTime          (float)       : TE in ms, used for "contrast" zoom
-            SequenceDescription (str)       : written to the descrip header field
- 
+        extra_dims        (list of str) : names of extra axes beyond z
+        RepetitionTime    (float)       : TR in ms, used for "repetition" zoom
+        EchoTime          (float)       : TE in ms, used for "contrast" zoom
+        SequenceDescription (str)       : written to the descrip header field
+
     Returns
     -------
     nib.Nifti1Image

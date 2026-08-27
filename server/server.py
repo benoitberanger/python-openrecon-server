@@ -288,9 +288,8 @@ class Server:
            config value causes the connection to be drained and
            closed without processing.
         2. **Metadata** : MRD XML header
-        3. **JSON config** : optional additional parameters selected by
-          the user thanks to the UI.
-        
+        3. **JSON config** : optional additional parameters selected by the user thanks to the UI.
+
         Then dispatches traffic to handle_image_stream().
 
         Parameters
@@ -348,7 +347,7 @@ class Server:
 
         If the connection was configured to auto-generate a save filename
         (i.e. savedataFile was not explicitly set), attempts to rename the
-        file by replacing the 'MRD_input_' prefix with the protocol name
+        file by replacing the ``MRD_input_`` prefix with the protocol name
         read from the MRD XML header.
 
         Parameters
@@ -358,12 +357,9 @@ class Server:
             attributes are used:
 
             - ``connection.dset`` : HDF5 dataset handle to close.
-            - ``connection.savedataFile`` : explicit save path if set,
-            empty string if auto-generated.
-            - ``connection.mrdFilePath`` : current path of the save file,
-            updated in-place if renamed.
-            - ``connection.savedataGroup`` : HDF5 group name used to
-            read the XML header for the protocol name.
+            - ``connection.savedataFile`` : explicit save path if set, empty string if auto-generated.
+            - ``connection.mrdFilePath`` : current path of the save file, updated in-place if renamed.
+            - ``connection.savedataGroup`` : HDF5 group name used to read the XML header for the protocol name.
         """
         try:
             connection.dset.close()

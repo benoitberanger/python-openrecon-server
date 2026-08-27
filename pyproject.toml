@@ -41,6 +41,13 @@ test = [
     "matplotlib==3.11.1",
 ]
 
+# Everything needed for the documentation
+docs = [
+    "sphinx", 
+    "sphinx-rtd-theme", 
+    "myst-parser",
+]
+
 [tool.setuptools.packages.find]
 # "app" is intentionally excluded: it is a swappable deployment target copied
 # wholesale into the Docker image by build.py, not a library package of

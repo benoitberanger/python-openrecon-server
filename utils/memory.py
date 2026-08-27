@@ -60,7 +60,7 @@ def memory_limit_mb() -> float:
     (see container_memory_limit_mb()), otherwise returns the total
     physical RAM of the host as reported by psutil.
 
-     Returns
+    Returns
     -------
     float
         Available memory ceiling in MB (container limit or host RAM).
