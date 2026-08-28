@@ -92,7 +92,7 @@ class Server:
         FileNotFoundError
             If the <app_config>.py file does not exist.
         """
-        
+
         module_path = os.path.join(app_directory, app_config + '.py')
         if not os.path.isfile(module_path):
             raise FileNotFoundError(f"Processing module not found: '{module_path}'")
@@ -242,7 +242,7 @@ class Server:
 
         # Continuously parse incoming data parsed from MRD messages
         imgGroup = []
-        mem_start = log_memory("handle_image_stream", "Begining")
+        mem_start = log_memory("handle_image_stream", "Beginning")
         try:
             for item in connection:
 

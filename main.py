@@ -14,7 +14,7 @@ defaults = {
 }
 
 def main(args: argparse.Namespace):
-    """Lauch the server"""
+    """Launch the server"""
     server = Server(args.port, args.host, args.config, args.dirname, args.savedata, args.savedataFolder, args.debug)
     
     if args.debug:

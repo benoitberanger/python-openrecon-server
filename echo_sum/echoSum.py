@@ -54,7 +54,7 @@ def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None,
     logging.info(f'     Echos summation called')
     logging.info(f'-----------------------------------------------')
     
-    mem = log_memory("process_image", "Begining")
+    mem = log_memory("process_image", "Beginning")
 
     # --- OR Parameters ---------------------------------------------------
     sum_config = check_OR_arguments(configJSON, 

@@ -46,7 +46,7 @@ def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None,
     logging.info(f'     invertContrast called')
     logging.info(f'------------------------------------------------')
     
-    mem = log_memory("process_image", "Begining")
+    mem = log_memory("process_image", "Beginning")
     
     BitsStored = 12
     maxVal = 2**BitsStored - 1

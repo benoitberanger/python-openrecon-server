@@ -113,7 +113,7 @@ def validate_index(value, dim_size: int, dim_name: str) -> bool:
     Returns
     -------
     bool
-        True if the index is valide, False otherwise.
+        True if the index is valid, False otherwise.
     """
     if value is None:
         return True

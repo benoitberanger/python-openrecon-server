@@ -58,7 +58,7 @@ def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None,
     logging.info(f'     ROMEO called')
     logging.info(f'------------------------------------------------')
     
-    mem = log_memory("process_image", "Begining")
+    mem = log_memory("process_image", "Beginning")
 
     # --- Treat all types of images -------------------------------------------
     series = OutputSeries()

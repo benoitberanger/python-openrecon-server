@@ -97,6 +97,8 @@ def send_back_debug(image: ismrmrd.Image, connection: Connection) -> None:
     """
     display_info_images(image)
 
+    # TO-DO: Copy images on disk (NIfti)
+
     tmpMeta = ismrmrd.Meta.deserialize(image.attribute_string)
     tmpMeta['Keep_image_geometry'] = 1
     image.attribute_string = tmpMeta.serialize()

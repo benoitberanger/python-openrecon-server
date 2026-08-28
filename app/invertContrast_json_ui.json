@@ -95,7 +95,7 @@
     {
       "id": "SelectSerie",
       "type": "choice",
-      "label": { "en": "Select Serie" },
+      "label": { "en": "Select Series" },
       "values": [
         {
           "id": "All",
@@ -103,15 +103,15 @@
         },
         {
           "id": "FirstSerie",
-          "name": { "en": "First Serie" }
+          "name": { "en": "First Series" }
         },
         {
           "id": "LastSerie",
-          "name": { "en": "Last Serie" }
+          "name": { "en": "Last Series" }
         }
       ],
       "default": "All",
-      "information": { "en": "Select serie on which apply the process" }
+      "information": { "en": "Select series on which apply the process" }
     }
   ]
 }

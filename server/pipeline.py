@@ -70,9 +70,6 @@ class Pipeline:
             logging.info(f"Starting config {self.app_config} in {self.app_directory} directory")
         except ImportError as e:
             logging.error("Failed to load config '%s' with error:\n  %s", self.app_config, e)
-            #TO-DO: How to handle failed loading module ? Stop the server, just raise an error
-            # or send back original images if asked with just an error message in the logs
-            # Maybe trying to load the app before the server received anything to check the argument
 
 
     def images_selector(self, img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None) -> np.ndarray[ismrmrd.Image]:
@@ -111,13 +108,13 @@ class Pipeline:
             echo = None
 
         if select_serie == 'FirstSerie' :
-            serie = 1
+            series = 1
         elif select_serie == 'LastSerie' :
-            serie = - 1
+            series = - 1
         else :
-            serie = None
+            series = None
 
-        new_array = get_subarray(img_array, img_contrast = echo, img_image_type = type, img_image_series_index = serie)
+        new_array = get_subarray(img_array, img_contrast = echo, img_image_type = type, img_image_series_index = series)
 
         return new_array
 
@@ -244,6 +241,8 @@ class Pipeline:
             img.attribute_string = tmpMeta.serialize()
             # logging.debug("Image MetaAttributes: %s", xml.dom.minidom.parseString(metaXml).toprettyxml())
             # logging.debug("Image data has %d elements", imagesOut[iImg].data.size)
+
+            # TO-DO: copy image (Nifti) on disk (with flag)
 
             self.connection.send_image(img)
             del img

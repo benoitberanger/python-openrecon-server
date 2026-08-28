@@ -38,13 +38,12 @@ dev = [
 # module uses it (e.g. for colormaps), keep/drop as needed.
 test = [
     "pytest==9.1.1",
-    "matplotlib==3.11.1",
 ]
 
 # Everything needed for the documentation
 docs = [
-    "sphinx", 
-    "sphinx-rtd-theme", 
+    "sphinx",
+    "sphinx-rtd-theme",
     "myst-parser",
 ]
 

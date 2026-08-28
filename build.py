@@ -343,7 +343,7 @@ def write_dockerfile(json_content, cmdline: str, docker_path: str, build_data: d
 
 def create_pdf(file_path: str, lines_of_text: list[str]) -> None:
     """
-    Generate a minimal pdf with informations about the app
+    Generate a minimal pdf with information about the app
 
     Parameters
     ----------
@@ -542,7 +542,7 @@ if __name__ == '__main__':
         help    = 'Application directory name. ex: `demo-i2i`, `app`',
         default = 'app'
     )
-    parser.add_argument('-p', '--pdf-file', type=str,              help='PDF file to put in the app .zip file. If None, genrate a minimal one.', default=None)
+    parser.add_argument('-p', '--pdf-file', type=str,              help='PDF file to put in the app .zip file. If None, generate a minimal one.', default=None)
     parser.add_argument('-D', '--debug',    action='store_true',   help='Build the server in debug mode')
     parser.add_argument('--nopackage',      action='store_true',   help='Do not save the docker image in a .zip file')
 

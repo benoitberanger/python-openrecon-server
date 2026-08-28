@@ -667,7 +667,7 @@ def build_series_images(dsets: pydicom.Dataset, seriesIndex: int) -> list[ismrmr
     return images
 
 
-### MRD Writting ##############################################################
+### MRD Writing ###############################################################
 
 def write_mrd_dataset(outFile: str, outGroup: str, mrdHead: ismrmrd.xsd.ismrmrdHeader, imgAll: list):
     """

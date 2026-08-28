@@ -200,7 +200,7 @@ def send_additional_config(connection: Connection, dset: ismrmrd.Dataset, config
     groups = dset.list()
     if ConfigJSONText is not None:
         if ('configAdditional' in groups):
-            logging.warning(f"configAdditional found in file {filename}, but is overriden by local file {config_json}!")
+            logging.warning(f"configAdditional found in file {filename}, but is overridden by local file {config_json}!")
 
         connection.send_text(ConfigJSONText)
 

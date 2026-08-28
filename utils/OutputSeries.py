@@ -71,10 +71,10 @@ class OutputSeries:
         data : np.ndarray
             Processed pixel data, shape [img, cha, z, y, x], dtype int16.
         head : list of ismrmrd.ImageHeader
-            Headers to associate to the serie. If None, use the attribute one 
+            Headers to associate to the series. If None, use the attribute one 
             as default.
         meta : list of ismrmrd.Meta
-            Metadata to associate to the serie. If None, use the attribute one 
+            Metadata to associate to the series. If None, use the attribute one 
             as default.
         
         process_history : list of str, str, or None, optional

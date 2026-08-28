@@ -162,7 +162,7 @@ class TestInvertContrastFullPipeline:
             server_obj_invertcontrast, socketpair, [mag, phase], config={"SaveOriginal": False}
         )
 
-        # One output series per (image_type, serie) pair encountered:
+        # One output series per (image_type, series) pair encountered:
         # magnitude -> series 0, phase -> series 1, then offset by
         # (max original index + 1) = 1 -> final indexes 1 and 2.
         assert len(received) == 2

@@ -351,7 +351,7 @@ class Connection:
         logging.info("<-- Received MRD_MESSAGE_CONFIG_TEXT (2)")
         length = self.read_mrd_message_length()
         config = self.read(length)
-        config = config.split(b'\x00',1)[0].decode('utf-8')  # Strip off null teminator
+        config = config.split(b'\x00',1)[0].decode('utf-8')  # Strip off null terminator
 
         return config
 
@@ -395,7 +395,7 @@ class Connection:
         logging.info("<-- Received MRD_MESSAGE_METADATA_XML_TEXT (3)")
         length = self.read_mrd_message_length()
         metadata = self.read(length)
-        metadata = metadata.split(b'\x00',1)[0].decode('utf-8')  # Strip off null teminator
+        metadata = metadata.split(b'\x00',1)[0].decode('utf-8')  # Strip off null terminator
 
         return metadata
 
@@ -470,7 +470,7 @@ class Connection:
         logging.info("<-- Received MRD_MESSAGE_TEXT (5)")
         length = self.read_mrd_message_length()
         text = self.read(length)
-        text = text.split(b'\x00',1)[0].decode('utf-8')  # Strip off null teminator
+        text = text.split(b'\x00',1)[0].decode('utf-8')  # Strip off null terminator
         return text
         
     def send_text(self, contents: str) -> None:
@@ -533,7 +533,7 @@ class Connection:
         # else:
         #     logging.debug("   Attributes: %s", attribute_bytes.decode('utf-8'))
 
-        image = ismrmrd.Image(header_bytes, attribute_bytes.split(b'\x00',1)[0].decode('utf-8'))  # Strip off null teminator
+        image = ismrmrd.Image(header_bytes, attribute_bytes.split(b'\x00',1)[0].decode('utf-8'))  # Strip off null terminator
 
         logging.info("    Image is size %d x %d x %d with %d channels of type %s", 
                      image.getHead().matrix_size[0], 

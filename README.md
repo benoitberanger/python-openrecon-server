@@ -5,7 +5,7 @@ The puropose is to build a simple invert contrast `i2i` application as described
 
 For later developments, the first step of a new OpenRecon project it to create a new repo based on this `python-openrecon-server`, then modify the `app` dir (or any other dir), to finnaly call the building process.
 
-The repository of [kspaceKelvin/python-ismrmrd-server](https://github.com/kspaceKelvin/python-ismrmrd-server) was used as a reference in the developpment of the server part of this project.
+The repository of [kspaceKelvin/python-ismrmrd-server](https://github.com/kspaceKelvin/python-ismrmrd-server) was used as a reference in the development of the server part of this project.
 
 
 ## Table of contents
@@ -159,7 +159,7 @@ The `build.py` script automates the full build pipeline to allow the deployment 
 python build.py --dirname <app>
 ```
 By default, it build the `app` directory. 
-The name off the process is automaticaly get from the name of the `.py` file in the directory.
+The name off the process is automatically get from the name of the `.py` file in the directory.
 
 This script will build the Docker image of the OpenRecon application and all the necessary files to upload it on the magnet.
 Meaning, the `.zip`file containing the image as a `.tar` and a minimalistic `.pdf`.
@@ -392,7 +392,7 @@ return series.get()   # pipeline sends both series
 When debug mode is active, images are sent back to the client unmodified
 and `process_image` is never called. Infos from each image's metadata is
 logged (image type, orientation, all FIRST/LAST flags,...).
-_This mode is made to be use on the magnet, since the metadata informations from DICOM converted images will be incomplete._
+_This mode is made to be use on the magnet, since the metadata information from DICOM converted images will be incomplete._
 
 - Enable at startup:
 ```bash
@@ -599,7 +599,7 @@ python main.py
 python build.py
 ```
 
-### Multi-Echo Combinaison
+### Multi-Echo Combination
 
 Combines multi-echo magnitude images into a single image per slice.
 Different mode are available: simple summation (default) or sum of square.
