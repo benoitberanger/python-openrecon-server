@@ -4,7 +4,7 @@ python OpenRecon Server
 .. toctree::
    :maxdepth: 2
 
-   readme
+   Getting Started <readme>
 
 API Reference
 --------------
@@ -12,6 +12,7 @@ API Reference
 .. autosummary::
    :toctree: generated
    :recursive:
+   :caption: API Reference
 
    server
    utils

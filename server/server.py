@@ -66,9 +66,36 @@ class Server:
         self.savedata = savedata
         self.saveFolder = savedataFolder
         self.debug = debug
+
+        if not debug:
+            self.check_app_files(app_config, app_directory)
+
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.socket.bind((address, port))
+
+
+    @staticmethod
+    def check_app_files(app_config: str, app_directory: str) -> None:
+        """
+        Verify that the processing module file exist.
+
+        Parameters
+        ----------
+        app_config : str
+            Name of the application module (without .py extension).
+        app_directory : str
+            Python package directory containing the application module.
+
+        Raises
+        ------
+        FileNotFoundError
+            If the <app_config>.py file does not exist.
+        """
+        
+        module_path = os.path.join(app_directory, app_config + '.py')
+        if not os.path.isfile(module_path):
+            raise FileNotFoundError(f"Processing module not found: '{module_path}'")
 
 
     def serve(self) -> None:
