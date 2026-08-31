@@ -325,7 +325,7 @@ def make_nifti(data: np.ndarray[ismrmrd.Image], affine: np.ndarray, meta: dict) 
 
 ###############################################################################
 
-def nifti_from_image_array(image_array: np.ndarray[ismrmrd.Image], outfolder: str, extra_dims: list[str] | None = None) -> str:
+def nifti_from_image_array(image_array: np.ndarray[ismrmrd.Image] | list[ismrmrd.Image], outfolder: str, extra_dims: list[str] | None = None) -> str:
     """
     Convert an MRDImageArray into a NIfTI image and save it to disk.
  
@@ -340,9 +340,10 @@ def nifti_from_image_array(image_array: np.ndarray[ismrmrd.Image], outfolder: st
  
     Parameters
     ----------
-    image_array : np.ndarray (dtype=object)
+    image_array : np.ndarray (dtype=object) or list of ismrmrd.Image
         nD MRDImageArray as received by process_image in a reconstruction
-        server. Must contain at least one non-None cell.
+        server. Must contain at least one non-None cell. Or directly a list
+        of MRD Images.
     outfolder : str
         Directory where NIfTI files will be written.
     extra_dims : list of str or None
@@ -357,9 +358,12 @@ def nifti_from_image_array(image_array: np.ndarray[ismrmrd.Image], outfolder: st
     """
 
     # Flatten the object array and drop None cells
-    images = flatten(image_array)
-    if not images:
-        raise ValueError("nifti_from_image_array: all cells are None")
+    if isinstance(image_array, np.ndarray):
+        images = flatten(image_array)
+        if not images:
+            raise ValueError("nifti_from_image_array: all cells are None")
+    else :
+        images = image_array
     if extra_dims is None:
         extra_dims = detect_extra_dims(images)
     data, affine, meta = assemble_volume(images, extra_dims)

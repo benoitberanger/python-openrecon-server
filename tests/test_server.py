@@ -13,6 +13,7 @@ def server_obj():
     s.debug = False
     s.app_config = "does_not_exist"
     s.app_directory = "app"
+    s.save_nifti = False
     return s
 
 
@@ -97,10 +98,11 @@ class TestHandleJSON:
 # handle_image_stream()
 # ---------------------------------------------------------------------------
 class FakePipeline:
-    def __init__(self, connection, app_config, app_directory):
+    def __init__(self, connection, app_config, app_directory, save_nifti):
         self.connection = connection
         self.app_config = app_config
         self.app_directory = app_directory
+        self.save_nifti = save_nifti
 
     def run(self, images, configJSON, metadata):
         return []

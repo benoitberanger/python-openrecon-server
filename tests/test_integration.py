@@ -106,6 +106,7 @@ def server_obj(dummy_app_module):
     s.app_directory = "app"
     s.savedata = False
     s.saveFolder = ""
+    s.save_nifti = False
     return s
 
 

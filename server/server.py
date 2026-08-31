@@ -38,7 +38,7 @@ class Server:
         logged for each image. No processing is performed.
     """
 
-    def __init__(self, port: int, address: str, app_config: str, app_directory: str, savedata: bool, savedataFolder: str, debug: bool) -> None:
+    def __init__(self, port: int, address: str, app_config: str, app_directory: str, savedata: bool, savedataFolder: str, saveNifti: bool, debug: bool) -> None:
         """
         Initialise and bind the server socket.
 
@@ -56,6 +56,8 @@ class Server:
             If True, save incoming MRD data to disk.
         savedataFolder : str
             Path to save the incoming MRD data to disk.
+        saveNifti : bool
+            If True, convert to Nifti and save output MRD data to disk.
         debug : bool
             If True, enable debug mode at startup.
         """
@@ -65,6 +67,7 @@ class Server:
         self.app_directory = app_directory
         self.savedata = savedata
         self.saveFolder = savedataFolder
+        self.save_nifti = saveNifti
         self.debug = debug
 
         if not debug:
@@ -238,7 +241,7 @@ class Server:
         # Initialize the pipeline (only required without the debug mode)
         pipeline = None
         if not self.debug:
-            pipeline = Pipeline(connection, self.app_config, self.app_directory)
+            pipeline = Pipeline(connection, self.app_config, self.app_directory, self.save_nifti)
 
         # Continuously parse incoming data parsed from MRD messages
         imgGroup = []

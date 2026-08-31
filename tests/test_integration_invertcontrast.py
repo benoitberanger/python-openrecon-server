@@ -47,6 +47,7 @@ def server_obj_invertcontrast(monkeypatch):
     s.app_directory = "app"
     s.savedata = False
     s.saveFolder = ""
+    s.save_nifti = False
     return s
 
 

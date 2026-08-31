@@ -6,12 +6,15 @@ import ismrmrd
 import numpy as np
 
 from time import perf_counter
+from converter.mrd2nifti import nifti_from_image_array
 from server.connection import Connection
 from utils.utils import check_OR_arguments
 from utils.img_array import build_image_array, get_subarray
 from utils.memory import log_memory, log_memory_delta
 from utils.utils import send_original_images
 
+# Folder for debug output files
+debugFolder = "/tmp/share/debug"
 
 class Pipeline:
     """
@@ -31,12 +34,15 @@ class Pipeline:
         (e.g. 'invert_contrast', 'sum_of_squares').
     app_directory : str
         Python package containing the application module (e.g. 'app').
+    saveNifti : bool
+        If True, MRD images send back will be converted to NIfTI and
+        saved on debugFolder.
     module : module or None
         Loaded application module exposing process_image(). None if
         import failed.
     """
 
-    def __init__(self, connection: Connection, app_config: str, app_directory:str) -> None:
+    def __init__(self, connection: Connection, app_config: str, app_directory:str, save_nifti: bool) -> None:
         """
         Initialise the pipeline and load the application module.
 
@@ -48,11 +54,15 @@ class Pipeline:
             Name of the application module to load.
         app_directory : str
             Python package directory containing the application module.
+        save_nifti : bool
+            If True, MRD images send back will be converted to NIfTI and
+            saved on debugFolder.
         """
 
         self.connection = connection
         self.app_config = app_config
         self.app_directory = app_directory
+        self.save_nifti = save_nifti
         self.max_image_series_index = 0
         self.module = None
         self.load_module()
@@ -189,12 +199,22 @@ class Pipeline:
     def send_volume_as_2Dslices(self, data: np.ndarray, head: list[ismrmrd.ImageHeader], meta: list[ismrmrd.Meta]) -> None:
         """
         Re-slice back into 2D MRD images from a processed volume
-        and send them to the client one by one.
+        and send them to the client.
 
         Iterates over the last axis of data (image index), extracts each
         slice as a contiguous [cha, z, y, x] array, wraps it in an
         ismrmrd.Image, updates the header and meta attributes, and sends
         it immediately over the connection.
+
+        Two sending modes, controlled by self.save_nifti:
+
+        - self.save_nifti is False : each image is sent to the
+        client immediately after being built and then deleted. This is
+        the most memory-efficient mode.
+        - self.save_nifti is True : all images of the series are kept in
+        memory (sent_images) until the loop completes, then written to
+        disk as a NIfTI file via nifti_from_image_array() before being
+        sent to the client as a group.
 
         The image_series_index is incremented using the max_image_series_index 
         stored to avoid overlap with the original image series sent 
@@ -212,6 +232,7 @@ class Pipeline:
         # mem = log_memory("send_volume_as_2Dslices", "Before")
 
         n_imgs = data.shape[0]
+        sent_images = []
 
         for i in range(n_imgs):
             slice_data = np.ascontiguousarray(data[i])
@@ -242,8 +263,15 @@ class Pipeline:
             # logging.debug("Image MetaAttributes: %s", xml.dom.minidom.parseString(metaXml).toprettyxml())
             # logging.debug("Image data has %d elements", imagesOut[iImg].data.size)
 
-            # TO-DO: copy image (Nifti) on disk (with flag)
+            if self.save_nifti:
+                sent_images.append(img)
+            else:
+                self.connection.send_image(img)
+                del img
 
-            self.connection.send_image(img)
-            del img
             # log_memory_delta("send_volume_as_2Dslices", f"After send image: {i}/{n_imgs - 1}", mem)
+
+        if self.save_nifti:
+            nifti_from_image_array(sent_images, debugFolder)
+            self.connection.send_image(sent_images)
+

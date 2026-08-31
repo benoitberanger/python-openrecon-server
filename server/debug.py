@@ -2,8 +2,11 @@ import logging
 
 import ismrmrd
 
+from converter.mrd2nifti import nifti_from_image_array
 from server.connection import Connection
 
+# Folder for debug output files
+debugFolder = "/tmp/share/debug"
 
 def display_info_images(image: ismrmrd.Image) -> None:
     """
@@ -96,8 +99,6 @@ def send_back_debug(image: ismrmrd.Image, connection: Connection) -> None:
         Active MRD connection used to send the image.
     """
     display_info_images(image)
-
-    # TO-DO: Copy images on disk (NIfti)
 
     tmpMeta = ismrmrd.Meta.deserialize(image.attribute_string)
     tmpMeta['Keep_image_geometry'] = 1

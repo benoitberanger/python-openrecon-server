@@ -31,7 +31,7 @@ def dummy_app():
 
 @pytest.fixture
 def pipeline_obj(fake_connection, dummy_app):
-    return Pipeline(fake_connection, app_config=dummy_app, app_directory="app")
+    return Pipeline(fake_connection, app_config=dummy_app, app_directory="app", save_nifti=False)
 
 
 
@@ -40,16 +40,16 @@ def pipeline_obj(fake_connection, dummy_app):
 # ---------------------------------------------------------------------------
 class TestLoadModule:
     def test_import_error_leaves_module_none(self, fake_connection):
-        pipeline = Pipeline(fake_connection, app_config="does_not_exist", app_directory="app")
+        pipeline = Pipeline(fake_connection, app_config="does_not_exist", app_directory="app", save_nifti=False)
         assert pipeline.module is None
 
     def test_success_sets_module(self, fake_connection, dummy_app):
-        pipeline = Pipeline(fake_connection, app_config=dummy_app, app_directory="app")
+        pipeline = Pipeline(fake_connection, app_config=dummy_app, app_directory="app", save_nifti=False)
         assert pipeline.module is sys.modules["app.dummy_app"]
         assert hasattr(pipeline.module, "process_image")
 
     def test_wrong_app_directory_fails_to_import(self, fake_connection, dummy_app):
-        pipeline = Pipeline(fake_connection, app_config=dummy_app, app_directory="wrong")
+        pipeline = Pipeline(fake_connection, app_config=dummy_app, app_directory="wrong", save_nifti=False)
         assert pipeline.module is None
 
 
