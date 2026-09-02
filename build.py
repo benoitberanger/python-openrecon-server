@@ -320,7 +320,7 @@ def write_dockerfile(json_content, cmdline: str, docker_path: str, build_data: d
     encoded_json_content = base64.b64encode((json.dumps(obj=json_content,indent=2)).encode('utf-8')).decode('utf-8')
 
     # write the Dockerfile content
-    logger.info(f"Write `build` Dockerfile : {docker_path}")
+    logger.info(f"Write `build` Dockerfile : {build_data['path']['docker']}")
     dockerfile_content = [
         f'',
         f'# Version',

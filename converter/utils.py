@@ -1,3 +1,5 @@
+"""Converter utility functions: MRD file validation and slice-position computation."""
+
 import logging
 import os
 import re

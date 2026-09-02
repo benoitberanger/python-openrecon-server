@@ -1,3 +1,5 @@
+"""Reads/writes MRD protocol messages over the TCP socket."""
+
 import ctypes
 import datetime
 import logging

@@ -1,3 +1,5 @@
+"""Example application module: inverts the contrast of the received images."""
+
 import gc
 import logging
 import os

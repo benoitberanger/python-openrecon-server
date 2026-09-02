@@ -1,3 +1,5 @@
+"""Loads the application module and runs processing on a group of MRD images."""
+
 import gc
 import importlib
 import logging
@@ -208,13 +210,8 @@ class Pipeline:
 
         Two sending modes, controlled by self.save_nifti:
 
-        - self.save_nifti is False : each image is sent to the
-        client immediately after being built and then deleted. This is
-        the most memory-efficient mode.
-        - self.save_nifti is True : all images of the series are kept in
-        memory (sent_images) until the loop completes, then written to
-        disk as a NIfTI file via nifti_from_image_array() before being
-        sent to the client as a group.
+        - self.save_nifti is False : each image is sent to the client immediately after being built and then deleted. This is the most memory-efficient mode.
+        - self.save_nifti is True : all images of the series are kept in memory (sent_images) until the loop completes, then written to disk as a NIfTI file via nifti_from_image_array() before being sent to the client as a group.
 
         The image_series_index is incremented using the max_image_series_index 
         stored to avoid overlap with the original image series sent 

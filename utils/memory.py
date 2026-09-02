@@ -1,3 +1,5 @@
+"""Process RAM monitoring utilities and an execution-time measurement decorator."""
+
 from functools import wraps
 import logging
 import os

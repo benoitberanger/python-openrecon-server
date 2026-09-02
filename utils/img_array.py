@@ -1,3 +1,5 @@
+"""Building and manipulating the structured nD array of MRD images."""
+
 import logging
 from enum import IntEnum
 

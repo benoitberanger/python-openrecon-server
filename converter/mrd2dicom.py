@@ -1,3 +1,5 @@
+"""Converts a processed MRD (.h5) file back into classic DICOM files."""
+
 import os
 import argparse
 

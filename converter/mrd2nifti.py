@@ -1,3 +1,5 @@
+"""Converts MRD images into NIfTI files."""
+
 import argparse
 from collections import defaultdict
 import logging

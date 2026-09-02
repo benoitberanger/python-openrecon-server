@@ -1,3 +1,5 @@
+"""Rebuilds ismrmrd.Image objects from a NIfTI volume, based on original MRD images."""
+
 import copy
 import logging
 

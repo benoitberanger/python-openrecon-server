@@ -4,8 +4,8 @@
 import os
 import sys
 
-# -- Path setup --------------------------------------------------------------
-# docs/source/conf.py -> repo root is two levels up
+# -- Path setup ---------------------------------------------------------------
+# docs/source/conf.py
 sys.path.insert(0, os.path.abspath('../..'))
 
 # -- Project information ------------------------------------------------------
@@ -21,6 +21,7 @@ extensions = [
     'sphinx.ext.autosummary', 
     'sphinx.ext.viewcode', 
     'myst_parser',
+    'sphinxcontrib.mermaid',
 ]
 
 templates_path   = ['_templates']
@@ -62,4 +63,6 @@ html_theme = 'sphinx_rtd_theme'
 # html_static_path = ['_static']
 
 # -- MyST (Markdown) ----------------------------------------------------------
+myst_heading_anchors = 3
 myst_enable_extensions = ['colon_fence']
+myst_fence_as_directive = ["mermaid"]

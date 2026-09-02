@@ -1,3 +1,5 @@
+"""Manages the connection lifecycle and dispatches incoming MRD data to the pipeline."""
+
 import gc
 import json
 import logging

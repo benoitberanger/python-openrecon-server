@@ -1,3 +1,5 @@
+"""Converts enhanced DICOM files into an MRD (.h5) file."""
+
 import argparse
 import os
 import ctypes

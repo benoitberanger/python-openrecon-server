@@ -11,6 +11,7 @@ requires-python = ">=3.12,<3.13"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [
+    { name = "Solenne Vincens", email = "solenne.vincens@icm-institute.org" },
     { name = "Benoit Beranger", email = "benoit.beranger@icm-institute.org" },
 ]
 
@@ -45,6 +46,7 @@ docs = [
     "sphinx",
     "sphinx-rtd-theme",
     "myst-parser",
+    "sphinxcontrib-mermaid",
 ]
 
 [tool.setuptools.packages.find]

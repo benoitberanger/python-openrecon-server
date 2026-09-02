@@ -1,3 +1,5 @@
+"""Converts classic DICOM files into an MRD (.h5) file."""
+
 import argparse
 import base64
 import ctypes

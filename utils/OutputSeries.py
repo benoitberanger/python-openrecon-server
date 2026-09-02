@@ -1,3 +1,5 @@
+"""Accumulates and manages output image series to send back to the client."""
+
 import copy
 import logging
 

@@ -7,10 +7,11 @@ import sys
 from server.server import Server
 
 defaults = {
-    'host':     '0.0.0.0',
-    'port':     9002,
-    'config':   'invertContrast',
-    'dirname':  'app',
+    'host':             '0.0.0.0',
+    'port':             9002,
+    'config':           'invertContrast',
+    'dirname':          'app',
+    'savedataFolder':   '/tmp/share/saved_data'
 }
 
 def main(args: argparse.Namespace):

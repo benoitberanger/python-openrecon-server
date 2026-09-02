@@ -1,8 +1,9 @@
+"""Debug mode functions : logging image metadata and sending images back unmodified."""
+
 import logging
 
 import ismrmrd
 
-from converter.mrd2nifti import nifti_from_image_array
 from server.connection import Connection
 
 # Folder for debug output files
