@@ -79,7 +79,7 @@ class TestStackImagesOnRealCapture:
 # ---------------------------------------------------------------------------
 @pytest.fixture
 def dummy_app_module():
-    module = types.ModuleType("app.dummy_integration_app")
+    module = types.ModuleType("apps.app.dummy_integration_app")
 
     def process_image(img_array, configJSON, metadata):
         from utils.img_array import flatten, stack_images
@@ -89,11 +89,11 @@ def dummy_app_module():
         return [(data, head, meta)]
 
     module.process_image = process_image
-    sys.modules["app.dummy_integration_app"] = module
+    sys.modules["apps.app.dummy_integration_app"] = module
 
     yield "dummy_integration_app"
 
-    del sys.modules["app.dummy_integration_app"]
+    del sys.modules["apps.app.dummy_integration_app"]
 
 
 @pytest.fixture
