@@ -44,7 +44,7 @@ def server_obj_invertcontrast(monkeypatch):
     s = Server.__new__(Server)
     s.debug = False
     s.app_config = "invertContrast"
-    s.app_directory = "app"
+    s.app_directory = "demo"
     s.savedata = False
     s.saveFolder = ""
     s.save_nifti = False

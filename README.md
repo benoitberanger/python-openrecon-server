@@ -465,10 +465,10 @@ The project uses [`pytest`](https://docs.pytest.org/). Install the `dev` extra f
 [Installation](#installation)):
  
 ```bash
-pip install -e ".[dev]"
+pip install -e ".[dev,test]"
 ```
  
-Fast unit suite, excludes slow / real-data integration tests (recommended for local dev and pre-merge CI)(`-rs` also prints the reason for skipped tests):
+Fast unit suite, excludes slow / real-data integration tests (recommended for local dev)(`-rs` also prints the reason for skipped tests):
  
 ```bash
 pytest -v -rs -m "not integration"

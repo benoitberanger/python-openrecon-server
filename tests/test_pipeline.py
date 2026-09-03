@@ -13,7 +13,7 @@ def dummy_app():
     import sys
     import types
  
-    module = types.ModuleType("app.dummy_app")
+    module = types.ModuleType("apps.app.dummy_app")
  
     def process_image(img_array, configJSON, metadata):
         from utils.img_array import flatten, stack_images
@@ -23,11 +23,11 @@ def dummy_app():
         return [(data, head, meta)]
  
     module.process_image = process_image
-    sys.modules["app.dummy_app"] = module
+    sys.modules["apps.app.dummy_app"] = module
  
     yield "dummy_app"
  
-    del sys.modules["app.dummy_app"]
+    del sys.modules["apps.app.dummy_app"]
 
 @pytest.fixture
 def pipeline_obj(fake_connection, dummy_app):
@@ -45,7 +45,7 @@ class TestLoadModule:
 
     def test_success_sets_module(self, fake_connection, dummy_app):
         pipeline = Pipeline(fake_connection, app_config=dummy_app, app_directory="app", save_nifti=False)
-        assert pipeline.module is sys.modules["app.dummy_app"]
+        assert pipeline.module is sys.modules["apps.app.dummy_app"]
         assert hasattr(pipeline.module, "process_image")
 
     def test_wrong_app_directory_fails_to_import(self, fake_connection, dummy_app):

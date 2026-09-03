@@ -1,4 +1,3 @@
 """
-Default directory for the OpenRecon processing module containing the 
-invert contrast example.
+Default OpenRecon processing module containing the invert contrast example.
 """
