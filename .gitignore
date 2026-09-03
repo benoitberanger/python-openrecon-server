@@ -4,7 +4,6 @@ data/
 test/
 debug/
 ANTs/
-Makefile
 openrecon.json
 romeo.jl
 localtest*

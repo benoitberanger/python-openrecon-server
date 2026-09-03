@@ -36,7 +36,7 @@ def server_obj_invertcontrast(monkeypatch):
     ./test/data on every call) that is unrelated to the MRD contract this
     suite verifies, and would otherwise write to disk on every test run.
     """
-    import app.invertContrast as invertcontrast_module
+    import apps.demo.invertContrast as invertcontrast_module
     monkeypatch.setattr(invertcontrast_module, "nifti_from_image_array", lambda *a, **kw: None)
 
     # __init__ is bypassed on purpose: we don't want a real bound TCP
@@ -188,7 +188,7 @@ class TestInvertContrastFullPipeline:
         assert processed[0].image_type == ismrmrd.IMTYPE_MAGNITUDE
 
     def test_debug_mode_bypasses_processing_module(self, server_obj_invertcontrast, socketpair, make_image, monkeypatch):
-        import app.invertContrast as invertcontrast_module
+        import apps.demo.invertContrast as invertcontrast_module
 
         def _fail_if_called(*args, **kwargs):
             raise AssertionError("process_image() must not be called when Debug=True")

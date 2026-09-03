@@ -1,6 +1,8 @@
 # local stuff
 build/
 data/
+docs/
+tests/
 ExampleData/
 build.py
 

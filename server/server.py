@@ -98,7 +98,7 @@ class Server:
             If the <app_config>.py file does not exist.
         """
 
-        module_path = os.path.join(app_directory, app_config + '.py')
+        module_path = os.path.join('apps/', app_directory, app_config + '.py')
         if not os.path.isfile(module_path):
             raise FileNotFoundError(f"Processing module not found: '{module_path}'")
 

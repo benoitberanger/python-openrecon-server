@@ -35,7 +35,7 @@ class Pipeline:
         Name of the application module to import
         (e.g. 'invert_contrast', 'sum_of_squares').
     app_directory : str
-        Python package containing the application module (e.g. 'app').
+        Python package in `apps` containing the application module (e.g. 'demo').
     saveNifti : bool
         If True, MRD images send back will be converted to NIfTI and
         saved on debugFolder.
@@ -78,7 +78,7 @@ class Pipeline:
         will fall back to sending the original images unmodified.
         """
         try:
-            self.module = importlib.import_module(self.app_directory + "." + self.app_config)
+            self.module = importlib.import_module("apps." + self.app_directory + "." + self.app_config)
             logging.info(f"Starting config {self.app_config} in {self.app_directory} directory")
         except ImportError as e:
             logging.error("Failed to load config '%s' with error:\n  %s", self.app_config, e)

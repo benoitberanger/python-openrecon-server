@@ -259,6 +259,8 @@ def prepare_infos(json_content, build_path: str) -> dict:
     if os.path.exists(build_path):
         logger.info(f'`build` dir found : {build_path}')
     else:
+        if not os.path.exists("builds"):
+            os.mkdir("builds")
         os.mkdir(build_path)
         logger.info(f'`build` dir created : {build_path}')
     
@@ -388,7 +390,7 @@ def create_pdf(file_path: str, lines_of_text: list[str]) -> None:
         f.write(trailer)
 
 
-def packaging_OR_image(build_data: dict, pdf_file: str | None) -> None:
+def packaging_OR_image(build_data: dict, build_path: str, pdf_file: str | None) -> None:
     """
     Export the OpenRecon Docker image and package it as a .zip file.
 
@@ -400,14 +402,16 @@ def packaging_OR_image(build_data: dict, pdf_file: str | None) -> None:
     Parameters
     ----------
     build_data: dict
-        Build data as returned by prepare_infos()
+        Build data as returned by prepare_infos().
+    build_path : str
+        Absolute path to the build output directory.
     pdf_file: str or None
-        Path the a pdf file
+        Path the a pdf file.
     """
     logger = logging.getLogger()
 
     cwd = os.getcwd()
-    build_path = os.path.join(cwd, 'build')
+    # build_path = os.path.join(cwd, 'builds')
 
     # save docker image in a .tar
     logger.info(f"(1/2) saving image `{build_data['name']['docker']}` in a .tar {build_data['path']['tar']}")
@@ -458,7 +462,7 @@ def main(args: argparse.Namespace):
         sys.exit(1)
 
     # check if the necessary file are present in the target dir
-    target_path = os.path.join(cwd, args.dirname)
+    target_path = os.path.join(cwd, 'apps/', args.dirname)
     print_section(f'Check `target` dir and its content : {target_path}')
     target_data = check_target_dir(target_path)
 
@@ -476,7 +480,7 @@ def main(args: argparse.Namespace):
     logger.warning('From now on, all steps will not have a "skip if already done" feature')
 
     # prep build dir
-    build_path = os.path.join(cwd, 'build')
+    build_path = os.path.join(cwd, 'builds', args.dirname)
 
     # load JSON UI
     logger.info(f"load UI JSON content : {target_data['path']['ui_json']}")
@@ -506,7 +510,7 @@ def main(args: argparse.Namespace):
 
     # generate a pdf documentation and save the docker image and its doc in a .zip
     if not args.nopackage : 
-        packaging_OR_image(build_data, args.pdf_file)
+        packaging_OR_image(build_data, build_path, args.pdf_file)
 
     # END
     print_section('All done !')
@@ -528,19 +532,20 @@ if __name__ == '__main__':
     )
 
     def dir_path(input_dir: str) -> bool:
-        if os.path.basename(input_dir) != input_dir:
+        actual_dir = os.path.join('apps/', input_dir)
+        if os.path.basename(actual_dir) != input_dir:
             raise ValueError(f"Not a valid path : {input_dir} must not be a nested path")
         
-        if not os.path.isdir(input_dir):
-            raise argparse.ArgumentTypeError(f"Not a valid path : {input_dir}")
+        if not os.path.isdir(actual_dir):
+            raise argparse.ArgumentTypeError(f"Not a valid path : {actual_dir}")
         
         return input_dir
 
     parser.add_argument(
         '--dirname',
         type    = dir_path,
-        help    = 'Application directory name. ex: `demo-i2i`, `app`',
-        default = 'app'
+        help    = 'Application directory name in apps/ directory. ex: `demo`, `echo_sum`',
+        default = 'demo'
     )
     parser.add_argument('-p', '--pdf-file', type=str,              help='PDF file to put in the app .zip file. If None, generate a minimal one.', default=None)
     parser.add_argument('-D', '--debug',    action='store_true',   help='Build the server in debug mode')

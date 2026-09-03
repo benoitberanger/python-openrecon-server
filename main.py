@@ -10,7 +10,7 @@ defaults = {
     'host':             '0.0.0.0',
     'port':             9002,
     'config':           'invertContrast',
-    'dirname':          'app',
+    'dirname':          'demo',
     'savedataFolder':   '/tmp/share/saved_data'
 }
 
@@ -42,11 +42,12 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Example server for openRecon')
 
     def dir_path(input_dir: str) -> bool:
-        if os.path.basename(input_dir) != input_dir:
+        actual_dir = os.path.join('apps/', input_dir)
+        if os.path.basename(actual_dir) != input_dir:
             raise ValueError(f"Not a valid path : {input_dir} must not be a nested path")
         
-        if not os.path.isdir(input_dir):
-            raise argparse.ArgumentTypeError(f"Not a valid path : {input_dir}")
+        if not os.path.isdir(actual_dir):
+            raise argparse.ArgumentTypeError(f"Not a valid path : {actual_dir}")
         
         return input_dir
 

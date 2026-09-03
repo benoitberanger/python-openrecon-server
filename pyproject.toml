@@ -50,7 +50,9 @@ docs = [
 ]
 
 [tool.setuptools.packages.find]
-# "app" is intentionally excluded: it is a swappable deployment target copied
-# wholesale into the Docker image by build.py, not a library package of
-# this template.
-include = ["server*", "utils*", "converter*"]
+# "echo_sum" is intentionally excluded: it is an example deployment target, 
+# not a library package of this template.
+include = ["server*", "utils*", "converter*", "app*"]
+
+[tool.codespell]
+skip = '*.js,*.ts,*.css,*.svg,./test'
