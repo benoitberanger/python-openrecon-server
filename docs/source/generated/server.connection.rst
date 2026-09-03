@@ -1,4 +1,4 @@
-﻿server.connection
+server.connection
 =================
 
 .. automodule:: server.connection

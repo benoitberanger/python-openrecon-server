@@ -1,4 +1,4 @@
-﻿utils.utils
+utils.utils
 ===========
 
 .. automodule:: utils.utils

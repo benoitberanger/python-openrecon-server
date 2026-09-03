@@ -1,4 +1,4 @@
-﻿server.pipeline
+server.pipeline
 ===============
 
 .. automodule:: server.pipeline

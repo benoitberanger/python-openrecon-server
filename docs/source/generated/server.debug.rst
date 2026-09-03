@@ -1,4 +1,4 @@
-﻿server.debug
+server.debug
 ============
 
 .. automodule:: server.debug

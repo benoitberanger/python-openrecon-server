@@ -1,7 +1,7 @@
-﻿app
-===
+apps.echo\_sum
+==============
 
-.. automodule:: app
+.. automodule:: apps.echo_sum
 
    
 .. rubric:: Modules
@@ -10,4 +10,4 @@
    :toctree:
    :recursive:
 
-   invertContrast
+   echoSum

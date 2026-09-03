@@ -49,10 +49,5 @@ docs = [
     "sphinxcontrib-mermaid",
 ]
 
-[tool.setuptools.packages.find]
-# "echo_sum" is intentionally excluded: it is an example deployment target, 
-# not a library package of this template.
-include = ["server*", "utils*", "converter*", "app*"]
-
 [tool.codespell]
 skip = '*.js,*.ts,*.css,*.svg,./test'

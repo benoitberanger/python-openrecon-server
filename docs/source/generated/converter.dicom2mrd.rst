@@ -1,4 +1,4 @@
-﻿converter.dicom2mrd
+converter.dicom2mrd
 ===================
 
 .. automodule:: converter.dicom2mrd

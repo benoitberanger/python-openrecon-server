@@ -17,4 +17,4 @@ API Reference
    server
    utils
    converter
-   app
+   apps

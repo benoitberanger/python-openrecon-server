@@ -1,4 +1,4 @@
-﻿server.server
+server.server
 =============
 
 .. automodule:: server.server
