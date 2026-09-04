@@ -11,7 +11,7 @@ import threading
 import ismrmrd
 import numpy as np
 
-import server.constants as constants
+import python_openrecon_server.server.constants as constants
 
 
 class Connection:

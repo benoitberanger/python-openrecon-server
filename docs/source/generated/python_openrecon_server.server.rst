@@ -1,7 +1,7 @@
-﻿server
-======
+﻿python\_openrecon\_server.server
+================================
 
-.. automodule:: server
+.. automodule:: python_openrecon_server.server
 
    
 .. rubric:: Modules
@@ -10,6 +10,7 @@
    :toctree:
    :recursive:
 
+   client
    connection
    constants
    debug

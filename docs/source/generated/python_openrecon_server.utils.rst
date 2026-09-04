@@ -1,7 +1,7 @@
-﻿utils
-=====
+﻿python\_openrecon\_server.utils
+===============================
 
-.. automodule:: utils
+.. automodule:: python_openrecon_server.utils
 
    
 .. rubric:: Modules

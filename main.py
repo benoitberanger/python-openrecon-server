@@ -4,7 +4,7 @@ import os
 import signal
 import sys
 
-from server.server import Server
+from python_openrecon_server.server.server import Server
 
 defaults = {
     'host':             '0.0.0.0',
@@ -42,7 +42,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Example server for openRecon')
 
     def dir_path(input_dir: str) -> bool:
-        actual_dir = os.path.join('apps/', input_dir)
+        actual_dir = os.path.join('python_openrecon_server/apps/', input_dir)
         if os.path.basename(actual_dir) != input_dir:
             raise ValueError(f"Not a valid path : {input_dir} must not be a nested path")
         

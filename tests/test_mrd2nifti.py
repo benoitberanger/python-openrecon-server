@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 import converter.mrd2nifti as mrd2nifti
-from utils.img_array import build_image_array
+from python_openrecon_server.utils.img_array import build_image_array
 
 def make_full_image(position=(0.0, 0.0, 0.0), 
                     slice_dir=(0.0, 0.0, 1.0),

@@ -10,12 +10,12 @@ import traceback
 
 import ismrmrd
 
-from utils.utils import check_OR_arguments
-from utils.memory import log_memory, log_memory_delta
-from server.debug import send_back_debug
-from server.pipeline import Pipeline
-from server.connection import Connection
-import server.constants as constants
+from python_openrecon_server.utils.utils import check_OR_arguments
+from python_openrecon_server.utils.memory import log_memory, log_memory_delta
+from python_openrecon_server.server.debug import send_back_debug
+from python_openrecon_server.server.pipeline import Pipeline
+from python_openrecon_server.server.connection import Connection
+import python_openrecon_server.server.constants as constants
 
 class Server:
     """
@@ -98,7 +98,7 @@ class Server:
             If the <app_config>.py file does not exist.
         """
 
-        module_path = os.path.join('apps/', app_directory, app_config + '.py')
+        module_path = os.path.join('python_openrecon_server/apps/', app_directory, app_config + '.py')
         if not os.path.isfile(module_path):
             raise FileNotFoundError(f"Processing module not found: '{module_path}'")
 

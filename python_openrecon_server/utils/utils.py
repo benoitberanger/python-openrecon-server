@@ -6,7 +6,7 @@ import logging
 import ismrmrd
 import numpy as np
 
-from server.connection import Connection
+from python_openrecon_server.server.connection import Connection
 
 
 def send_original_images(images: list[ismrmrd.Image], connection: Connection) -> None:

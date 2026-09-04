@@ -4,7 +4,7 @@ import logging
 
 import ismrmrd
 
-from server.connection import Connection
+from python_openrecon_server.server.connection import Connection
 
 # Folder for debug output files
 debugFolder = "/tmp/share/debug"

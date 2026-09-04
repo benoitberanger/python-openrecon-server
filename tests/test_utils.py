@@ -4,7 +4,7 @@ import ismrmrd
 import numpy as np
 import pytest
 
-from utils.utils import check_OR_arguments, MRD5Dto3D, display_diagnostic, normalise, send_original_images
+from python_openrecon_server.utils.utils import check_OR_arguments, MRD5Dto3D, display_diagnostic, normalise, send_original_images
 
 
 # ---------------------------------------------------------------------------

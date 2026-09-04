@@ -49,10 +49,14 @@ docs = [
     "sphinxcontrib-mermaid",
 ]
 
-[tool.setuptools.packages.find]
-# "echo_sum" is intentionally excluded: it is an example deployment target, 
-# not a library package of this template.
-include = ["server*", "utils*", "converter*", "apps*"]
+[tool.setuptools]
+py-modules = ["main", "client", "build"]
+packages = ["converter", "server", "utils", "apps"]
+
+[tool.setuptools.package-dir]
+server = "python_openrecon_server/server"
+utils  = "python_openrecon_server/utils"
+apps    = "python_openrecon_server/apps"
 
 [tool.codespell]
 skip = '*.js,*.ts,*.css,*.svg,./test'

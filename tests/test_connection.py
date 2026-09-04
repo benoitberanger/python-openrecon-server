@@ -1,8 +1,7 @@
-import ismrmrd
 import pytest
 
-import server.constants as constants
-from server.connection import Connection
+from python_openrecon_server.server.connection import Connection
+import python_openrecon_server.server.constants as constants
 from conftest import FakeSocket, RaisingSocket
 
 # ---------------------------------------------------------------------------

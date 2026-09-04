@@ -59,7 +59,7 @@ server:
 client:
 	@echo "Starting Client"
 	rm -f ${OUT_DIR}/*dcm ${OUT_DIR}/*h5
-	python client.py -c openrecon.json -o ${OUT_DIR}/OR_${DATASET_NAME}.h5 ${IN_DIR}/${DATASET_NAME}.h5
+	python start_client.py -c openrecon.json -o ${OUT_DIR}/OR_${DATASET_NAME}.h5 ${IN_DIR}/${DATASET_NAME}.h5
 	python -m converter.mrd2dicom -o ${OUT_DIR}/ ${OUT_DIR}/OR_${DATASET_NAME}.h5
 
 view:

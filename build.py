@@ -462,7 +462,7 @@ def main(args: argparse.Namespace):
         sys.exit(1)
 
     # check if the necessary file are present in the target dir
-    target_path = os.path.join(cwd, 'apps/', args.dirname)
+    target_path = os.path.join(cwd, 'python_openrecon_server/apps/', args.dirname)
     print_section(f'Check `target` dir and its content : {target_path}')
     target_data = check_target_dir(target_path)
 
@@ -532,7 +532,7 @@ if __name__ == '__main__':
     )
 
     def dir_path(input_dir: str) -> bool:
-        actual_dir = os.path.join('apps/', input_dir)
+        actual_dir = os.path.join('python_openrecon_server/apps/', input_dir)
         if os.path.basename(actual_dir) != input_dir:
             raise ValueError(f"Not a valid path : {input_dir} must not be a nested path")
         
@@ -544,7 +544,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--dirname',
         type    = dir_path,
-        help    = 'Application directory name in apps/ directory. ex: `demo`, `echo_sum`',
+        help    = 'Application directory name in python_openrecon_server/apps/ directory. ex: `demo`, `echo_sum`',
         default = 'demo'
     )
     parser.add_argument('-p', '--pdf-file', type=str,              help='PDF file to put in the app .zip file. If None, generate a minimal one.', default=None)

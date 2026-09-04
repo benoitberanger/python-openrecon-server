@@ -8,7 +8,7 @@ import time
 import h5py
 import ismrmrd
 
-from server.connection import Connection
+from python_openrecon_server.server.connection import Connection
 
 @dataclass
 class DatasetInfo:
@@ -245,8 +245,8 @@ def send_image_data(connection: Connection, dset: ismrmrd.Dataset, in_group: str
     """
     Send all reconstructed images from the dataset.
 
-    Iterates over all image groups (keys starting with 'image_' or
-    'images_') and sends every image within each group.
+    Iterates over all image groups (keys starting with 'image\_' or
+    'images\_') and sends every image within each group.
 
     Parameters
     ----------

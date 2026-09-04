@@ -2,9 +2,9 @@ import ismrmrd
 import numpy as np
 import pytest
 
-import server.server as server_app_module
-from server import constants
-from server.server import Server
+import python_openrecon_server.server.server as server_app_module
+from python_openrecon_server.server import constants
+from python_openrecon_server.server.server import Server
 
 @pytest.fixture
 def server_obj():

@@ -7,8 +7,8 @@ import sys
 
 import ismrmrd
 
-import server.client as client
-from server.connection import Connection
+import python_openrecon_server.server.client as client
+from python_openrecon_server.server.connection import Connection
 
 defaults = {
     'filename':           '',

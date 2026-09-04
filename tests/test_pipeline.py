@@ -4,8 +4,8 @@ import ismrmrd
 import numpy as np
 import pytest
 
-from server.pipeline import Pipeline
-from utils.img_array import build_image_array, flatten
+from python_openrecon_server.server.pipeline import Pipeline
+from python_openrecon_server.utils.img_array import build_image_array, flatten
 
 
 @pytest.fixture
@@ -13,21 +13,21 @@ def dummy_app():
     import sys
     import types
  
-    module = types.ModuleType("apps.app.dummy_app")
+    module = types.ModuleType("python_openrecon_server.apps.app.dummy_app")
  
     def process_image(img_array, configJSON, metadata):
-        from utils.img_array import flatten, stack_images
+        from python_openrecon_server.utils.img_array import flatten, stack_images
  
         images = flatten(img_array)
         data, head, meta = stack_images(images, dtype=np.float32)
         return [(data, head, meta)]
  
     module.process_image = process_image
-    sys.modules["apps.app.dummy_app"] = module
+    sys.modules["python_openrecon_server.apps.app.dummy_app"] = module
  
     yield "dummy_app"
  
-    del sys.modules["apps.app.dummy_app"]
+    del sys.modules["python_openrecon_server.apps.app.dummy_app"]
 
 @pytest.fixture
 def pipeline_obj(fake_connection, dummy_app):
@@ -45,7 +45,7 @@ class TestLoadModule:
 
     def test_success_sets_module(self, fake_connection, dummy_app):
         pipeline = Pipeline(fake_connection, app_config=dummy_app, app_directory="app", save_nifti=False)
-        assert pipeline.module is sys.modules["apps.app.dummy_app"]
+        assert pipeline.module is sys.modules["python_openrecon_server.apps.app.dummy_app"]
         assert hasattr(pipeline.module, "process_image")
 
     def test_wrong_app_directory_fails_to_import(self, fake_connection, dummy_app):
