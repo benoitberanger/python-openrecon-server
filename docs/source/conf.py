@@ -44,13 +44,6 @@ autodoc_default_options = {
     'member-order':     'bysource',
 }
 
-# autodoc_mock_imports = [
-#     'ismrmrd',
-#     'h5py',
-#     'pydicom',
-#     'nibabel',
-# ]
-
 # -- Napoleon (docstrings NumPy) ----------------------------------------------
 napoleon_numpy_docstring       = True
 napoleon_google_docstring      = False
