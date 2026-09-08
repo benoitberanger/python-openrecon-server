@@ -1,4 +1,4 @@
-﻿python\_openrecon\_server.server
+python\_openrecon\_server.server
 ================================
 
 .. automodule:: python_openrecon_server.server

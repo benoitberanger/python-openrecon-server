@@ -18,7 +18,7 @@ from python_openrecon_server.utils.utils import check_OR_arguments, display_diag
 debugFolder = "/tmp/share/debug"
 
 @timeit
-def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None, metadata) -> ProcessImageResult:
+def process_image(img_array: np.ndarray[ismrmrd.Image], configJSON: dict | None, metadata: ismrmrd.xsd.ismrmrdHeader | str) -> ProcessImageResult:
     """
     Invert contrast process image.
 

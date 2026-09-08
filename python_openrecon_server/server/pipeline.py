@@ -77,7 +77,7 @@ class Pipeline:
         will fall back to sending the original images unmodified.
         """
         try:
-            self.module = importlib.import_module("python_openrecon_server.apps." + self.app_directory + "." + self.app_config)
+            self.module = importlib.import_module("apps." + self.app_directory + "." + self.app_config)
             logging.info(f"Starting config {self.app_config} in {self.app_directory} directory")
         except ImportError as e:
             logging.error("Failed to load config '%s' with error:\n  %s", self.app_config, e)

@@ -14,7 +14,6 @@ API Reference
    :recursive:
    :caption: API Reference
 
-   ~python_openrecon_server.server
-   ~python_openrecon_server.utils
-   ~python_openrecon_server.apps
+   python_openrecon_server
+   apps
    converter
