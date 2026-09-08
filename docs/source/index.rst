@@ -5,6 +5,7 @@ python OpenRecon Server
    :maxdepth: 2
 
    Getting Started <readme>
+   tutorial
 
 API Reference
 --------------
