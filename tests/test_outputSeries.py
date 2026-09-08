@@ -2,7 +2,7 @@ import ismrmrd
 import numpy as np
 import pytest
 
-from utils.OutputSeries import OutputSeries
+from python_openrecon_server.utils.OutputSeries import OutputSeries
 
 @pytest.fixture
 def base_head_meta(make_image):

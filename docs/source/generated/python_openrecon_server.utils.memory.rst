@@ -1,7 +1,7 @@
-utils.memory
-============
+python\_openrecon\_server.utils.memory
+======================================
 
-.. automodule:: utils.memory
+.. automodule:: python_openrecon_server.utils.memory
 
    
    .. rubric:: Functions

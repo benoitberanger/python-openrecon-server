@@ -1,7 +1,7 @@
-utils.img\_array
-================
+python\_openrecon\_server.utils.img\_array
+==========================================
 
-.. automodule:: utils.img_array
+.. automodule:: python_openrecon_server.utils.img_array
 
    
    .. rubric:: Functions

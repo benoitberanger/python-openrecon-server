@@ -7,13 +7,12 @@ import logging
 import ismrmrd
 import numpy as np
 
-from time import perf_counter
 from converter.mrd2nifti import nifti_from_image_array
-from server.connection import Connection
-from utils.utils import check_OR_arguments
-from utils.img_array import build_image_array, get_subarray
-from utils.memory import log_memory, log_memory_delta
-from utils.utils import send_original_images
+from python_openrecon_server.server.connection import Connection
+from python_openrecon_server.utils.utils import check_OR_arguments
+from python_openrecon_server.utils.img_array import build_image_array, get_subarray
+from python_openrecon_server.utils.memory import log_memory, log_memory_delta
+from python_openrecon_server.utils.utils import send_original_images
 
 # Folder for debug output files
 debugFolder = "/tmp/share/debug"

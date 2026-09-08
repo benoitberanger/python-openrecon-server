@@ -4,7 +4,7 @@ import os
 import signal
 import sys
 
-from server.server import Server
+from python_openrecon_server.server.server import Server
 
 defaults = {
     'host':             '0.0.0.0',

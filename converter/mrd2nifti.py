@@ -10,7 +10,7 @@ import numpy as np
 import nibabel as nib
 
 from converter.utils import check_MRDfile, slice_pos
-from utils.img_array import flatten
+from python_openrecon_server.utils.img_array import flatten
 
 
 IMTYPE_LABEL = {

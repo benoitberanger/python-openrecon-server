@@ -10,12 +10,12 @@ import traceback
 
 import ismrmrd
 
-from utils.utils import check_OR_arguments
-from utils.memory import log_memory, log_memory_delta
-from server.debug import send_back_debug
-from server.pipeline import Pipeline
-from server.connection import Connection
-import server.constants as constants
+from python_openrecon_server.utils.utils import check_OR_arguments
+from python_openrecon_server.utils.memory import log_memory, log_memory_delta
+from python_openrecon_server.server.debug import send_back_debug
+from python_openrecon_server.server.pipeline import Pipeline
+from python_openrecon_server.server.connection import Connection
+import python_openrecon_server.server.constants as constants
 
 class Server:
     """

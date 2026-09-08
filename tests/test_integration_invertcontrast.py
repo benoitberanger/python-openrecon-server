@@ -3,8 +3,8 @@ import json
 import ismrmrd
 import pytest
 
-from server.connection import Connection
-from server.server import Server
+from python_openrecon_server.server.connection import Connection
+from python_openrecon_server.server.server import Server
 
 
 MINIMAL_MRD_HEADER = (

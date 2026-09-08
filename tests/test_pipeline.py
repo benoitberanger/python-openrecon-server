@@ -4,8 +4,8 @@ import ismrmrd
 import numpy as np
 import pytest
 
-from server.pipeline import Pipeline
-from utils.img_array import build_image_array, flatten
+from python_openrecon_server.server.pipeline import Pipeline
+from python_openrecon_server.utils.img_array import build_image_array, flatten
 
 
 @pytest.fixture
@@ -16,7 +16,7 @@ def dummy_app():
     module = types.ModuleType("apps.app.dummy_app")
  
     def process_image(img_array, configJSON, metadata):
-        from utils.img_array import flatten, stack_images
+        from python_openrecon_server.utils.img_array import flatten, stack_images
  
         images = flatten(img_array)
         data, head, meta = stack_images(images, dtype=np.float32)

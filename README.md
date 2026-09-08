@@ -73,7 +73,7 @@ Flowchart example of a generic processing module:
 flowchart LR
 
     subgraph app["`**apps/app/your_module.py**`"]
-        subgraph process_image["process_image(img_array, configJSON, metadata)"]
+        subgraph process_image["process_image(img_array,configJSON,metadata)"]
 
             init_series["`**initialise OutputSeries**`"] --> process
             or_arg["`**check OR arguments**`"] -.-> process
@@ -86,10 +86,9 @@ flowchart LR
                         [head]
                         [meta]`"]
                 your_code["`**Your processing code**`"]
-                recast["`**Convert to int16**`"]
                 add["`**OutputSeries.add()**`"]
 
-                subarray --> stack --> your_code --> recast --> add
+                subarray --> stack --> your_code --> add
 
             end
         process --> get["`**OutputSeries.get()**`"]
@@ -216,7 +215,7 @@ sent by the client. Use `check_OR_arguments()` to read them safely with
 a default fallback:
 
 ```python
-from utils.utils import check_OR_arguments
+from python_openrecon_server.utils.utils import check_OR_arguments
 
 # Read a string parameter, default to 'SimpleSum'
 mode = check_OR_arguments(configJSON, "EchoSumConfig", str, "SimpleSum")
@@ -262,11 +261,11 @@ Each cell contains an `ismrmrd.Image` object or `None`. `image_type` uses MRD co
 ### Accessing images
 
 To get the specific images that you need, you can use the following functions:
-`get_subarray`, `get_type_magnitude`, `get_type_phase`, `get_contrast` from `utils.img_array`.
+`get_subarray`, `get_type_magnitude`, `get_type_phase`, `get_contrast` from `python_openrecon_server.utils.img_array`.
 
 examples :
 ```python
-from utils.img_array import get_type_magnitude, get_type_phase, get_subarray
+from python_openrecon_server.utils.img_array import get_type_magnitude, get_type_phase, get_subarray
 
 # All magnitude images
 mag_array = get_type_magnitude(img_array)
@@ -286,19 +285,19 @@ metadata in one call. Since MRD stores data as `[cha, z, y, x]`, the
 stacked array has shape **`[img, cha, z, y, x]`**.
 
 ```python
-from utils.img_array import stack_images
+from python_openrecon_server.utils.img_array import stack_images
 
 data, head, meta = stack_images(img_array, dtype=float32)
 ```
 
 ### Managing output series
 
-Use `OutputSeries` from `utils.OutputSeries` to manage the images to
+Use `OutputSeries` from `python_openrecon_server.utils.OutputSeries` to manage the images to
 send back to the client. It handles metadata updates, deep copies of
 headers, and series index offsets automatically.
 
 ```python
-from utils.OutputSeries import OutputSeries
+from python_openrecon_server.utils.OutputSeries import OutputSeries
 
 # Initialise
 series = OutputSeries()
@@ -434,9 +433,9 @@ python  -m converter.dicom2mrd <folder of DICOMs> -o <outfile>
 python -m converter.enhanceddicom2mrd <folder of DICOMs> -o <outfile>
 ```
 
-3. Run the client.py, on another terminal, to send the MRD images :
+3. Run the start_client.py, on another terminal, to send the MRD images :
 ```bash
-python client.py -o <output.h5> <input.h5>
+python start_client.py -o <output.h5> <input.h5>
 ```
 
 4. The output `.h5` file can be converted back to DICOM for visualisation :
@@ -465,10 +464,10 @@ The project uses [`pytest`](https://docs.pytest.org/). Install the `dev` extra f
 [Installation](#installation)):
  
 ```bash
-pip install -e ".[dev]"
+pip install -e ".[dev,test]"
 ```
  
-Fast unit suite, excludes slow / real-data integration tests (recommended for local dev and pre-merge CI)(`-rs` also prints the reason for skipped tests):
+Fast unit suite, excludes slow / real-data integration tests (recommended for local dev)(`-rs` also prints the reason for skipped tests):
  
 ```bash
 pytest -v -rs -m "not integration"
@@ -486,9 +485,7 @@ Markers are declared in [`pytest.ini`](https://github.com/benoitberanger/python-
 |---------------|--------------------------------------------------------------------------|
 | `integration` | End-to-end tests exercising real sockets and/or real MRD sample files. |
  
-Tests using the `mrd_sample_dataset` / `mrd_sample_path` fixtures (see [`conftest.py`](https://github.com/benoitberanger/python-openrecon-server/blob/main/conftest.py))
-expect real MRD `.h5` sample files under `data/` at the repository root. If that folder is
-absent or empty, those tests are automatically skipped by pytest rather than failing.
+Tests using the `mrd_sample_dataset` / `mrd_sample_path` fixtures (see [`conftest.py`](https://github.com/benoitberanger/python-openrecon-server/blob/main/conftest.py)) expect real MRD `.h5` sample files under `data/MRD_in/` at the repository root. If that folder is absent or empty, those tests are automatically skipped by pytest rather than failing.
  
 Useful fixtures provided by `conftest.py`:
  
@@ -507,7 +504,7 @@ MRD (`.h5`) format, which is required for local testing.
 
 ### DICOM to MRD
 
-Convert a DICOM series (classic or enhanced) to an MRD `.h5` file for use as input to `client.py`:
+Convert a DICOM series (classic or enhanced) to an MRD `.h5` file for use as input to `start_client.py`:
 
 ```bash
 # classic DICOM
@@ -543,22 +540,25 @@ python -m converter.mrd2nifti --out-folder <output_folder> <input.h5>
 
 - [**build.py**](https://github.com/benoitberanger/python-openrecon-server/blob/main/build.py) : Build and packaging script: validates, builds, and exports the OpenRecon Docker image as a `.zip` file ready for upload to the scanner.
 - [**main.py**](https://github.com/benoitberanger/python-openrecon-server/blob/main/main.py) : Parses command-line arguments and starts the `Server` on the specified host and port.
-- [**client.py**](https://github.com/benoitberanger/python-openrecon-server/blob/main/client.py) : Local test client who reads images from an MRD `.h5` file, sends them to the server, and writes the processed results to a new `.h5` file. Used in place of a physical scanner for local development.
+- [**start_client.py**](https://github.com/benoitberanger/python-openrecon-server/blob/main/start_client.py) : Start a local test client used in place of a physical scanner for local development.
 - [**MRD.Dockerfile**](https://github.com/benoitberanger/python-openrecon-server/blob/main/MRD.Dockerfile) : Base Docker image containing all ISMRMRD Python dependencies.
 - [**Makefile**](https://github.com/benoitberanger/python-openrecon-server/blob/main/Makefile) : Shortcuts for common development tasks (build, run, clean).
 
-- **Server/** :
-    - [**connection.py**](https://github.com/benoitberanger/python-openrecon-server/blob/main/server/connection.py) : `Connection` class responsible of the ISMRMRD network communications between the server and the client. Handles different type of message (config, metadata, images, text, close) as described in the [MRD documentation](https://ismrmrd.readthedocs.io/en/latest/mrd_messages.html).
-    - [**server.py**](https://github.com/benoitberanger/python-openrecon-server/blob/main/server/server.py) : `Server` class that manages the connection lifecycle and dispatches incoming data. _(Currently, only image data is supported,raw k-space and waveform data are not.)_
-    - [**pipeline.py**](https://github.com/benoitberanger/python-openrecon-server/blob/main/server/pipeline.py) : `Pipeline` class that loads and run the application processing module on the received MRD image group, and send back the result.
-    - [**debug.py**](https://github.com/benoitberanger/python-openrecon-server/blob/main/server/debug.py) : Functions for the debug mode.
-    - [**constants.py**](https://github.com/benoitberanger/python-openrecon-server/blob/main/server/constants.py) : MRD message type identifiers definitions used by the connection protocol.
+- **Python_openrecon_server/** :
 
-- **Utils/** :
-    - [**img_array.py**](https://github.com/benoitberanger/python-openrecon-server/blob/main/utils/img_array.py) : Core utilities for organising and accessing the MRD images received.
-    - [**OutputSeries.py**](https://github.com/benoitberanger/python-openrecon-server/blob/main/utils/OutputSeries.py) : `OutputSeries` helper class (and `ProcessImageResult` type alias) used by processing modules to accumulate and return one or more output series.
-    - [**memory.py**](https://github.com/benoitberanger/python-openrecon-server/blob/main/utils/memory.py) : RAM monitoring utilities.
-    - [**utils.py**](https://github.com/benoitberanger/python-openrecon-server/blob/main/utils/utils.py) : `check_OR_arguments()`, `send_original_images()`, `display_diagnostic()`, `normalise()`, `MRD5Dto3D()`.
+    - **Server/** :
+        - [**connection.py**](https://github.com/benoitberanger/python-openrecon-server/blob/main/python_openrecon_server/server/connection.py) : `Connection` class responsible of the ISMRMRD network communications between the server and the client. Handles different type of message (config, metadata, images, text, close) as described in the [MRD documentation](https://ismrmrd.readthedocs.io/en/latest/mrd_messages.html).
+        - [**server.py**](https://github.com/benoitberanger/python-openrecon-server/blob/main/python_openrecon_server/server/server.py) : `Server` class that manages the connection lifecycle and dispatches incoming data. _(Currently, only image data is supported,raw k-space and waveform data are not.)_
+        - [**client.py**](https://github.com/benoitberanger/python-openrecon-server/blob/main/python_openrecon_server/server/client.py) : Client functions who reads images from an MRD .h5 file, sends them to the server, and writes the processed results to a new .h5 file.
+        - [**pipeline.py**](https://github.com/benoitberanger/python-openrecon-server/blob/main/python_openrecon_server/server/pipeline.py) : `Pipeline` class that loads and run the application processing module on the received MRD image group, and send back the result.
+        - [**debug.py**](https://github.com/benoitberanger/python-openrecon-server/blob/main/python_openrecon_server/server/debug.py) : Functions for the debug mode.
+        - [**constants.py**](https://github.com/benoitberanger/python-openrecon-server/blob/main/python_openrecon_server/server/constants.py) : MRD message type identifiers definitions used by the connection protocol.
+
+    - **Utils/** :
+        - [**img_array.py**](https://github.com/benoitberanger/python-openrecon-server/blob/main/python_openrecon_server/utils/img_array.py) : Core utilities for organising and accessing the MRD images received.
+        - [**OutputSeries.py**](https://github.com/benoitberanger/python-openrecon-server/blob/main/python_openrecon_server/utils/OutputSeries.py) : `OutputSeries` helper class (and `ProcessImageResult` type alias) used by processing modules to accumulate and return one or more output series.
+        - [**memory.py**](https://github.com/benoitberanger/python-openrecon-server/blob/main/python_openrecon_server/utils/memory.py) : RAM monitoring utilities.
+        - [**utils.py**](https://github.com/benoitberanger/python-openrecon-server/blob/main/python_openrecon_server/utils/utils.py) : `check_OR_arguments()`, `send_original_images()`, `display_diagnostic()`, `normalise()`, `MRD5Dto3D()`.
 
 - **Apps/** :
     - **demo/** :
@@ -575,7 +575,7 @@ python -m converter.mrd2nifti --out-folder <output_folder> <input.h5>
         - [**OpenReconSchema_1.1.0.json**](https://github.com/benoitberanger/python-openrecon-server/blob/main/apps/echo_sum/OpenReconSchema_1.1.0.json) : JSON schema used to validate the JSON UI file before building.
 
 - **Converter/** :
-Tools to convert between DICOM and MRD format, required for local testing with `client.py`.
+Tools to convert between DICOM and MRD format, required for local testing with `start_client.py`.
     - [**utils.py**](https://github.com/benoitberanger/python-openrecon-server/blob/main/converter/utils.py) : functions shared by the converter scripts below.
     - [**dicom2mrd.py**](https://github.com/benoitberanger/python-openrecon-server/blob/main/converter/dicom2mrd.py) : Converts a folder of classic DICOM files to an MRD `.h5` file.
     - [**enhanceddicom2mrd.py**](https://github.com/benoitberanger/python-openrecon-server/blob/main/converter/enhanceddicom2mrd.py) : Converts enhanced DICOM files to an MRD `.h5` file.

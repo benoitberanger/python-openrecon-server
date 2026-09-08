@@ -3,7 +3,7 @@ import numpy as np
 import pytest
 
 from conftest import FakeImage
-from utils import img_array
+from python_openrecon_server.utils import img_array
 
 
 # ---------------------------------------------------------------------------

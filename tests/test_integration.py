@@ -6,9 +6,9 @@ import ismrmrd
 import numpy as np
 import pytest
 
-from utils.img_array import build_image_array, flatten, get_subarray, stack_images
-from server.connection import Connection
-from server.server import Server
+from python_openrecon_server.utils.img_array import build_image_array, flatten, get_subarray, stack_images
+from python_openrecon_server.server.connection import Connection
+from python_openrecon_server.server.server import Server
 
 
 @pytest.mark.integration
@@ -27,7 +27,7 @@ class TestBuildImageArrayOnRealCapture:
         _, images = mrd_sample_dataset
         arr = build_image_array(images)
 
-        from utils.img_array import mrd_indexes
+        from python_openrecon_server.utils.img_array import mrd_indexes
         for dim in mrd_indexes:
             observed_max = max(getattr(img, dim.name) for img in images)
             assert arr.shape[dim] >= observed_max + 1
@@ -82,7 +82,7 @@ def dummy_app_module():
     module = types.ModuleType("apps.app.dummy_integration_app")
 
     def process_image(img_array, configJSON, metadata):
-        from utils.img_array import flatten, stack_images
+        from python_openrecon_server.utils.img_array import flatten, stack_images
 
         images = flatten(img_array)
         data, head, meta = stack_images(images, dtype=np.float32)
