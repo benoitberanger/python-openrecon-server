@@ -164,8 +164,8 @@ Steps performed:
 
 | Argument      | Description                                              |
 |---------------|----------------------------------------------------------|
-| `--dirname`   | Application directory name. Default: `demo`               |
-| `--pdf-file`  | optional PDF file. Default : `None`
+| `--dirname`   | Application directory name. Default: `demo`              |
+| `--pdf-file`  | optional PDF file. Default : `None`                      |
 | `--debug`     | Embed `--debug` flag in the Dockerfile CMD               |
 | `--nopackage` | Skip `.tar`, PDF and `.zip` packaging (build image only) |
 
@@ -229,10 +229,10 @@ save = check_OR_arguments(configJSON, "SaveOriginal", bool, False)
 The following keys are handled by the pipeline and do not need to be
 read manually in `process_image`:
 
-| Key              | Type     | Default | Description                                |
-|------------------|----------|---------|--------------------------------------------|
-| `"Debug"`        | `bool`   | `False` | Enable debug mode                          |
-| `"SaveOriginal"` | `bool`   | `True`  | Send original images before processed ones |
+| Key              | Type     | Default | Description                                          |
+|------------------|----------|---------|------------------------------------------------------|
+| `"Debug"`        | `bool`   | `False` | Enable debug mode                                    |
+| `"SaveOriginal"` | `bool`   | `True`  | Send original images before processed ones           |
 | `"ImageType"`    | `choice` | `All`   | Select the image type on which to apply process      |
 | `"SelectEcho"`   | `choice` | `All`   | Select the echos on which to apply process           |
 | `"SelectSerie"`  | `choice` | `All`   | Select the series on which to apply process          |
@@ -438,10 +438,58 @@ python -m converter.enhanceddicom2mrd <folder of DICOMs> -o <outfile>
 python start_client.py -o <output.h5> <input.h5>
 ```
 
+Available arguments:
+
+| Argument                | Default                 | Description                                                             |
+|-------------------------|-------------------------|-------------------------------------------------------------------------|
+| `filename` (positional) | —                       | Input MRD `.h5` file                                                    |
+| `-a`, `--address`       | `localhost`             | Server hostname / IP address                                            |
+| `-p`, `--port`          | `9002`                  | Server TCP port                                                         |
+| `-o`, `--outfile`       | `<filename>_results.h5` | Output `.h5` file                                                       |
+| `-g`, `--in-group`      | *(auto-detected)*       | HDF5 group to read from the input file                                  |
+| `-G`, `--out-group`     | current timestamp       | HDF5 group name used in the output file                                 |
+| `-c`, `--config-json`   | `None`                  | Path to a JSON file with additional OpenRecon UI parameters (see below) |
+| `-w`, `--send-waveforms`| `False`                 | Also send waveform data, if present                                     |
+| `-v`, `--verbose`       | `False`                 | Verbose logging                                                         |
+| `-l`, `--logfile`       | —                       | Path to log file                                                        |
+
 4. The output `.h5` file can be converted back to DICOM for visualisation :
 ```bash
 python -m converter.mrd2dicom -o <outdir> <mrdfile>.h5
 ```
+
+### Simulating the OpenRecon UI parameters with  (`--config-json`)
+ 
+On the scanner, the parameters a user selects in the OpenRecon UI (as declared in `<name>_json_ui.json`) are sent by the scanner to the server as an additional JSON text message, right after the MRD XML header. That message is what ends up in the `configJSON` argument received by `process_image()` (see [Accessing OpenRecon JSON UI Configuration](#accessing-openrecon-json-ui-configuration)).
+ 
+`start_client.py` can reproduce this behaviour locally with the `-c` / `--config-json` option, so a processing module can be tested with specific configuration which a user could select on the scanner:
+ 
+```bash
+python start_client.py -c openrecon.json -o <output.h5> <input.h5>
+```
+ 
+The JSON file must follow the same structure expected by `check_OR_arguments()` on the server side, a `"parameters"` object mapping parameter IDs (as declared in `<name>_json_ui.json`) to their value, sent as a string, exactly as OpenRecon does at runtime:
+ 
+```json
+{
+    "parameters": {
+        "SaveOriginal": "true",
+        "Debug": "false",
+        "ImageType": "Magnitude",
+        "SelectEcho": "All",
+        "SelectSerie": "All"
+    }
+}
+```
+ 
+`start_client.py` resolves the additional config it actually sends in this order:
+ 
+1. If `-c`/`--config-json` points to an existing file, its contents are sent as-is.
+2. Otherwise, if the input MRD `.h5` file itself already contains a `configAdditional` group that embedded configuration is sent instead.
+3. If neither is available, no additional config message is sent at all, and the server falls back to the default value of each [reserved key](#reserved-keys) (and to whatever default your own `process_image()` uses for `check_OR_arguments()` calls).
+
+> _If both a local `-c` file and an embedded `configAdditional` group are present, the local file takes priority; a warning is logged to make this override explicit._
+
 
 ### Testing with Docker
 
@@ -481,20 +529,20 @@ pytest -v
  
 Markers are declared in [`pytest.ini`](https://github.com/benoitberanger/python-openrecon-server/blob/main/pytest.ini):
  
-| Marker        | Meaning                                                                 |
-|---------------|--------------------------------------------------------------------------|
+| Marker        | Meaning                                                                |
+|---------------|------------------------------------------------------------------------|
 | `integration` | End-to-end tests exercising real sockets and/or real MRD sample files. |
  
 Tests using the `mrd_sample_dataset` / `mrd_sample_path` fixtures (see [`conftest.py`](https://github.com/benoitberanger/python-openrecon-server/blob/main/conftest.py)) expect real MRD `.h5` sample files under `data/MRD_in/` at the repository root. If that folder is absent or empty, those tests are automatically skipped by pytest rather than failing.
  
 Useful fixtures provided by `conftest.py`:
  
-| Fixture                                 | Purpose                                                                 |
-|------------------------------------------|--------------------------------------------------------------------------|
-| `make_image` / `make_header`            | Build real `ismrmrd.Image` / `ismrmrd.ImageHeader` objects for tests.  |
+| Fixture                                  | Purpose                                                                                                   |
+|------------------------------------------|-----------------------------------------------------------------------------------------------------------|
+| `make_image` / `make_header`             | Build real `ismrmrd.Image` / `ismrmrd.ImageHeader` objects for tests.                                     |
 | `fake_connection`                        | Minimal `Connection` double exposing only `send_image`/`send_logging`/`send_close`, for `Pipeline` tests. |
 | `socketpair`                             | A real connected pair of `AF_UNIX` sockets, standing in for the TCP client/server socket, for `Connection`/`Server` integration tests. |
-| `mrd_sample_dataset` / `mrd_sample_path` | Real captured MRD `.h5` samples, parametrized automatically across every file found in `data/MRD_in/`. |
+| `mrd_sample_dataset` / `mrd_sample_path` | Real captured MRD `.h5` samples, parametrized automatically across every file found in `data/MRD_in/`.    |
 
 
 ## Converter
