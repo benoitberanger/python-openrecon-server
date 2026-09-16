@@ -5,11 +5,12 @@ VERSION=v1.0.4
 # --- Default parameters for server (main.py) ---------------------------------
 CONFIG      ?= invertContrast
 APP_DIR     ?= demo
-LOGFILE		=test/test.log
+LOGFILE		= test/test.log
 
 # --- Parameters for local test -----------------------------------------------
-IN_DIR=data/in
-OUT_DIR=data/out
+IN_DIR		= data/in
+OUT_DIR		= data/out
+JSONFILE	?= openrecon.json
 
 
 DATASET_NAME=test
@@ -38,7 +39,7 @@ all: build run
 
 build:
 	@echo "Building Server Docker Image"
-	python build.py
+	python build.py --dirname ${APP_DIR}
 
 build-nopackage:
 	@echo "Building Server Docker Image without packaging step"
@@ -59,7 +60,7 @@ server:
 client:
 	@echo "Starting Client"
 	rm -f ${OUT_DIR}/*dcm ${OUT_DIR}/*h5
-	python start_client.py -c openrecon.json -o ${OUT_DIR}/OR_${DATASET_NAME}.h5 ${IN_DIR}/${DATASET_NAME}.h5
+	python start_client.py $(if $(JSONFILE),-c $(JSONFILE),) -o ${OUT_DIR}/OR_${DATASET_NAME}.h5 ${IN_DIR}/${DATASET_NAME}.h5
 	python -m converter.mrd2dicom -o ${OUT_DIR}/ ${OUT_DIR}/OR_${DATASET_NAME}.h5
 
 view:

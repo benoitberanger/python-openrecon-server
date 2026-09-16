@@ -1,10 +1,10 @@
 # local stuff
-build/
-data/
-docs/
-tests/
-ExampleData/
+builds/
 build.py
+data/
+ExampleData/
+localtest_*
+*.json
 
 # Git
 .git
@@ -67,7 +67,9 @@ htmlcov/
 nosetests.xml
 coverage.xml
 test/
+tests/
 .pytest_cache/
+pytest.ini
 
 # Translations
 *.mo
@@ -77,7 +79,7 @@ test/
 *.log
 
 # Sphinx documentation
-docs/_build/
+docs/
 
 # PyBuilder
 target/
